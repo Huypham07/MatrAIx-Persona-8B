@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shutil
@@ -57,6 +58,8 @@ AUTO_TRIAL_PROFILE_BY_TYPE: dict[str, str] = {
     "web": "docker_agent",
     "os-app": "docker_agent",
 }
+
+logger = logging.getLogger(__name__)
 
 
 def _should_use_local_distributed_harbor(
@@ -1541,13 +1544,13 @@ class HarborJobService:
 
             maybe_run_host_verifier(repo_root=self.repo_root, trial_dir=trial_dir)
         except Exception:
-            pass
+            logger.exception("host_verifier failed for trial %s", trial_dir)
         try:
             from playground.post_run_feedback import maybe_write_trial_user_feedback
 
             maybe_write_trial_user_feedback(repo_root=self.repo_root, trial_dir=trial_dir)
         except Exception:
-            pass
+            logger.exception("post_run_feedback failed for trial %s", trial_dir)
 
     def _score_new_finished_trials_on_host(
         self, job_name: str, *, already_scored: set[str]
@@ -1600,6 +1603,7 @@ class HarborJobService:
             try:
                 maybe_run_host_verifier(repo_root=self.repo_root, trial_dir=trial_dir)
             except Exception:
+                logger.exception("host_verifier rescue failed for trial %s", trial_dir)
                 continue
 
     def _maybe_generate_post_run_feedback(self, job_name: str) -> None:
@@ -1612,6 +1616,7 @@ class HarborJobService:
             try:
                 maybe_write_trial_user_feedback(repo_root=self.repo_root, trial_dir=trial_dir)
             except Exception:
+                logger.exception("post_run_feedback rescue failed for trial %s", trial_dir)
                 continue
 
     def get_trial_events(
