@@ -7,7 +7,7 @@ import argparse
 import json
 from pathlib import Path
 
-from personabench.persona_grounding import (
+from matraix.persona_grounding import (
     build_job_grounding_report,
     discover_trial_dirs,
     load_trial_grounding,

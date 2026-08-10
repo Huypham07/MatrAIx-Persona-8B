@@ -10,14 +10,14 @@ from pathlib import Path
 
 import yaml
 
-from personabench.persona_job import (
+from matraix.persona_job import (
     DEFAULT_DATASET,
     DEFAULT_STRATIFY_FIELDS,
     SMOKE_PERSONA_PATH,
     build_job_config,
     parse_stratify_field_args,
 )
-from personabench.task_catalog import (
+from matraix.task_catalog import (
     confounder_values_from_grounding,
     get_task_grounding_spec,
 )
