@@ -64,7 +64,6 @@ def test_runtime_import_excludes_raw_snapshot_directories() -> None:
     apps_dir = ROOT / "apps"
     if apps_dir.exists():
         assert sorted(path.name for path in apps_dir.iterdir()) == [
-            "README.md",
             "viewer",
         ]
 
