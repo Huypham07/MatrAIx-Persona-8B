@@ -13,7 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from personabench.persona_display_name import synthetic_display_name  # noqa: E402
+from matraix.persona_display_name import synthetic_display_name  # noqa: E402
 
 POOL_DIR = REPO_ROOT / "persona" / "datasets" / "matraix-persona-dev-sample"
 MANIFEST_PATH = POOL_DIR / "manifest.json"

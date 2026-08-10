@@ -16,9 +16,9 @@ import json
 import re
 from pathlib import Path
 
-from personabench.persona_consistency import validate_dimensions
-from personabench.persona_dimension_catalog import values_for_dimension
-from personabench.persona_generator import (
+from matraix.persona_consistency import validate_dimensions
+from matraix.persona_dimension_catalog import values_for_dimension
+from matraix.persona_generator import (
     PERSONA_SOURCES,
     build_filter_strata,
     build_probe_strata,
@@ -26,7 +26,7 @@ from personabench.persona_generator import (
     generate_persona_pool,
     write_persona_dataset,
 )
-from personabench.task_catalog import (
+from matraix.task_catalog import (
     confounder_values_from_grounding,
     get_task_grounding_spec,
     probe_dimension_from_grounding,

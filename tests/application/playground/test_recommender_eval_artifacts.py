@@ -169,7 +169,7 @@ def test_build_recommender_simulation_prompt_is_task_specific() -> None:
         goal_context_description="Reveal preferences gradually.",
     )
 
-    assert "Harbor supplies the persona system prompt" in prompt
+    assert "Harbor supplies who you are" in prompt
     assert "You are testing a game recommendation system" in prompt
     assert '"domain": "game"' in prompt
     assert "at least three user turns and three assistant turns" in prompt
