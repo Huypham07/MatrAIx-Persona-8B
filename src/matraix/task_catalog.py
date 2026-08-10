@@ -1,12 +1,9 @@
-"""Canonical metadata for Playground example tasks (application + persona bench).
+"""Canonical metadata for Playground application tasks (+ persona bench).
 
-Application scenarios and persona bench tasks can share a folder slug (e.g.
-``example-survey_product-feedback``) but use separate catalogs:
-``APPLICATION_TASK_METADATA`` (FocusLoop open-text survey) vs
-``PERSONA_BENCH_TASK_METADATA`` (ClearQueue MCQ bench with grounding).
+``APPLICATION_TASK_METADATA`` keys must match ``application/tasks/<dirname>/``
+folders that ship in this public tree (one entry per task directory).
 
-Domain / vertical (first focus set):
-  software | finance | healthcare | commerce-retail | arts-culture
+Domain / vertical labels mirror each task's ``task.toml`` ``[metadata].domain``.
 
 Tags are **task topic** labels (what the scenario is about). Use short
 human-readable phrases (spaces allowed). Do not repeat ``type`` / ``domain``.
@@ -29,20 +26,36 @@ from typing import Any, cast
 
 DOMAIN_SOFTWARE = "software"
 DOMAIN_FINANCE = "finance"
+DOMAIN_FINANCE_RESEARCH = "finance-research"
 DOMAIN_HEALTHCARE = "healthcare"
+DOMAIN_COMMERCE = "commerce"
 DOMAIN_COMMERCE_RETAIL = "commerce-retail"
 DOMAIN_ARTS_CULTURE = "arts-culture"
+DOMAIN_EDUCATION = "education"
 
 APPLICATION_TASK_METADATA: dict[str, dict[str, object]] = {
-    "example-survey_product-feedback": {
-        "type": "survey",
-        "domain": DOMAIN_SOFTWARE,
+    "chat_meal-planning-nutrition": {
+        "type": "chatbot",
+        "domain": DOMAIN_HEALTHCARE,
         "tags": [
-            "FocusLoop",
-            "product concept",
-            "family calendar",
-            "household coordination",
-            "subscription pricing",
+            "nutrition",
+            "meal planning",
+            "dietary adherence",
+            "health coaching",
+            "multi turn chat",
+            "personalized recommendations",
+        ],
+    },
+    "chat_openbb-corporate-action-honesty": {
+        "type": "chatbot",
+        "domain": DOMAIN_FINANCE_RESEARCH,
+        "tags": [
+            "corporate-action honesty",
+            "ticker failure modes",
+            "HCP ANSS CMG LAZR",
+            "wouldStillContinueUse",
+            "openbb",
+            "multi turn chat",
         ],
     },
     "example-chat-api_support_chatbot": {
@@ -67,157 +80,45 @@ APPLICATION_TASK_METADATA: dict[str, dict[str, object]] = {
             "delivery investigation",
         ],
     },
-    "chat_recai": {
-        "type": "chatbot",
-        "domain": DOMAIN_COMMERCE_RETAIL,
+    "example-computer-use-ios_photo-access-review": {
+        "type": "os-app",
+        "domain": DOMAIN_SOFTWARE,
         "tags": [
-            "recommender agent",
-            "conversational recommendation",
-            "product discovery",
-            "multi turn chat",
-            "recommendation grounding",
+            "photo permissions",
+            "privacy settings",
+            "app access review",
+            "system settings",
         ],
     },
-    "chat_openbb": {
-        "type": "chatbot",
-        "domain": DOMAIN_FINANCE,
+    "example-computer-use-linux_note-to-csv": {
+        "type": "os-app",
+        "domain": DOMAIN_SOFTWARE,
         "tags": [
-            "financial research",
-            "openbb",
-            "equity analysis",
-            "multi turn chat",
+            "file transform",
+            "csv creation",
+            "desktop editor",
+            "structured output",
         ],
     },
-    "chat_multi-agent-medical-assistant": {
-        "type": "chatbot",
-        "domain": DOMAIN_HEALTHCARE,
+    "example-computer-use-macos_calendar-reminder-handoff": {
+        "type": "os-app",
+        "domain": DOMAIN_SOFTWARE,
         "tags": [
-            "medical assistant",
-            "health information",
-            "triage guidance",
-            "multi turn chat",
+            "calendar planning",
+            "reminders handoff",
+            "cross app workflow",
+            "desktop productivity",
         ],
     },
-    "chat_meal-planning-nutrition": {
-        "type": "chatbot",
-        "domain": DOMAIN_HEALTHCARE,
+    "example-survey_product-feedback": {
+        "type": "survey",
+        "domain": DOMAIN_SOFTWARE,
         "tags": [
-            "nutrition",
-            "meal planning",
-            "dietary adherence",
-            "health coaching",
-            "multi turn chat",
-            "personalized recommendations",
-        ],
-    },
-    "chat_prescreening-01-diabetes": {
-        "type": "chatbot",
-        "domain": DOMAIN_HEALTHCARE,
-        "tags": [
-            "type 2 diabetes",
-            "A1c boundary values",
-            "insulin pump exclusion",
-            "eligibility screening",
-        ],
-    },
-    "chat_prescreening-02-hypertension": {
-        "type": "chatbot",
-        "domain": DOMAIN_HEALTHCARE,
-        "tags": [
-            "hypertension",
-            "medication count threshold",
-            "atrial fibrillation exclusion",
-            "eligibility screening",
-        ],
-    },
-    "chat_prescreening-03-migraine": {
-        "type": "chatbot",
-        "domain": DOMAIN_HEALTHCARE,
-        "tags": [
-            "episodic migraine",
-            "headache day counting",
-            "medication overuse",
-            "eligibility screening",
-        ],
-    },
-    "chat_prescreening-04-sleep-apnea": {
-        "type": "chatbot",
-        "domain": DOMAIN_HEALTHCARE,
-        "tags": [
-            "sleep apnea",
-            "CPAP adherence",
-            "inverted inclusion criterion",
-            "eligibility screening",
-        ],
-    },
-    "chat_prescreening-05-knee-oa": {
-        "type": "chatbot",
-        "domain": DOMAIN_HEALTHCARE,
-        "tags": [
-            "knee osteoarthritis",
-            "pain score window",
-            "mobility aid rules",
-            "eligibility screening",
-        ],
-    },
-    "chat_prescreening-06-smoking": {
-        "type": "chatbot",
-        "domain": DOMAIN_HEALTHCARE,
-        "tags": [
-            "smoking cessation",
-            "cigarettes per day floor",
-            "recent MI safety window",
-            "eligibility screening",
-        ],
-    },
-    "chat_prescreening-07-insomnia": {
-        "type": "chatbot",
-        "domain": DOMAIN_HEALTHCARE,
-        "tags": [
-            "insomnia",
-            "CBT-I",
-            "treated vs untreated apnea",
-            "eligibility screening",
-        ],
-    },
-    "chat_prescreening-08-cardiac-rehab": {
-        "type": "chatbot",
-        "domain": DOMAIN_HEALTHCARE,
-        "tags": [
-            "cardiac rehabilitation",
-            "event recency window",
-            "symptom trap",
-            "eligibility screening",
-        ],
-    },
-    "chat_prescreening-09-afib": {
-        "type": "chatbot",
-        "domain": DOMAIN_HEALTHCARE,
-        "tags": [
-            "atrial fibrillation screening",
-            "inverted exclusion criterion",
-            "anticoagulant vs aspirin",
-            "eligibility screening",
-        ],
-    },
-    "chat_prescreening-10-asthma": {
-        "type": "chatbot",
-        "domain": DOMAIN_HEALTHCARE,
-        "tags": [
-            "asthma",
-            "controller vs reliever inhaler",
-            "asthma vs COPD",
-            "eligibility screening",
-        ],
-    },
-    "example-web-playwright_quote-choice": {
-        "type": "web",
-        "domain": DOMAIN_ARTS_CULTURE,
-        "tags": [
-            "quotes toscrape",
-            "quote shortlist",
-            "values preference",
-            "playwright dom browsing",
+            "FocusLoop",
+            "product concept",
+            "family calendar",
+            "household coordination",
+            "subscription pricing",
         ],
     },
     "example-web-browser-use_laptop-choice": {
@@ -250,34 +151,80 @@ APPLICATION_TASK_METADATA: dict[str, dict[str, object]] = {
             "desktop browser choice",
         ],
     },
-    "example-computer-use-macos_calendar-reminder-handoff": {
-        "type": "os-app",
-        "domain": DOMAIN_SOFTWARE,
+    "example-web-playwright_quote-choice": {
+        "type": "web",
+        "domain": DOMAIN_ARTS_CULTURE,
         "tags": [
-            "calendar planning",
-            "reminders handoff",
-            "cross app workflow",
-            "desktop productivity",
+            "quotes toscrape",
+            "quote shortlist",
+            "values preference",
+            "playwright dom browsing",
         ],
     },
-    "example-computer-use-ios_photo-access-review": {
+    "os-app-ios_news-subscription-decision": {
         "type": "os-app",
         "domain": DOMAIN_SOFTWARE,
         "tags": [
-            "photo permissions",
-            "privacy settings",
-            "app access review",
-            "system settings",
+            "apple news",
+            "News+",
+            "subscription conversion",
+            "Get Started",
+            "features and pricing",
+            "offer page browse",
         ],
     },
-    "example-computer-use-linux_note-to-csv": {
+    "os-app-macos_stocks-mu-sentiment": {
         "type": "os-app",
+        "domain": DOMAIN_FINANCE,
+        "tags": [
+            "stocks",
+            "investment sentiment",
+            "chart analysis",
+            "news reading",
+            "buy sell hold",
+        ],
+    },
+    "survey_annual-checkup-habits": {
+        "type": "survey",
+        "domain": DOMAIN_HEALTHCARE,
+        "tags": [
+            "annual",
+            "checkup",
+            "habits",
+        ],
+    },
+    "survey_price-sensitivity-hasbro-gaming-candy-land": {
+        "type": "survey",
+        "domain": DOMAIN_COMMERCE,
+        "tags": [
+            "price sensitivity",
+            "toys and games",
+            "retail",
+            "product perturbation",
+        ],
+    },
+    "web_mit-ocw-course-choice": {
+        "type": "web",
+        "domain": DOMAIN_EDUCATION,
+        "tags": [
+            "mit opencourseware",
+            "course choice",
+            "self-directed learning",
+            "persona-sensitive comparison",
+            "playwright dom browsing",
+        ],
+    },
+    "web_notion-plan-comparison": {
+        "type": "web",
         "domain": DOMAIN_SOFTWARE,
         "tags": [
-            "file transform",
-            "csv creation",
-            "desktop editor",
-            "structured output",
+            "notion",
+            "workspace software",
+            "pricing plan comparison",
+            "personal and organization context",
+            "budget sensitivity",
+            "persona-sensitive comparison",
+            "playwright dom browsing",
         ],
     },
 }
