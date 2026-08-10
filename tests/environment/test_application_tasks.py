@@ -11,7 +11,7 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_SURVEY = ROOT / "application/tasks/example-survey_product-feedback"
-RECOMMENDER_CHAT = ROOT / "application/tasks/chat_recai"
+EXAMPLE_CHAT = ROOT / "application/tasks/example-chat-api_support_chatbot"
 TASK_SPEC_ROOT = ROOT / "application/task-spec"
 
 
@@ -73,42 +73,36 @@ def test_example_survey_verifier_accepts_minimal_valid_result(tmp_path: Path) ->
     assert payload["sourceArtifacts"]["surveyResult"] == "/app/output/survey_result.json"
 
 
-def test_recommender_chat_task_metadata_is_clean() -> None:
-    task_text = (RECOMMENDER_CHAT / "task.toml").read_text(encoding="utf-8")
+def test_example_chat_task_metadata_is_clean() -> None:
+    task_text = (EXAMPLE_CHAT / "task.toml").read_text(encoding="utf-8")
     task = tomllib.loads(task_text)
 
-    assert task["task"]["name"] == "application/recai"
+    assert task["task"]["name"] == "application/api-support-chatbot"
     assert task["metadata"]["type"] == "chatbot"
     assert task["metadata"]["domain"] == "commerce-retail"
     assert "matraix/" not in task_text.lower()
 
-    readme = (RECOMMENDER_CHAT / "README.md").read_text(encoding="utf-8")
-    assert "applications/recommendation_chatbot_eval" not in readme
-    assert "--persona-ids 0042" in readme
-    assert "chat-recai-auto-n1.yaml" in readme
+    readme = (EXAMPLE_CHAT / "README.md").read_text(encoding="utf-8")
+    assert "example-chat-mcp_support_chatbot" in readme
 
 
-def test_recommender_chat_verifier_accepts_minimal_valid_result(tmp_path: Path) -> None:
+def test_example_chat_verifier_accepts_minimal_valid_result(tmp_path: Path) -> None:
     output_dir = tmp_path / "output"
     output_dir.mkdir()
-    session_id = "session-123"
     messages = [
-        {"role": "user", "content": "I want a thoughtful movie for a quiet night."},
-        {"role": "assistant", "content": "Do you prefer drama, comedy, or sci-fi?"},
-        {"role": "user", "content": "Drama, but not too bleak."},
-        {"role": "assistant", "content": "I can look for warm dramas with strong characters."},
-        {"role": "user", "content": "A recent film would be best."},
-        {"role": "assistant", "content": "Past Lives is a good fit."},
+        {"role": "customer", "content": "Where is my package for order 4521?"},
+        {
+            "role": "support",
+            "content": "Order #4521 is still in transit. Is the shipping address still correct?",
+        },
+        {"role": "customer", "content": "Yes, the address is correct."},
+        {
+            "role": "support",
+            "content": "Thanks for confirming. Delivery is expected within 1-2 business days.",
+        },
     ]
     (output_dir / "transcript.json").write_text(
-        json.dumps(
-            {
-                "sessionId": session_id,
-                "domain": "movie",
-                "messages": messages,
-                "turns": [],
-            }
-        ),
+        json.dumps({"messages": messages}),
         encoding="utf-8",
     )
     (output_dir / "user_feedback.json").write_text(
@@ -117,16 +111,16 @@ def test_recommender_chat_verifier_accepts_minimal_valid_result(tmp_path: Path) 
                 "needConstraintSatisfaction": "yes",
                 "personalPreferenceSatisfaction": "partially",
                 "overallExperienceRating": 8,
-                "reason": "The recommendation fit the quiet drama request.",
+                "reason": "Support confirmed tracking for order 4521.",
                 "askedUsefulClarificationQuestions": True,
             }
         ),
         encoding="utf-8",
     )
 
-    verifier_path = RECOMMENDER_CHAT / "tests/test_state.py"
+    verifier_path = EXAMPLE_CHAT / "tests/test_state.py"
     spec = importlib.util.spec_from_file_location(
-        "recommender_chat_test_state", verifier_path
+        "example_chat_test_state", verifier_path
     )
     assert spec is not None
     module = importlib.util.module_from_spec(spec)
@@ -144,44 +138,24 @@ def test_recommender_chat_verifier_accepts_minimal_valid_result(tmp_path: Path) 
     assert payload["sourceArtifacts"]["transcript"] == "/app/output/transcript.json"
 
 
-def test_recommender_chat_sidecar_contract() -> None:
+def test_example_chat_sidecar_contract() -> None:
     from harbor.environments.compose_materialize import resolve_task_environments_path
 
-    task_paths = TaskPaths.from_task_dir(RECOMMENDER_CHAT)
+    task_paths = TaskPaths.from_task_dir(EXAMPLE_CHAT)
     repo_root = task_paths._find_repository_root()
     assert repo_root is not None
-    raw = tomllib.loads((RECOMMENDER_CHAT / "task.toml").read_text(encoding="utf-8"))
+    raw = tomllib.loads((EXAMPLE_CHAT / "task.toml").read_text(encoding="utf-8"))
     local_compose = raw["environment"]["local_compose"]
-    server_path = (
-        resolve_task_environments_path(repo_root, local_compose)
-        / "recommender-api"
-        / "server.py"
-    )
-    spec = importlib.util.spec_from_file_location("recommender_api_server", server_path)
-    assert spec is not None
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(module)
+    sidecar_root = resolve_task_environments_path(repo_root, local_compose)
+    server_path = sidecar_root / "support-api" / "server.py"
+    compose_path = sidecar_root / "docker-compose.yaml"
 
-    session = module.create_session("movie")
-    first_turn = module.post_message(
-        session["sessionId"], "I want a warm, character-driven movie."
-    )
-    second_turn = module.post_message(
-        session["sessionId"], "Please avoid bleak endings."
-    )
-    third_turn = module.post_message(session["sessionId"], "Something recent is ideal.")
-
-    assert first_turn["reply"]
-    assert second_turn["reply"]
-    assert third_turn["recommendedItems"]
-
-    conversation = module.get_conversation(session["sessionId"])
-    recommendations = module.get_recommendations(session["sessionId"])
-
-    assert len(conversation["messages"]) == 6
-    assert recommendations["total"] >= 1
-    assert recommendations["recommendedItems"][0]["itemId"].startswith("movie-")
+    assert server_path.is_file()
+    assert compose_path.is_file()
+    server_source = server_path.read_text(encoding="utf-8")
+    assert '@app.post("/v1/messages")' in server_source
+    assert '@app.get("/v1/conversation")' in server_source
+    assert "def _bot_reply" in server_source
 
 
 def test_application_task_spec_manifest_uses_clean_task_paths() -> None:
@@ -198,7 +172,7 @@ def test_application_task_spec_manifest_uses_clean_task_paths() -> None:
         "application/tasks/example-survey_product-feedback"
     )
     assert manifest["applicationTypes"]["chatbot"]["canonicalTask"] == (
-        "application/tasks/chat_recai"
+        "application/tasks/example-chat-api_support_chatbot"
     )
     assert manifest["applicationTypes"]["web"]["canonicalTask"] == (
         "application/tasks/example-web-playwright_quote-choice"

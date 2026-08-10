@@ -34,7 +34,6 @@ jobs:
           uv pip install -e packages/playground
           uv pip install -e packages/harbor-langsmith
           uv pip install -e packages/rewardkit
-          uv pip install -e environment/adapters/simpleqa
           uv pip install pytest pytest-asyncio httpx
 
       - name: Guard against retired personabench imports

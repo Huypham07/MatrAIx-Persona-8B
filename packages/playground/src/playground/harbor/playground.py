@@ -301,8 +301,7 @@ def build_chatbot_simulation_prompt(
 Silently decide what you realistically want from this system and which
 constraints or preferences matter to you. Start the conversation naturally.
 Do not reveal everything at once. Let the system ask follow-up questions,
-answer as yourself, and give feedback when a response does not fit. Keep
-messages short and conversational (1-3 sentences), and avoid analytical
+answer as yourself, and give feedback when a response does not fit. Keep messages short and conversational (1-3 sentences), and avoid analytical
 monologues or explaining your hidden reasoning. Continue until you can judge
 whether the system satisfied your need.{turn_limit}
 

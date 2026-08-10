@@ -58,7 +58,7 @@ Templates:
 
 Full guide: [`chatbot/README.md`](../chatbot/README.md)
 
-Canonical task: `application/tasks/chat_recai`
+Canonical task: `application/tasks/example-chat-api_support_chatbot`
 
 | Context type | Required | Standard facet keys |
 |---|---|---|

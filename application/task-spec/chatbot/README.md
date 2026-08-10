@@ -3,7 +3,7 @@
 Chatbot tasks let the simulated user interact with an application exposed
 through a chat API.
 
-**Canonical copy-from:** `application/tasks/chat_recai`
+**Canonical copy-from:** `application/tasks/example-chat-api_support_chatbot`
 
 ### What you author (required vs optional)
 
@@ -371,11 +371,11 @@ See the example templates in this folder:
 
 ## Canonical Task
 
-`application/tasks/chat_recai`
+`application/tasks/example-chat-api_support_chatbot`
 
-The recommender task hosts a small REST sidecar that follows the same contract
-as heavier chatbot applications: session creation, message exchange,
-conversation export, and final recommendation export.
+The support chat task hosts a small REST sidecar that follows the same contract
+as heavier chatbot applications: health/ready checks, message exchange, and
+conversation export.
 
 Shared chatbot persona agent runtime:
 

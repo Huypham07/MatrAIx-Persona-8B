@@ -66,7 +66,6 @@ uv pip install pytest pytest-asyncio httpx
 uv pip install -e packages/playground
 uv pip install -e packages/harbor-langsmith
 uv pip install -e packages/rewardkit
-uv pip install -e environment/adapters/simpleqa
 ```
 
 All Matraix Playground commands run as **`uv run harbor …`**.
