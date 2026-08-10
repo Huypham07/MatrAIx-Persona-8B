@@ -97,7 +97,8 @@ Details: [Handbook § Persona 1M](docs/README.md#3-persona-1m-optional).
 
 ### Smoke test
 
-No API key required:
+No API key required. **Requires Docker** (the smoke job uses
+`environment.type: docker`):
 
 ```bash
 uv run harbor run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
