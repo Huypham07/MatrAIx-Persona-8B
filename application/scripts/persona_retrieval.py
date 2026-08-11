@@ -24,6 +24,7 @@ class PersonaRetrievalPlan:
     dimension_filters: dict[str, list[str]] = field(default_factory=dict)
     stratify_fields: list[str] = field(default_factory=list)
     sample_size_per_value_group: int | None = None
+    allocation: str | None = None
     cohort_id: str | None = None
     persona_ids: list[str] = field(default_factory=list)
     strategy_path: str | None = None
@@ -140,6 +141,7 @@ def build_retrieval_plan(
     filters: dict[str, list[str]] | None = None,
     stratify_fields: list[str] | None = None,
     sample_size_per_value_group: int | None = None,
+    allocation: str | None = None,
     cohort_id: str | None = None,
     use_strategy: bool = True,
     strategy_path: str | None = None,
@@ -171,16 +173,18 @@ def build_retrieval_plan(
     cli_sources = [str(s).strip() for s in (sources or []) if str(s).strip()]
     resolved_sources = cli_sources if cli_sources else strategy_sources
 
+    sampling = dict(strategy.get("sampling") or {})
+    sampling_mode = str(sampling.get("mode") or "").strip().lower()
     strategy_stratify = [
-        str(field).strip() for field in (strategy.get("stratifyFields") or []) if str(field).strip()
+        str(field).strip() for field in (sampling.get("fields") or []) if str(field).strip()
     ]
+    strategy_allocation = str(sampling.get("allocation") or "").strip() or None
     if stratify_fields is not None:
         resolved_stratify = [
             str(field).strip() for field in stratify_fields if str(field).strip()
         ]
     else:
-        default_mode = str(strategy.get("defaultMode") or "").strip().lower()
-        if default_mode == "stratified" or strategy_stratify:
+        if sampling_mode == "stratified" or strategy_stratify:
             resolved_stratify = strategy_stratify
         else:
             resolved_stratify = []
@@ -192,19 +196,36 @@ def build_retrieval_plan(
     )
     resolved_seed = seed if seed is not None else int(strategy.get("seed") or 42)
 
-    strategy_sample = strategy.get("sampleSize")
-    resolved_sample = (
-        sample_size
-        if sample_size is not None
-        else (int(strategy_sample) if isinstance(strategy_sample, int) else 1)
-    )
+    strategy_sample = sampling.get("sampleSize")
+    strategy_per_cell = sampling.get("perCell")
+    if sampling_mode == "all" and sample_size is None:
+        # Caller should treat all specially; keep a sentinel floor for plan.
+        resolved_sample = 1
+    else:
+        resolved_sample = (
+            sample_size
+            if sample_size is not None
+            else (int(strategy_sample) if isinstance(strategy_sample, int) else 1)
+        )
     if resolved_sample < 1:
         resolved_sample = 1
 
-    strategy_per_cell = strategy.get("sampleSizePerValueGroup")
     resolved_per_cell = sample_size_per_value_group
     if resolved_per_cell is None and isinstance(strategy_per_cell, int):
         resolved_per_cell = strategy_per_cell
+    if resolved_per_cell is None and strategy_allocation == "perCell":
+        resolved_per_cell = 1
+
+    resolved_allocation = allocation or strategy_allocation
+    if resolved_stratify and not resolved_allocation:
+        resolved_allocation = "perCell" if resolved_per_cell is not None else "equalTotal"
+    if not resolved_stratify:
+        resolved_allocation = None
+        resolved_per_cell = None
+    if resolved_allocation == "perCell" and resolved_per_cell is None:
+        resolved_per_cell = 1
+    if resolved_allocation in {"proportional", "equalTotal"}:
+        resolved_per_cell = None
 
     return PersonaRetrievalPlan(
         persona_pool=resolved_pool,
@@ -214,6 +235,7 @@ def build_retrieval_plan(
         dimension_filters=merged_filters,
         stratify_fields=resolved_stratify,
         sample_size_per_value_group=resolved_per_cell,
+        allocation=resolved_allocation,
         cohort_id=resolved_cohort,
         persona_ids=cli_ids,
         strategy_path=strategy_rel,
@@ -277,6 +299,7 @@ def retrieve_personas(
         dimension_filters=plan.dimension_filters or None,
         stratify_fields=plan.stratify_fields or None,
         sample_size_per_value_group=plan.sample_size_per_value_group,
+        allocation=plan.allocation,
         task_path=task_path,
     )
     persona_ids = [str(pid) for pid in (sampled.get("personaIds") or []) if str(pid).strip()]
@@ -290,7 +313,7 @@ def retrieve_personas(
         seed=int(sampled.get("seed") or plan.seed),
         sources=list(plan.sources),
         dimension_filters=dict(plan.dimension_filters),
-        stratify_fields=list(sampled.get("stratifyFields") or plan.stratify_fields),
+        stratify_fields=list(sampled.get("fields") or plan.stratify_fields),
         cohort_id=plan.cohort_id,
         strategy_path=plan.strategy_path,
     )

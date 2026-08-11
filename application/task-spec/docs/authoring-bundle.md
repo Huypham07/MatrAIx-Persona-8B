@@ -77,54 +77,61 @@ Lives at the **task root** next to `reporting.json`. Most tasks declare a
 **target cohort** with `dimensionFilters` (and/or `cohortId`). Field values may
 use defaults; the file itself and a cohort declaration are checked in CI.
 
-Playground uses this for Random / Stratified (and optional Quick pick) defaults.
+Playground uses this for Single / Random / All / Stratified defaults.
 
 ```json
 {
   "schemaVersion": "1.0",
-  "defaultMode": "stratified",
   "pool": "persona/datasets/matraix-persona-dev-sample",
   "sources": ["Nemotron"],
   "dimensionFilters": {
     "age_bracket": ["25-34", "35-44"],
     "region": ["North America"]
   },
-  "stratifyFields": ["age_bracket", "region"],
-  "sampleSizePerValueGroup": 2,
-  "cohortId": null
+  "sampling": {
+    "mode": "stratified",
+    "fields": ["age_bracket", "region"],
+    "allocation": "perCell",
+    "perCell": 2
+  },
+  "seed": 42
 }
 ```
 
 | Field | Notes |
 |---|---|
 | `schemaVersion` | Use `"1.0"` |
-| `defaultMode` | `single` \| `random` \| `stratified` |
 | `dimensionFilters` / `cohortId` | Non-empty filters and/or a saved `cohortId` — who this task is for |
 | `sources` | Optional source allow-list |
-| `stratifyFields` | Needed when `defaultMode` is `stratified`. **Every** stratify field must also appear under `dimensionFilters` with allowed values (so cell coverage is well-defined). |
-| `sampleSizePerValueGroup` | **Stratified strategy A (per-cell):** take **N per combination**. Total = `N × (# cells)`. **Do not also set `sampleSize`.** |
-| `sampleSize` | Random: hard sample count. **Stratified strategy B (total N):** spread as `ceil(sampleSize / #cells)` then clip to `sampleSize`. Must be **≥ # cells**. **Do not also set `sampleSizePerValueGroup`.** |
-| `cohortId` | Optional saved cohort under `persona/datasets/cohorts/` |
-| `pool` | Defaults to matraix-persona-dev-sample |
+| `pool` | Defaults to matraix-persona-dev-sample; use `matraix-persona-1m` for production coverage |
+| `sampling` | **How** to draw from the filtered pool (required). Tagged by `sampling.mode` |
 
-**Stratified sampling — two mutually exclusive strategies:**
+**`sampling.mode`**
 
-| Strategy | Set this | Omit this | Cohort size |
+| Mode | Block fields | Cohort size |
+|---|---|---|
+| `single` | optional `personaId` | 1 (operator may override in UI) |
+| `random` | `sampleSize` | exactly `sampleSize` |
+| `all` | (none) | entire filtered pool (subject to product max) |
+| `stratified` | `fields` + `allocation` + quota fields below | depends on allocation |
+
+**Stratified `sampling.allocation`**
+
+| Allocation | Set | Omit | Cohort size |
 |---|---|---|---|
-| Per-cell | `sampleSizePerValueGroup` | `sampleSize` | `N × #cells` |
-| Total N | `sampleSize` | `sampleSizePerValueGroup` | exactly `sampleSize` |
+| `perCell` | `perCell` | `sampleSize` | `N × #cells` |
+| `proportional` | `sampleSize` | `perCell` | exactly `sampleSize` (quotas ∝ cell population) |
+| `equalTotal` | `sampleSize` | `perCell` | exactly `sampleSize` (`ceil(N/#cells)` then clip) |
 
-1. Thin / missing cells → sample from `matraix-persona-1m`, widen
-   `dimensionFilters` / sources, or use a saved cohort — sampling never
-   synthesizes personas.
-2. Per-cell: guarantee N in each cell; total follows from the grid.
-3. Total N: guarantee `ceil(sampleSize / #cells)` capacity per cell, sample,
-   clip to `sampleSize`. Author `sampleSize` ≥ # cells.
-4. Setting **both** fields is invalid (CI / Playground reject the strategy).
+Rules:
+
+1. Every `sampling.fields` entry must also appear under `dimensionFilters` with allowed values.
+2. Thin / missing cells → sample from `matraix-persona-1m`, widen filters / sources, or use a saved cohort — sampling never synthesizes personas.
+3. Do not set both `perCell` and `sampleSize` under stratified sampling.
 
 Playground turns on **Task default strategy** from this file (filters / mode /
-per-cell N / sampleSize locked to the file). Operators can turn that switch off
-to edit filters themselves, then turn it back on to re-apply the task default.
+allocation locked to the file). Operators can turn that switch off to edit
+filters themselves, then turn it back on to re-apply the task default.
 
 ### Ensuring pool coverage
 

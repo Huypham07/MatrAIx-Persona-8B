@@ -583,7 +583,7 @@ def _distribution_directive_dedupe_marker(directive: dict[str, Any]) -> str:
     single = str(directive.get("groupByPersonaDimension") or "").strip()
     if single:
         return "{}|{}".format(facet_key, single)
-    # Omitted axes → later filled from stratifyFields; keep one default slot.
+    # Omitted axes → later filled from sampling.fields; keep one default slot.
     return "{}|default".format(facet_key)
 
 
@@ -597,7 +597,7 @@ def _resolve_distribution_directives(
     Declared in ``reporting.json`` (``contextRules[]`` → ``distributions[]``, or
     inline on the verifier context). Each directive names a ``facetKey``.
     ``groupByPersonaDimensions: []`` / ``standalone: true`` → cohort-level card;
-    a non-empty list → persona cross-tab; omitted axes default to stratifyFields.
+    a non-empty list → persona cross-tab; omitted axes default to sampling.fields.
     """
     context_key = str(context.get("key") or "").strip()
     context_type = str(context.get("contextType") or "").strip()
@@ -661,11 +661,10 @@ def _load_task_stratify_fields(
 ) -> list[str]:
     """Default persona axes for the cross-tab lens (persona_strategy.json).
 
-    Prefers ``stratifyFields`` (the dimensions the cohort was balanced across).
+    Uses ``sampling.fields`` — the dimensions the cohort was balanced across.
     When a strategy declares no stratify fields, falls back to the keys of
-    ``dimensionFilters`` (the dimensions the run was constrained to) so a
-    distribution directive without explicit axes still resolves to meaningful
-    segments.
+    ``dimensionFilters`` so a distribution directive without explicit axes still
+    resolves to meaningful segments.
     """
     task_path = _task_path_from_trial_config(trial_dir)
     if not task_path or repo_root is None:
@@ -680,13 +679,15 @@ def _load_task_stratify_fields(
             payload = json.loads(strategy_path.read_text(encoding="utf-8"))
         except Exception:  # noqa: BLE001
             payload = {}
-        raw = payload.get("stratifyFields") if isinstance(payload, dict) else None
-        if isinstance(raw, list):
-            fields = [str(item).strip() for item in raw if str(item).strip()]
-        if not fields:
-            filters = payload.get("dimensionFilters") if isinstance(payload, dict) else None
-            if isinstance(filters, dict):
-                fields = [str(key).strip() for key in filters if str(key).strip()]
+        if isinstance(payload, dict):
+            sampling = payload.get("sampling")
+            raw = sampling.get("fields") if isinstance(sampling, dict) else None
+            if isinstance(raw, list):
+                fields = [str(item).strip() for item in raw if str(item).strip()]
+            if not fields:
+                filters = payload.get("dimensionFilters")
+                if isinstance(filters, dict):
+                    fields = [str(key).strip() for key in filters if str(key).strip()]
     cache[task_path] = fields
     return fields
 
@@ -1459,7 +1460,7 @@ def _distribution_directive_dimensions(
 
     Honors an explicit ``groupByPersonaDimensions`` list or single
     ``groupByPersonaDimension``; otherwise defaults to the cohort's
-    ``stratifyFields`` so authors only need to name the facet.
+    ``sampling.fields`` so authors only need to name the facet.
 
     An explicit empty ``groupByPersonaDimensions: []`` (or
     ``"standalone": true``) means a cohort-level card with no persona cross —

@@ -122,7 +122,13 @@ def main() -> None:
         "--sample-size-per-value-group",
         type=int,
         default=None,
-        help="Stratified quota per cell (Playground sampleSizePerValueGroup)",
+        help="Stratified per-cell quota (sampling.allocation=perCell / sampling.perCell)",
+    )
+    parser.add_argument(
+        "--stratified-allocation",
+        choices=["perCell", "proportional", "equalTotal"],
+        default=None,
+        help="Stratified allocation strategy (default: from persona_strategy.json)",
     )
     parser.add_argument(
         "--persona-ids",
@@ -138,13 +144,13 @@ def main() -> None:
         metavar="FIELD",
         help=(
             "Stratify sampling by persona field(s). Repeat or comma-separate. "
-            "When omitted, task persona_strategy.json stratifyFields apply if present."
+            "When omitted, task persona_strategy.json sampling.fields apply if present."
         ),
     )
     parser.add_argument(
         "--no-stratify",
         action="store_true",
-        help="Ignore strategy stratifyFields (random sample within filters).",
+        help="Ignore strategy sampling.fields (random sample within filters).",
     )
     parser.add_argument(
         "--dataset",
@@ -266,6 +272,7 @@ def main() -> None:
                 else (explicit_stratify if explicit_stratify else None)
             ),
             sample_size_per_value_group=args.sample_size_per_value_group,
+            allocation=args.stratified_allocation,
             cohort_id=args.cohort_id,
             use_strategy=not args.no_strategy,
             strategy_path=args.strategy,
@@ -327,7 +334,7 @@ def main() -> None:
                 "matchedCount": retrieved.matched_count,
                 "sources": retrieved.sources,
                 "dimensionFilters": retrieved.dimension_filters,
-                "stratifyFields": retrieved.stratify_fields,
+                "fields": retrieved.stratify_fields,
                 "cohortId": retrieved.cohort_id,
                 "strategyPath": retrieved.strategy_path,
             }

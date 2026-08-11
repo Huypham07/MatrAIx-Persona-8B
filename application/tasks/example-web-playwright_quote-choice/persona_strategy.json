@@ -1,7 +1,6 @@
 {
   "schemaVersion": "1.0",
   "sources": [],
-  "defaultMode": "stratified",
   "dimensionFilters": {
     "values_priority": [
       "Autonomy",
@@ -17,9 +16,13 @@
       "35-44"
     ]
   },
-  "stratifyFields": [
-    "values_priority",
-    "age_bracket"
-  ],
-  "sampleSizePerValueGroup": 1
+  "sampling": {
+    "mode": "stratified",
+    "fields": [
+      "values_priority",
+      "age_bracket"
+    ],
+    "allocation": "perCell",
+    "perCell": 1
+  }
 }

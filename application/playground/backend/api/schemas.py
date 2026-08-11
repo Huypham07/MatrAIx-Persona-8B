@@ -924,12 +924,43 @@ class PersonaPoolSampleRequest(BaseModel):
     seed: int = 42
     sources: Optional[List[str]] = None
     dimensionFilters: Optional[Dict[str, Any]] = None
-    stratifyFields: Optional[List[str]] = None
-    sampleSizePerValueGroup: Optional[int] = None
+    fields: Optional[List[str]] = None
+    """Stratify axes (same as ``sampling.fields``)."""
+    perCell: Optional[int] = None
+    """Personas per cell when ``allocation="perCell"``."""
+    allocation: Optional[str] = None
+    """Stratified allocation: perCell | proportional | equalTotal."""
     taskPath: Optional[str] = None
     """Optional task path — included in coverage error hints."""
     previewLimit: int = 32
     includePersonaIds: Optional[bool] = None
+
+
+class TaskPersonaSampling(BaseModel):
+    """Unified ``sampling`` block inside ``persona_strategy.json``."""
+
+    model_config = ConfigDict(extra="allow")
+
+    mode: str
+    personaId: Optional[str] = None
+    sampleSize: Optional[int] = None
+    fields: Optional[List[str]] = None
+    allocation: Optional[str] = None
+    perCell: Optional[int] = None
+
+
+class TaskPersonaStrategy(BaseModel):
+    """Optional per-task Playground sampling defaults (``persona_strategy.json``)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    schemaVersion: str = "1.0"
+    pool: Optional[str] = None
+    sources: List[str] = Field(default_factory=list)
+    dimensionFilters: Dict[str, List[str]] = Field(default_factory=dict)
+    seed: Optional[int] = None
+    cohortId: Optional[str] = None
+    sampling: Optional[TaskPersonaSampling] = None
 
 
 class PersonaPoolPersonaCard(BaseModel):
@@ -978,22 +1009,6 @@ class PersonaPoolPersonaDetailResponse(PersonaPoolPersonaCard):
     yaml: str = ""
     profileMarkdown: str = ""
     dimensionGroups: List[PersonaDimensionGroup] = Field(default_factory=list)
-
-class TaskPersonaStrategy(BaseModel):
-    """Optional per-task Playground sampling defaults (``persona_strategy.json``)."""
-
-    model_config = ConfigDict(extra="allow")
-
-    schemaVersion: str = "1.0"
-    pool: Optional[str] = None
-    defaultMode: Optional[str] = None
-    sources: List[str] = Field(default_factory=list)
-    dimensionFilters: Dict[str, List[str]] = Field(default_factory=dict)
-    stratifyFields: Optional[List[str]] = None
-    sampleSize: Optional[int] = None
-    seed: Optional[int] = None
-    cohortId: Optional[str] = None
-    sampleSizePerValueGroup: Optional[int] = None
 
 
 class TaskPersonaStrategyResponse(BaseModel):

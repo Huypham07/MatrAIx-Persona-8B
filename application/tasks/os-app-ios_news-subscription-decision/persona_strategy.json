@@ -1,7 +1,6 @@
 {
   "schemaVersion": "1.0",
   "sources": [],
-  "defaultMode": "stratified",
   "dimensionFilters": {
     "media_diet": [
       "News",
@@ -13,9 +12,13 @@
       "Cost-sensitive"
     ]
   },
-  "stratifyFields": [
-    "economic_motivation",
-    "media_diet"
-  ],
-  "sampleSizePerValueGroup": 4
+  "sampling": {
+    "mode": "stratified",
+    "fields": [
+      "economic_motivation",
+      "media_diet"
+    ],
+    "allocation": "perCell",
+    "perCell": 4
+  }
 }

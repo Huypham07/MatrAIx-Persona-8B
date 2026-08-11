@@ -486,12 +486,11 @@ def _stratified_sample_production(
     sample_size_per_value_group: int | None,
     sources: list[str] | None,
     dimension_filters: dict[str, list[str]] | None,
+    allocation: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Fast stratified sample with sequential early-exit.
+    """Fast stratified sample with sequential early-exit when the target is known."""
+    from backend.service.persona_sampling_alloc import sample_proportional_from_buckets
 
-    Stops as soon as ``sample_size`` personas are collected under optional
-    per-cell caps — avoids decoding the full 1M release.
-    """
     bare = [str(field).removeprefix("dimensions.").strip() for field in stratify_fields]
     bare = [field for field in bare if field]
     if not bare:
@@ -508,11 +507,16 @@ def _stratified_sample_production(
             paths, codec, sample_size=sample_size, seed=seed
         )
 
+    allocation_norm = str(allocation or "").strip()
     per_cell = (
         sample_size_per_value_group
         if isinstance(sample_size_per_value_group, int) and sample_size_per_value_group >= 1
         else None
     )
+    if allocation_norm == "perCell" and per_cell is None:
+        per_cell = 1
+    if allocation_norm == "proportional":
+        per_cell = None
 
     buckets: dict[tuple[str, ...], list[dict[str, Any]]] = {}
     seen_ids: set[str] = set()
@@ -544,6 +548,8 @@ def _stratified_sample_production(
                 expected_cells *= len(dimension_filters[field])
 
     def done() -> bool:
+        if allocation_norm == "proportional":
+            return False
         total = sum(len(bucket) for bucket in buckets.values())
         if per_cell is None:
             return total >= sample_size
@@ -556,6 +562,11 @@ def _stratified_sample_production(
         consider(row)
         if done():
             break
+
+    if allocation_norm == "proportional":
+        return sample_proportional_from_buckets(
+            buckets, sample_size=sample_size, seed=seed
+        )
 
     return _flatten_stratum_buckets(
         buckets, sample_size=sample_size, seed=seed, per_cell=per_cell
@@ -571,6 +582,7 @@ def sample_production_1m(
     dimension_filters: dict[str, list[str]] | None = None,
     stratify_fields: list[str] | None = None,
     sample_size_per_value_group: int | None = None,
+    allocation: str | None = None,
 ) -> dict[str, Any]:
     if sample_size < 1:
         raise ValueError("sample_size must be >= 1")
@@ -580,12 +592,32 @@ def sample_production_1m(
             "Sample a cohort from matraix-persona-1m instead of selecting All."
         )
 
+    allocation_norm = str(allocation or "").strip()
+    if allocation_norm in {"per_cell", "per-cell"}:
+        allocation_norm = "perCell"
+    if allocation_norm in {"equal_total", "equal-total"}:
+        allocation_norm = "equalTotal"
+    if (
+        not allocation_norm
+        and isinstance(sample_size_per_value_group, int)
+        and sample_size_per_value_group >= 1
+    ):
+        allocation_norm = "perCell"
+    if (
+        stratify_fields
+        and not allocation_norm
+        and not (
+            isinstance(sample_size_per_value_group, int) and sample_size_per_value_group >= 1
+        )
+    ):
+        allocation_norm = "equalTotal"
     paths = resolve_1m_paths(repo_root)
     codec = load_codec(paths.schema_path)
     has_filters = bool(sources) or bool(dimension_filters)
 
     # Prefer inverted index for filter / stratified (true random over the match set).
     # Includes ``source`` when the index has source postings; otherwise falls back.
+    # Proportional needs full cell populations first — skip the index early-exit path.
     chosen: list[dict[str, Any]] | None = None
     try:
         from backend.service.persona_1m_index import (
@@ -594,26 +626,27 @@ def sample_production_1m(
             sample_row_ids_with_index,
         )
 
-        index_dir = resolve_index_dir(repo_root, paths)
-        if index_dir is not None:
-            with Persona1MIndex.open(index_dir) as index:
-                row_ids = sample_row_ids_with_index(
-                    index,
-                    sample_size=sample_size,
-                    seed=seed,
-                    sources=sources,
-                    dimension_filters=dimension_filters,
-                    stratify_fields=stratify_fields,
-                    sample_size_per_value_group=sample_size_per_value_group,
-                )
-            if row_ids is not None:
-                if row_ids.size == 0:
-                    chosen = []
-                else:
-                    counts = _parquet_row_counts(paths)
-                    chosen = _read_decoded_rows_at_global(
-                        counts, codec, [int(x) for x in row_ids]
+        if allocation_norm != "proportional":
+            index_dir = resolve_index_dir(repo_root, paths)
+            if index_dir is not None:
+                with Persona1MIndex.open(index_dir) as index:
+                    row_ids = sample_row_ids_with_index(
+                        index,
+                        sample_size=sample_size,
+                        seed=seed,
+                        sources=sources,
+                        dimension_filters=dimension_filters,
+                        stratify_fields=stratify_fields,
+                        sample_size_per_value_group=sample_size_per_value_group,
                     )
+                if row_ids is not None:
+                    if row_ids.size == 0:
+                        chosen = []
+                    else:
+                        counts = _parquet_row_counts(paths)
+                        chosen = _read_decoded_rows_at_global(
+                            counts, codec, [int(x) for x in row_ids]
+                        )
     except Exception:  # noqa: BLE001
         chosen = None
 
@@ -628,6 +661,7 @@ def sample_production_1m(
                 sample_size_per_value_group=sample_size_per_value_group,
                 sources=sources,
                 dimension_filters=dimension_filters,
+                allocation=allocation_norm or None,
             )
         elif has_filters:
             chosen = _random_sample_filtered(
@@ -667,7 +701,7 @@ def sample_production_1m(
         "seed": seed,
         "personaIds": cohort["personaIds"],
         "personas": cohort["personas"],
-        "stratifyFields": list(stratify_fields or []),
+        "fields": list(stratify_fields or []),
         "productionSource": HF_1M_REPO,
     }
 
@@ -774,7 +808,7 @@ def materialize_cohort(
         "seed": seed,
         "sources": sources or [],
         "dimensionFilters": dimension_filters or {},
-        "stratifyFields": stratify_fields or [],
+        "fields": stratify_fields or [],
         "productionSource": HF_1M_REPO,
     }
 
@@ -1061,7 +1095,7 @@ def materialize_production_1m_persona_ids(
         "seed": seed,
         "personaIds": cohort["personaIds"],
         "personas": cohort["personas"],
-        "stratifyFields": [],
+        "fields": [],
         "productionSource": HF_1M_REPO,
     }
 

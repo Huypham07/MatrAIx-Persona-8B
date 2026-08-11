@@ -157,7 +157,7 @@ facet × dimension floods the tab:
 
 - The platform emits one per-segment table per `(facet, dimension)` into
   `context.personaDistributions[]`.
-- Dimensions default to `persona_strategy.json` → `stratifyFields`; if none, they
+- Dimensions default to `persona_strategy.json` → `sampling.fields`; if none, they
   fall back to the keys of `dimensionFilters`. Override with
   `groupByPersonaDimensions: [...]` (or a single `groupByPersonaDimension`).
 - The tab also renders an **interactive explorer**: every eligible

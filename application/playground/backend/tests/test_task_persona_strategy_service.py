@@ -8,8 +8,7 @@ def test_get_task_persona_strategy_reads_json(tmp_path) -> None:
         """
         {
           "schemaVersion": "1.0",
-          "defaultMode": "random",
-          "sampleSize": 4,
+          "sampling": {"mode": "random", "sampleSize": 4},
           "dimensionFilters": {"age_bracket": ["18-24"]}
         }
         """.strip(),
@@ -21,8 +20,8 @@ def test_get_task_persona_strategy_reads_json(tmp_path) -> None:
         repo_root=tmp_path,
     )
     assert strategy is not None
-    assert strategy["defaultMode"] == "random"
-    assert strategy["sampleSize"] == 4
+    assert strategy["sampling"]["mode"] == "random"
+    assert strategy["sampling"]["sampleSize"] == 4
 
 
 def test_get_task_persona_strategy_missing_file_returns_none(tmp_path) -> None:

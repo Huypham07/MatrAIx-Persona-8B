@@ -1,7 +1,6 @@
 {
   "schemaVersion": "1.0",
   "sources": [],
-  "defaultMode": "random",
   "dimensionFilters": {
     "tech_savviness": [
       "Digital native",
@@ -15,5 +14,8 @@
       "Education"
     ]
   },
-  "sampleSize": 4
+  "sampling": {
+    "mode": "random",
+    "sampleSize": 4
+  }
 }

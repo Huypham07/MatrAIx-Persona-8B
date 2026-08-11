@@ -373,15 +373,20 @@ def _render_batch_front_matter(
     if strategy:
         pdf.section("Persona strategy")
         rows: list[tuple[str, str]] = []
-        if strategy.get("defaultMode") or strategy.get("mode"):
-            rows.append(("Mode", _safe(strategy.get("defaultMode") or strategy.get("mode"))))
-        if strategy.get("sampleSize") is not None:
-            rows.append(("Sample size", _fmt_num(strategy.get("sampleSize"))))
-        if strategy.get("sampleSizePerValueGroup") is not None:
-            rows.append(("Per cell", _fmt_num(strategy.get("sampleSizePerValueGroup"))))
+        sampling = strategy.get("sampling") if isinstance(strategy.get("sampling"), dict) else {}
+        mode = sampling.get("mode")
+        if mode:
+            rows.append(("Mode", _safe(mode)))
+        allocation = sampling.get("allocation")
+        if allocation:
+            rows.append(("Allocation", _safe(allocation)))
+        if allocation == "perCell" and sampling.get("perCell") is not None:
+            rows.append(("Per cell", _fmt_num(sampling.get("perCell"))))
+        elif sampling.get("sampleSize") is not None:
+            rows.append(("Sample size", _fmt_num(sampling.get("sampleSize"))))
         if strategy.get("seed") is not None:
             rows.append(("Seed", _fmt_num(strategy.get("seed"))))
-        stratify = strategy.get("stratifyFields")
+        stratify = sampling.get("fields")
         if isinstance(stratify, list) and stratify:
             rows.append(("Stratify", ", ".join(_safe(x) for x in stratify)))
         sources = strategy.get("sources")

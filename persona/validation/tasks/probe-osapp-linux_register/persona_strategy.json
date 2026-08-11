@@ -1,8 +1,18 @@
 {
   "schemaVersion": "1.0",
   "sources": [],
-  "defaultMode": "stratified",
-  "dimensionFilters": { "register": ["Formal / standard", "Colloquial"] },
-  "stratifyFields": ["register"],
-  "sampleSize": 10
+  "dimensionFilters": {
+    "register": [
+      "Formal / standard",
+      "Colloquial"
+    ]
+  },
+  "sampling": {
+    "mode": "stratified",
+    "fields": [
+      "register"
+    ],
+    "allocation": "equalTotal",
+    "sampleSize": 10
+  }
 }

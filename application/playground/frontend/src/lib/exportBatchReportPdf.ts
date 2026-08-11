@@ -44,10 +44,11 @@ export type BatchReportPdfQuestion = {
 
 export type BatchReportPdfPersonaStrategy = {
   mode?: string | null;
-  sampleSizePerValueGroup?: number | null;
+  allocation?: string | null;
+  perCell?: number | null;
   sampleSize?: number | null;
   seed?: number | null;
-  stratifyFields?: string[];
+  fields?: string[];
   dimensionFilters?: Record<string, string[]>;
   sources?: string[];
 };
@@ -172,6 +173,13 @@ function shortenPath(path: string, maxChars = 72): string {
 
 function humanizeKey(raw: string): string {
   return raw.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function humanizeAllocation(raw: string | null | undefined): string {
+  if (raw === "perCell") return "Per-cell";
+  if (raw === "proportional") return "Proportional";
+  if (raw === "equalTotal") return "Equal-total";
+  return raw ? humanizeKey(raw) : "";
 }
 
 function normText(s: string): string {
@@ -527,15 +535,20 @@ function drawFrontMatter(pdf: jsPDF, meta: BatchReportPdfMeta): number {
   // ---- Persona strategy (once) ----
   const strategy = meta.personaStrategy;
   const filters = Object.entries(strategy?.dimensionFilters ?? {}).filter(([, v]) => v?.length);
-  const stratify = strategy?.stratifyFields ?? [];
+  const stratify = strategy?.fields ?? [];
   ensureSpace(pdf, meta, cursor, 24);
   cursor.y += 1;
   cursor.y += drawSectionRule(pdf, SIDE_MM, cursor.y, contentW, "Persona sampling strategy");
 
   const strategyFacts: Array<{ label: string; value: string }> = [];
   if (strategy?.mode) strategyFacts.push({ label: "Mode", value: humanizeKey(String(strategy.mode)) });
-  if (strategy?.sampleSizePerValueGroup != null) {
-    strategyFacts.push({ label: "Per group", value: String(strategy.sampleSizePerValueGroup) });
+  if (strategy?.allocation) {
+    strategyFacts.push({ label: "Allocation", value: humanizeAllocation(strategy.allocation) });
+  }
+  if (strategy?.allocation === "perCell" && strategy.perCell != null) {
+    strategyFacts.push({ label: "Per cell", value: String(strategy.perCell) });
+  } else if (strategy?.perCell != null && !strategy?.allocation) {
+    strategyFacts.push({ label: "Per cell", value: String(strategy.perCell) });
   } else if (strategy?.sampleSize != null) {
     strategyFacts.push({ label: "Sample size", value: String(strategy.sampleSize) });
   }

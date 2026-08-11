@@ -32,10 +32,13 @@ ATTRS = {
 STRATEGY = '''{{
   "schemaVersion": "1.0",
   "sources": [],
-  "defaultMode": "stratified",
   "dimensionFilters": {{ "{attr}": ["{X}", "{Y}"] }},
-  "stratifyFields": ["{attr}"],
-  "sampleSize": 10
+  "sampling": {{
+    "mode": "stratified",
+    "fields": ["{attr}"],
+    "allocation": "equalTotal",
+    "sampleSize": 10
+  }}
 }}
 '''
 

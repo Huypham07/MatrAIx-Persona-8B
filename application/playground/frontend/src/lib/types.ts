@@ -1003,7 +1003,7 @@ export interface PersonaPoolSampleResult {
     name?: string;
     dimensions?: Record<string, string>;
   }>;
-  stratifyFields?: string[];
+  fields?: string[];
   /** Full cohort size (may exceed personaIds when idsTruncated). */
   selectedCount?: number;
   idsTruncated?: boolean;
@@ -1054,17 +1054,24 @@ export interface PersonaPoolPersonaDetail extends PersonaPoolPersonaCard {
   dimensionGroups?: PersonaDimensionGroup[];
 }
 
+/** Unified sampling block inside ``persona_strategy.json``. */
+export interface TaskPersonaSampling {
+  mode: "single" | "random" | "stratified" | "all" | string;
+  personaId?: string;
+  sampleSize?: number | null;
+  fields?: string[];
+  allocation?: "perCell" | "proportional" | "equalTotal" | string | null;
+  perCell?: number | null;
+}
+
 export interface TaskPersonaStrategy {
   schemaVersion?: string;
   pool?: string | null;
-  defaultMode?: "single" | "random" | "stratified" | string | null;
   sources?: string[];
   dimensionFilters?: Record<string, string[]>;
-  stratifyFields?: string[] | null;
-  sampleSize?: number | null;
   seed?: number | null;
   cohortId?: string | null;
-  sampleSizePerValueGroup?: number | null;
+  sampling?: TaskPersonaSampling | null;
 }
 
 export interface TaskDetail {

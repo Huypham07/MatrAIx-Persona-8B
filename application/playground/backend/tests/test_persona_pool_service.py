@@ -327,7 +327,7 @@ def test_get_catalog_and_sample_with_filters(tmp_path, monkeypatch):
     )
     assert stratified["matchedCount"] == 2
     assert set(stratified["personaIds"]) == {"0001", "0002"}
-    assert stratified["stratifyFields"] == ["economic_motivation"]
+    assert stratified["fields"] == ["economic_motivation"]
 
     with pytest.raises(ValueError, match="matraix-persona-1m") as excinfo:
         service.sample_pool(
@@ -339,7 +339,7 @@ def test_get_catalog_and_sample_with_filters(tmp_path, monkeypatch):
 
 
 def test_sample_pool_per_value_group_not_truncated_by_sample_size(tmp_path, monkeypatch):
-    """sampleSizePerValueGroup is primary; sample_size must not clip N×cells."""
+    """perCell is primary; sample_size must not clip N×cells."""
     repo = tmp_path
     pool = repo / "persona" / "datasets" / "matraix-persona-dev-sample"
     pool.mkdir(parents=True)

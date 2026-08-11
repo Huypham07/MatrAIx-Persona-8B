@@ -1,7 +1,6 @@
 {
   "schemaVersion": "1.0",
   "sources": [],
-  "defaultMode": "random",
   "dimensionFilters": {
     "life_stage": [
       "Early career",
@@ -13,5 +12,8 @@
       "35-44"
     ]
   },
-  "sampleSize": 6
+  "sampling": {
+    "mode": "random",
+    "sampleSize": 6
+  }
 }

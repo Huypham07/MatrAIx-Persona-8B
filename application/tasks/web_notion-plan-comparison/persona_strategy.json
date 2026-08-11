@@ -2,7 +2,6 @@
   "schemaVersion": "1.0",
   "pool": "persona/datasets/matraix-persona-dev-sample",
   "sources": [],
-  "defaultMode": "stratified",
   "dimensionFilters": {
     "company_size": [
       "Solo / freelance",
@@ -34,9 +33,13 @@
       "Native"
     ]
   },
-  "stratifyFields": [
-    "company_size",
-    "economic_motivation"
-  ],
-  "sampleSizePerValueGroup": 1
+  "sampling": {
+    "mode": "stratified",
+    "fields": [
+      "company_size",
+      "economic_motivation"
+    ],
+    "allocation": "perCell",
+    "perCell": 1
+  }
 }

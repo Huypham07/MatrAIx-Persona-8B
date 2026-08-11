@@ -338,8 +338,10 @@ export const api = {
     seed?: number;
     sources?: string[];
     dimensionFilters?: Record<string, string | string[]>;
-    stratifyFields?: string[];
-    sampleSizePerValueGroup?: number;
+    fields?: string[];
+    perCell?: number;
+    /** Stratified allocation: perCell | proportional | equalTotal. */
+    allocation?: string;
     taskPath?: string;
   }) =>
     request<PersonaPoolSampleResult>("/api/persona-pool/sample", {
