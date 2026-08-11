@@ -143,10 +143,15 @@ def create_app(
         lifespan=lifespan,
     )
 
-    # Allow CORS for local development
+    # harbor view is a retained local inspector (Playground Runs is the usual
+    # UI). Default bind is 127.0.0.1; CORS only matters for `harbor view --dev`
+    # when Vite is on :5173. Do not use allow_origins=["*"] with credentials.
     app.add_middleware(
         CORSMiddleware,  # type: ignore[arg-type]
-        allow_origins=["*"],
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
