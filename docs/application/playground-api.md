@@ -91,8 +91,8 @@ Returns a process liveness response.
 
 ### `GET /api/preflight`
 
-Returns user-facing readiness checks for credentials, catalogs, optional
-sidecars, and eval surfaces.
+Returns user-facing readiness checks for credentials, optional sidecars, and
+eval surfaces aligned to shipped `application/tasks`.
 
 ```json
 {
@@ -100,9 +100,9 @@ sidecars, and eval surfaces.
   "checks": [
     {
       "group": "Core",
-      "name": "OpenAI credentials",
+      "name": "Model credentials",
       "ok": true,
-      "detail": "Configured.",
+      "detail": "Configured: OpenAI, Anthropic.",
       "optional": false
     }
   ]
@@ -110,6 +110,13 @@ sidecars, and eval surfaces.
 ```
 
 `ready` ignores checks marked `optional`.
+
+**Required (blocks `ready`):** Model credentials (any of OpenAI / Anthropic /
+DashScope), plus always-available Survey / Web surface markers.
+
+**Optional (task-specific):** per-provider keys, Docker (survey / web / chat /
+Linux OS-app), use.computer (macOS / iOS), and chat sidecars (OpenBB, meal
+planning, Acme API, Acme MCP). RecAI and medical are not probed.
 
 ### `GET /api/chatbot-sidecars`
 

@@ -128,8 +128,9 @@ class PreflightCheck(BaseModel):
     #: Coarse area this check belongs to ("Core" / "Chatbot" / "Survey" / "Web")
     #: so the UI can group the overall-readiness checklist. Optional for back-compat.
     group: Optional[str] = None
-    #: Optional adapters (the finance/medical sidecars) report their status but
-    #: do not gate overall readiness, and render muted rather than as an error.
+    #: Optional adapters report status but do not gate overall readiness.
+    #: Required checks (optional=false) block ``ready``; optional ones are
+    #: task-specific (Docker, use.computer, chat sidecars, per-provider keys).
     optional: bool = False
     #: When set, maps this probe to a chatbot application card in the cockpit.
     applicationId: Optional[str] = None

@@ -2,9 +2,9 @@
  * PreflightChip: the live readiness status in the top bar.
  *
  * Polls `GET /api/preflight` and reports readiness in plain language. The chip
- * itself is calm; clicking it opens a popover that lists each readiness check by
- * its human name with a pass/fail marker and the (already user-facing) detail.
- * It never surfaces raw environment-variable names.
+ * itself is calm; clicking it opens a popover that lists checks in two
+ * distinct sections — Required (blocks ready) vs Optional (task-specific) —
+ * so hard failures and adapters are not mixed.
  *
  * States:
  *   - checking (amber)  → probe in flight
@@ -38,6 +38,10 @@ const DOT_CLASS: Record<Tone, string> = {
   checking: "bg-warn",
 };
 
+function isOptional(check: PreflightCheck): boolean {
+  return Boolean(check.optional);
+}
+
 function groupChecks(checks: PreflightCheck[]) {
   return checks.reduce<{ group: string; items: PreflightCheck[] }[]>((acc, c) => {
     const g = c.group ?? "Checks";
@@ -46,6 +50,46 @@ function groupChecks(checks: PreflightCheck[]) {
     else acc.push({ group: g, items: [c] });
     return acc;
   }, []);
+}
+
+function CheckList({
+  checks,
+  emptyLabel,
+}: {
+  checks: PreflightCheck[];
+  emptyLabel: string;
+}) {
+  if (checks.length === 0) {
+    return <p className="text-[13px] text-text-variant">{emptyLabel}</p>;
+  }
+  return (
+    <div className="space-y-3">
+      {groupChecks(checks).map((g) => (
+        <div key={g.group}>
+          <div className="hud mb-1.5 text-[11px] text-primary">{g.group}</div>
+          <ul className="space-y-2">
+            {g.items.map((check) => {
+              const iconName = check.ok ? "check_circle" : "error";
+              const iconClass = check.ok
+                ? "text-secondary"
+                : isOptional(check)
+                  ? "text-warn"
+                  : "text-danger";
+              return (
+                <li key={check.name} className="flex items-start gap-2">
+                  <Sym name={iconName} fill={1} size={16} className={`mt-px flex-none ${iconClass}`} />
+                  <div className="min-w-0">
+                    <div className="text-[14px] font-medium text-text-main">{check.name}</div>
+                    <div className="text-[13px] leading-relaxed text-text-variant">{check.detail}</div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function PreflightChip() {
@@ -80,8 +124,10 @@ export function PreflightChip() {
   let tone: Tone;
   let label: string;
   const data = preflight.data;
-  const requiredFailing = data?.checks.filter((c) => !c.ok && !c.optional) ?? [];
-  const optionalFailing = data?.checks.filter((c) => !c.ok && c.optional) ?? [];
+  const requiredChecks = data?.checks.filter((c) => !isOptional(c)) ?? [];
+  const optionalChecks = data?.checks.filter((c) => isOptional(c)) ?? [];
+  const requiredFailing = requiredChecks.filter((c) => !c.ok);
+  const optionalFailing = optionalChecks.filter((c) => !c.ok);
   const allGreen = data ? data.checks.every((c) => c.ok) : false;
 
   if (preflight.isLoading) {
@@ -92,7 +138,7 @@ export function PreflightChip() {
     label = "Backend offline";
   } else if (!data.ready) {
     tone = "setup";
-    label = requiredFailing.length === 1 ? "1 issue" : `${requiredFailing.length} issues`;
+    label = requiredFailing.length === 1 ? "1 required" : `${requiredFailing.length} required`;
   } else if (optionalFailing.length > 0) {
     tone = "setup";
     label = "Almost ready";
@@ -100,10 +146,6 @@ export function PreflightChip() {
     tone = "ready";
     label = "Env ready";
   }
-
-  const popoverChecks = data
-    ? groupChecks([...requiredFailing, ...optionalFailing])
-    : [];
 
   return (
     <div ref={rootRef} className="relative">
@@ -127,48 +169,38 @@ export function PreflightChip() {
         <div
           role="region"
           aria-label="Setup checklist"
-          className="pop-in absolute right-0 top-full z-30 mt-2 w-80 max-w-[calc(100vw-1.5rem)] max-h-[70vh] overflow-y-auto custom-scrollbar rounded-xl border border-outline bg-surface-lowest p-3 shadow-2xl"
+          className="pop-in absolute right-0 top-full z-30 mt-2 w-[22rem] max-w-[calc(100vw-1.5rem)] max-h-[70vh] overflow-y-auto custom-scrollbar rounded-xl border border-outline bg-surface-lowest p-3 shadow-2xl"
         >
           <p className="hud mb-2.5 text-[12px] text-text-dim">System readiness</p>
           {allGreen ? (
-            <p className="text-[14px] text-secondary">All checks passed.</p>
-          ) : popoverChecks.length === 0 ? (
-            <p className="text-[14px] text-secondary">All required checks passed.</p>
+            <p className="mb-3 text-[14px] text-secondary">All required and optional checks passed.</p>
+          ) : data.ready ? (
+            <p className="mb-3 text-[13px] leading-relaxed text-text-variant">
+              Required checks passed. Optional items below are only needed for specific tasks.
+            </p>
           ) : (
-            <div className="space-y-3.5">
-              {data.ready && optionalFailing.length > 0 && (
-                <p className="text-[13px] leading-relaxed text-text-variant">
-                  Required checks passed. Optional adapters below still need attention.
-                </p>
-              )}
-              {popoverChecks.map((g) => (
-                <div key={g.group}>
-                  <div className="hud mb-1.5 text-[11px] text-primary">{g.group}</div>
-                  <ul className="space-y-2">
-                    {g.items.map((check) => {
-                      const iconClass = check.optional ? "text-warn" : "text-danger";
-                      return (
-                        <li key={check.name} className="flex items-start gap-2">
-                          <Sym name="error" fill={1} size={16} className={`mt-px flex-none ${iconClass}`} />
-                          <div className="min-w-0">
-                            <div className="text-[14px] font-medium text-text-main">
-                              {check.name}
-                              {check.optional && (
-                                <span className="hud ml-1.5 text-[11px] text-text-dim">optional</span>
-                              )}
-                            </div>
-                            <div className="text-[13px] leading-relaxed text-text-variant">
-                              {check.detail}
-                            </div>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
-            </div>
+            <p className="mb-3 text-[13px] leading-relaxed text-text-variant">
+              Fix required items to mark the environment ready. Optional adapters do not block ready.
+            </p>
           )}
+
+          <div className="space-y-4">
+            <section>
+              <div className="mb-2 flex items-baseline justify-between gap-2">
+                <h3 className="text-[13px] font-semibold text-text-main">Required</h3>
+                <span className="hud text-[11px] text-text-dim">blocks ready</span>
+              </div>
+              <CheckList checks={requiredChecks} emptyLabel="No required checks." />
+            </section>
+
+            <section className="border-t border-outline/70 pt-3">
+              <div className="mb-2 flex items-baseline justify-between gap-2">
+                <h3 className="text-[13px] font-semibold text-text-main">Optional</h3>
+                <span className="hud text-[11px] text-text-dim">task-specific</span>
+              </div>
+              <CheckList checks={optionalChecks} emptyLabel="No optional checks." />
+            </section>
+          </div>
         </div>
       )}
     </div>
