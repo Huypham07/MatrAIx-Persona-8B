@@ -20,8 +20,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { listWebEvalTasks, api, ApiError } from "@/lib/api";
-import { FALLBACK_WEB_TASKS } from "@/lib/fallbackTasks";
-import { mergeTaskCatalog } from "@/lib/mergeTaskCatalog";
 import {
   findPersonaAgent,
   personaModelPipelineLabel,
@@ -79,13 +77,6 @@ import {
 } from "./cockpitShared";
 import type { PlaygroundTaskType } from "./TaskTypeSwitch";
 
-
-function mergeWebTasks(apiTasks: WebEvalTask[] | undefined): WebEvalTask[] {
-  return mergeTaskCatalog(FALLBACK_WEB_TASKS, apiTasks, (row, api, base) => ({
-    ...row,
-    taskPath: api?.taskPath || base?.taskPath || row.taskPath || "",
-  }));
-}
 
 export interface WebEvalCockpitProps {
   options: ConfigOptionsResponse | null;
@@ -161,7 +152,7 @@ export function WebEvalCockpit({
     retry: 1,
   });
   const tasks = useMemo(
-    () => mergeWebTasks(tasksQuery.data?.tasks),
+    () => tasksQuery.data?.tasks ?? [],
     [tasksQuery.data?.tasks],
   );
   const setupTaskPath =

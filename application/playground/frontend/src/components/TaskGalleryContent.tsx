@@ -24,14 +24,8 @@ import {
   listSurveyHarborTasks,
   listWebEvalTasks,
 } from "@/lib/api";
-import {
-  FALLBACK_OS_APP_TASKS,
-  FALLBACK_SURVEY_HARBOR_TASKS,
-  FALLBACK_WEB_TASKS,
-} from "@/lib/fallbackTasks";
 import { OS_APP_TAB_LABEL } from "@/lib/personaAgentCatalog";
-import { mergeTaskCatalog } from "@/lib/mergeTaskCatalog";
-import type { ChatbotEvalTask, OsAppEvalTask, WebEvalTask } from "@/lib/types";
+import type { ChatbotEvalTask } from "@/lib/types";
 
 type TypeFilter = "all" | PlaygroundTaskType;
 
@@ -76,17 +70,6 @@ function taskSearchHaystack(card: TaskCardModel): string {
   ]
     .join(" ")
     .toLowerCase();
-}
-
-function mergeWebTasks(apiTasks: WebEvalTask[] | undefined): WebEvalTask[] {
-  return mergeTaskCatalog(FALLBACK_WEB_TASKS, apiTasks, (row, api, base) => ({
-    ...row,
-    taskPath: api?.taskPath || base?.taskPath || row.taskPath || "",
-  }));
-}
-
-function mergeOsAppTasks(apiTasks: OsAppEvalTask[] | undefined): OsAppEvalTask[] {
-  return mergeTaskCatalog(FALLBACK_OS_APP_TASKS, apiTasks);
 }
 
 export interface TaskGalleryContentProps {
@@ -140,15 +123,10 @@ export function TaskGalleryContent({
   });
 
   const allCards = useMemo(() => {
-    const surveyTasks =
-      (surveyQuery.data?.tasks?.length ?? 0) > 0
-        ? surveyQuery.data!.tasks
-        : surveyQuery.isError
-          ? FALLBACK_SURVEY_HARBOR_TASKS
-          : [];
+    const surveyTasks = surveyQuery.data?.tasks ?? [];
     const chatbotTasks: ChatbotEvalTask[] = chatbotQuery.data?.tasks ?? [];
-    const webTasks = mergeWebTasks(webQuery.data?.tasks);
-    const osAppTasks = mergeOsAppTasks(osAppQuery.data?.tasks);
+    const webTasks = webQuery.data?.tasks ?? [];
+    const osAppTasks = osAppQuery.data?.tasks ?? [];
 
     return [
       ...surveyHarborTaskCards(surveyTasks),
@@ -159,8 +137,7 @@ export function TaskGalleryContent({
   }, [
     chatbotQuery.data?.tasks,
     osAppQuery.data?.tasks,
-    surveyQuery.data,
-    surveyQuery.isError,
+    surveyQuery.data?.tasks,
     webQuery.data?.tasks,
   ]);
 
