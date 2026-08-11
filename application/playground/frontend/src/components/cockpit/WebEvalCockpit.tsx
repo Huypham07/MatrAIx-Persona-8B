@@ -52,6 +52,11 @@ import { InstructionPanel } from "./InstructionPanel";
 import { WebEvalScorecard } from "./TaskEvalScorecard";
 import { CockpitSetupShell } from "./setup/CockpitSetupShell";
 import { PersonaSamplingRail } from "./setup/PersonaSamplingRail";
+import {
+  buildPersonaLaunchFields,
+  hasLaunchableCohort,
+  resolveCohortSize,
+} from "./setup/personaLaunchFields";
 import { CockpitPipelineDiagram } from "./setup/CockpitPipelineDiagram";
 import { TaskSelectionRail } from "./setup/TaskSelectionRail";
 import { CockpitRunCenter } from "./setup/CockpitRunCenter";
@@ -170,6 +175,10 @@ export function WebEvalCockpit({
     setSamplingMode,
     selectedPersonaIds,
     setSelectedPersonaIds,
+    selectedCount,
+    setSelectedCount,
+    useEntirePool,
+    setUseEntirePool,
     groupFilters,
     setGroupFilters,
     stratifyFields,
@@ -207,7 +216,7 @@ export function WebEvalCockpit({
     expectedTrialCount,
     completedTrials: batchCompletedTrials,
     batchError,
-  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "web");
+  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "web", selectedCount);
 
 
   const { setupLocked, visiblePersonaIds } = useCockpitSetupLock(
@@ -335,19 +344,29 @@ export function WebEvalCockpit({
     });
   }, [persona, task, isRunning, run, personaModel, activeWebAgent]);
   const handleLaunch = useCallback(async () => {
-    if (selectedPersonaIds.length === 0 || !task?.taskPath || isRunning) return;
+    if (
+      !hasLaunchableCohort({ selectedPersonaIds, selectedCount, useEntirePool }) ||
+      !task?.taskPath ||
+      isRunning
+    ) {
+      return;
+    }
     if (isBatchRun) {
       setLaunchError(null);
       try {
+        const personaFields = buildPersonaLaunchFields({
+          personaPool,
+          selectedPersonaIds,
+          selectedCount,
+          useEntirePool,
+          parallelTrials,
+        });
         const launched = await api.launchHarborJob({
           taskPath: task.taskPath,
-          sampleSize: selectedPersonaIds.length,
           seed,
           personaModel,
           agentName: activeWebAgent,
-          personaPool,
-          personaIds: selectedPersonaIds,
-          nConcurrentTrials: Math.min(parallelTrials, selectedPersonaIds.length),
+          ...personaFields,
           mode: "auto",
         });
         setBatchJobName(launched.jobName, { taskId: task.id });
@@ -360,6 +379,8 @@ export function WebEvalCockpit({
     handleRun();
   }, [
     selectedPersonaIds,
+    selectedCount,
+    useEntirePool,
     task,
     isRunning,
     isBatchRun,
@@ -369,6 +390,7 @@ export function WebEvalCockpit({
     parallelTrials,
     personaPool,
     handleRun,
+    setBatchJobName,
   ]);
 
   const handleNewRun = useCallback(() => {
@@ -497,6 +519,10 @@ export function WebEvalCockpit({
           onModeChange={setSamplingMode}
           selectedPersonaIds={visiblePersonaIds}
           onSelectedPersonaIdsChange={setSelectedPersonaIds}
+          selectedCount={selectedCount}
+          onSelectedCountChange={setSelectedCount}
+          useEntirePool={useEntirePool}
+          onUseEntirePoolChange={setUseEntirePool}
           sampleSize={sampleSize}
           onSampleSizeChange={setSampleSize}
           sampleSizePerValueGroup={sampleSizePerValueGroup}
@@ -545,9 +571,16 @@ export function WebEvalCockpit({
           progressSublabel={
             batchJobName && batchComplete ? BATCH_RUN_COMPLETE_HINT : undefined
           }
-          canRun={visiblePersonaIds.length > 0 && Boolean(task?.taskPath) && !runBusy}
+          canRun={
+            hasLaunchableCohort({ selectedPersonaIds, selectedCount, useEntirePool }) &&
+            Boolean(task?.taskPath) &&
+            !runBusy
+          }
           isBatch={isBatchRun}
-          personaCount={visiblePersonaIds.length}
+          personaCount={Math.max(
+            resolveCohortSize({ selectedPersonaIds, selectedCount }),
+            visiblePersonaIds.length,
+          )}
           parallelTrials={parallelTrials}
           onParallelTrialsChange={setParallelTrials}
           runBusy={runBusy}

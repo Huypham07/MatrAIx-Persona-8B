@@ -20,15 +20,17 @@ export function isPersonaPoolCoverageError(message: string | null | undefined): 
     text.includes("No personas with stratify fields") ||
     text.includes("sample_size_per_value_group=") ||
     text.includes("Incomplete stratify coverage") ||
-    text.includes("matraix-persona-1m")
+    text.includes("matraix-persona-1m") ||
+    text.includes("matraix-persona-dev-sample")
   );
 }
 
 export function personaPoolCoverageHint(_taskPath?: string | null): string {
   return (
-    "Pool coverage is too thin for these filters. Sample from " +
-    "persona/datasets/matraix-persona-1m, widen dimensionFilters / sources, " +
-    "or use a saved cohort with enough matches."
+    "Not enough matching personas in this dataset for the current filters. " +
+    "Widen filters / sources, switch dataset (dev sample vs matraix-persona-1m), " +
+    "or use a saved cohort that already has enough matches. " +
+    "Playground does not synthesize missing personas."
   );
 }
 
@@ -40,7 +42,9 @@ export function formatPersonaSampleError(
   const trimmed = message.trim();
   if (isPersonaPoolCoverageError(trimmed)) {
     const first = trimmed.split("\n").find((line) => line.trim()) || trimmed;
-    const alreadyHinted = trimmed.includes("matraix-persona-1m");
+    const alreadyHinted =
+      trimmed.includes("matraix-persona-1m") ||
+      trimmed.includes("does not synthesize");
     return alreadyHinted ? trimmed : `${first}\n\n${personaPoolCoverageHint(taskPath)}`;
   }
   return trimmed;

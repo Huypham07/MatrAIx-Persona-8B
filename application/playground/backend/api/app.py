@@ -830,6 +830,7 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
                 persona_sources=body.personaSources,
                 persona_filters=body.personaFilters,
                 cohort_id=body.cohortId,
+                use_entire_pool=body.useEntirePool,
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -1152,6 +1153,8 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
                 stratify_fields=body.stratifyFields,
                 sample_size_per_value_group=body.sampleSizePerValueGroup,
                 task_path=body.taskPath,
+                preview_limit=body.previewLimit,
+                include_persona_ids=body.includePersonaIds,
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc

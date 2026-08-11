@@ -720,6 +720,7 @@ class HarborJobLaunchRequest(BaseModel):
     personaSources: Optional[List[str]] = None
     personaFilters: Optional[Dict[str, str]] = None
     cohortId: Optional[str] = None
+    useEntirePool: bool = False
     agentName: Optional[str] = None
     personaModel: Optional[str] = None
     nConcurrentTrials: int = 2
@@ -913,6 +914,7 @@ class PersonaPoolIdsResponse(BaseModel):
     pool: str
     personaIds: List[str] = Field(default_factory=list)
     count: int = 0
+    idsTruncated: bool = False
 
 
 class PersonaPoolSampleRequest(BaseModel):
@@ -925,6 +927,8 @@ class PersonaPoolSampleRequest(BaseModel):
     sampleSizePerValueGroup: Optional[int] = None
     taskPath: Optional[str] = None
     """Optional task path — included in coverage error hints."""
+    previewLimit: int = 32
+    includePersonaIds: Optional[bool] = None
 
 
 class PersonaPoolPersonaCard(BaseModel):
@@ -1022,8 +1026,10 @@ class PersonaPoolSampleResponse(BaseModel):
     matchedCount: int
     sampleSize: int
     seed: int
-    personaIds: List[str]
+    personaIds: List[str] = Field(default_factory=list)
     personas: List[Dict[str, Any]] = Field(default_factory=list)
+    selectedCount: Optional[int] = None
+    idsTruncated: bool = False
 
 
 class PersonaCohortSaveRequest(BaseModel):

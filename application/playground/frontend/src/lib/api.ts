@@ -207,6 +207,7 @@ export const api = {
     personaSources?: string[] | null;
     personaFilters?: Record<string, string> | null;
     cohortId?: string | null;
+    useEntirePool?: boolean;
     osAppSubmissionProfile?: string | null;
     osAppBackend?: string | null;
   }) =>

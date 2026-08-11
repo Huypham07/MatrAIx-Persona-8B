@@ -177,6 +177,36 @@ def test_build_application_job_config_auto_survey_uses_host_environment(tmp_path
     ) == "application/tasks/example-survey_product-feedback"
 
 
+def test_build_application_job_config_use_entire_pool(tmp_path: Path) -> None:
+    repo = tmp_path
+    pool = repo / "persona" / "datasets" / "matraix-persona-dev-sample"
+    pool.mkdir(parents=True)
+    for pid in ("0001", "0002", "0003"):
+        (pool / f"persona_{pid}.yaml").write_text(
+            f"persona_id: '{pid}'\nversion: '1.0'\nsource: Nemotron\ndimensions: {{}}\n",
+            encoding="utf-8",
+        )
+
+    job = build_application_job_config(
+        {
+            "name": "entire-pool-job",
+            "task": "application/tasks/example-survey_product-feedback",
+            "persona_pool": "persona/datasets/matraix-persona-dev-sample",
+            "use_entire_pool": True,
+            "sample_size": 1,
+            "execution_mode": "auto",
+            "trial_profile": "json_survey",
+            "agent": {"name": "persona-claude-code", "model_name": "anthropic/claude-haiku-4-5"},
+            "job": {"job_name": "entire-pool-job", "jobs_dir": "jobs"},
+        },
+        repo_root=repo,
+    )
+    meta = job.pop("_job_meta")
+    assert meta["use_entire_pool"] is True
+    assert sorted(meta["selected_persona_ids"]) == ["0001", "0002", "0003"]
+    assert len(job["agents"]) == 3
+
+
 def test_build_application_job_config_rejects_unknown_mode(tmp_path: Path) -> None:
     repo = tmp_path
     pool = repo / "persona" / "datasets" / "matraix-persona-dev-sample"

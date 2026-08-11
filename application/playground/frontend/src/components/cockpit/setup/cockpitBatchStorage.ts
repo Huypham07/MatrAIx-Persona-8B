@@ -3,6 +3,8 @@ import type { HarborCockpitTaskKind } from "@/lib/harborCockpitMappers";
 export interface CockpitBatchRecord {
   jobName: string;
   personaIds: string[];
+  /** Full cohort size — may exceed personaIds when launching by pool ref. */
+  selectedCount?: number;
   taskId?: string;
 }
 
@@ -86,11 +88,17 @@ migrateLegacyBatchStore();
 export function readCockpitBatch(taskKind: HarborCockpitTaskKind): CockpitBatchRecord | null {
   const record = readStore()[taskKind];
   if (!record?.jobName) return null;
+  const personaIds = Array.isArray(record.personaIds)
+    ? record.personaIds.filter((id): id is string => typeof id === "string")
+    : [];
+  const selectedCount =
+    typeof record.selectedCount === "number" && record.selectedCount > 0
+      ? Math.round(record.selectedCount)
+      : personaIds.length;
   return {
     jobName: record.jobName,
-    personaIds: Array.isArray(record.personaIds)
-      ? record.personaIds.filter((id): id is string => typeof id === "string")
-      : [],
+    personaIds,
+    selectedCount,
     taskId: typeof record.taskId === "string" ? record.taskId : undefined,
   };
 }
@@ -104,6 +112,7 @@ export function writeCockpitBatch(
     store[taskKind] = {
       jobName: record.jobName,
       personaIds: record.personaIds,
+      selectedCount: record.selectedCount,
       taskId: record.taskId,
     };
   } else {

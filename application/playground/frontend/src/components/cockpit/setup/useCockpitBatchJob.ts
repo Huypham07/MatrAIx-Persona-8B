@@ -18,12 +18,18 @@ import type { RunLaunchPhase } from "./RunLaunchBar";
 
 function initialBatchState(taskKind?: HarborCockpitTaskKind) {
   if (!taskKind) {
-    return { jobName: null as string | null, personaIds: [] as string[], taskId: null as string | null };
+    return {
+      jobName: null as string | null,
+      personaIds: [] as string[],
+      selectedCount: 0,
+      taskId: null as string | null,
+    };
   }
   const saved = readCockpitBatch(taskKind);
   return {
     jobName: saved?.jobName ?? null,
     personaIds: saved?.personaIds ?? [],
+    selectedCount: saved?.selectedCount ?? saved?.personaIds.length ?? 0,
     taskId: saved?.taskId ?? null,
   };
 }
@@ -32,11 +38,13 @@ export function useCockpitBatchJob(
   selectedPersonaIds: string[],
   parallelTrials = 1,
   taskKind?: HarborCockpitTaskKind,
+  selectedCount = 0,
 ) {
   const { state: urlState, setState: setUrlState } = useUrlState();
   const [initial] = useState(() => initialBatchState(taskKind));
   const [batchJobName, setBatchJobNameInternal] = useState<string | null>(initial.jobName);
   const [restoredPersonaIds, setRestoredPersonaIds] = useState<string[]>(initial.personaIds);
+  const [restoredSelectedCount, setRestoredSelectedCount] = useState(initial.selectedCount);
   const [restoredTaskId, setRestoredTaskId] = useState<string | null>(initial.taskId);
 
   // Freeze the cohort to the batch launch snapshot until the user resets.
@@ -61,11 +69,22 @@ export function useCockpitBatchJob(
 
       if (jobName) {
         const personaIds = selectedPersonaIds.length > 0 ? selectedPersonaIds : restoredPersonaIds;
+        const cohortSize = Math.max(
+          selectedCount,
+          personaIds.length,
+          restoredSelectedCount,
+        );
         const taskId = meta?.taskId ?? restoredTaskId ?? undefined;
-        writeCockpitBatch(taskKind, { jobName, personaIds, taskId });
+        writeCockpitBatch(taskKind, {
+          jobName,
+          personaIds,
+          selectedCount: cohortSize,
+          taskId,
+        });
         if (selectedPersonaIds.length > 0) {
           setRestoredPersonaIds(selectedPersonaIds);
         }
+        setRestoredSelectedCount(cohortSize);
         if (taskId) {
           setRestoredTaskId(taskId);
         }
@@ -80,13 +99,23 @@ export function useCockpitBatchJob(
       } else {
         writeCockpitBatch(taskKind, null);
         setRestoredPersonaIds([]);
+        setRestoredSelectedCount(0);
         setRestoredTaskId(null);
         if (urlState.pgTask === taskKind) {
           setUrlState({ cockpitBatch: null });
         }
       }
     },
-    [restoredPersonaIds, restoredTaskId, selectedPersonaIds, setUrlState, taskKind, urlState.pgTask],
+    [
+      restoredPersonaIds,
+      restoredSelectedCount,
+      restoredTaskId,
+      selectedCount,
+      selectedPersonaIds,
+      setUrlState,
+      taskKind,
+      urlState.pgTask,
+    ],
   );
 
   const clearBatch = useCallback(() => setBatchJobName(null), [setBatchJobName]);
@@ -144,12 +173,13 @@ export function useCockpitBatchJob(
   }, [personaCardsQuery.data?.personas]);
 
   const statusSnapshot = statusFeed.snapshot;
-  const expectedTrialCount =
-    effectivePersonaIds.length ||
-    statusSnapshot?.trialCount ||
-    batchLive.live?.trialCount ||
-    batchLive.live?.trials.length ||
-    0;
+  const expectedTrialCount = Math.max(
+    batchJobName ? restoredSelectedCount : selectedCount,
+    effectivePersonaIds.length,
+    statusSnapshot?.trialCount ?? 0,
+    batchLive.live?.trialCount ?? 0,
+    batchLive.live?.trials.length ?? 0,
+  );
 
   const completedTrials =
     aggregate && statusSnapshot
@@ -180,7 +210,7 @@ export function useCockpitBatchJob(
   const batchGridCells = useMemo(() => {
     if (aggregate && statusSnapshot) {
       return buildBatchCellsFromStatus(statusSnapshot, {
-        expectedTotal: effectivePersonaIds.length,
+        expectedTotal: expectedTrialCount,
         personaIds: effectivePersonaIds,
         personaById,
       });
@@ -189,11 +219,13 @@ export function useCockpitBatchJob(
       jobStarted: Boolean(batchJobName),
       parallelTrials,
       personaById,
+      expectedTotal: expectedTrialCount,
     });
   }, [
     aggregate,
     statusSnapshot,
     effectivePersonaIds,
+    expectedTrialCount,
     batchLive.live?.trials,
     batchJobName,
     parallelTrials,

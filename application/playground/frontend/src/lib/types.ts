@@ -987,6 +987,7 @@ export interface PersonaPoolIdsResponse {
   pool: string;
   personaIds: string[];
   count: number;
+  idsTruncated?: boolean;
 }
 
 export interface PersonaPoolSampleResult {
@@ -1003,6 +1004,9 @@ export interface PersonaPoolSampleResult {
     dimensions?: Record<string, string>;
   }>;
   stratifyFields?: string[];
+  /** Full cohort size (may exceed personaIds when idsTruncated). */
+  selectedCount?: number;
+  idsTruncated?: boolean;
 }
 
 export interface PersonaPoolPersonaCard {
@@ -1090,10 +1094,12 @@ export const PERSONA_SAMPLE_SIZE_MAX_DEV = 500;
 export const PERSONA_SAMPLE_SIZE_MAX_PRODUCTION = 10_000;
 
 /**
- * Large stratified cohorts keep the full personaId list for launch, but only
- * hydrate/render this many cards in the UI (async preview — nobody scrolls 1k).
+ * Large cohorts keep a pool ref for launch; only this many cards hydrate in the UI.
+ * At or below PERSONA_UI_ID_LIST_MAX the full ID list may still be held for toggles.
  */
 export const PERSONA_CARD_PREVIEW_LIMIT = 32;
+/** Max persona IDs kept in browser state; larger cohorts launch by pool ref. */
+export const PERSONA_UI_ID_LIST_MAX = 100;
 
 export interface PersonaCohortSummary {
   cohortId: string;

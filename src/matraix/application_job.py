@@ -191,6 +191,7 @@ def build_application_job_config(
         )
 
     pool = load_manifest(pool_dir, repo_root=repo_root)
+    use_entire_pool = bool(spec.get("use_entire_pool"))
     if persona_ids:
         matched = pool
         chosen = resolve_persona_entries(
@@ -198,6 +199,15 @@ def build_application_job_config(
             persona_pool=spec["persona_pool"],
             repo_root=repo_root,
         )
+    elif use_entire_pool:
+        matched = pool
+        chosen = list(pool)
+        if not chosen:
+            raise ValueError(
+                "use_entire_pool=True but persona pool is empty: {}".format(
+                    spec["persona_pool"]
+                )
+            )
     else:
         matched, chosen = select_personas(
             pool,
@@ -251,6 +261,7 @@ def build_application_job_config(
             "matched_pool_size": len(matched),
             "selected_persona_ids": [entry["persona_id"] for entry in chosen],
             "persona_ids": persona_ids,
+            "use_entire_pool": use_entire_pool,
             "execution_mode": execution_mode,
             "trial_profile": trial_profile,
         },

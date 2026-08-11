@@ -178,12 +178,15 @@ Common optional fields:
 | `agentName` | Override resolved Matraix Playground agent |
 | `jobName` | Explicit job basename; if omitted, defaults to `pg-{task_slug}-{8 hex chars}` |
 | `cohortId` | Launch from a saved persona cohort |
+| `useEntirePool` | Launch every persona in `personaPool` without listing IDs |
 | `personaSources` / `personaFilters` | Pool sampling filters |
 | `chatDomain`, `chatApplicationId`, `chatApplicationContext`, `chatMaxTurns` | Chatbot / user-sim tasks |
 | `osAppSubmissionProfile`, `osAppBackend` | os-app / CUA tasks |
 
 `mode` must be one of `auto`, `force_docker`, or `smoke`.
 `plane` must be `harbor` or `remote`.
+Large cohorts should set `useEntirePool` and point `personaPool` at the
+cohort directory. See [large-scale-runs.md](../environment/large-scale-runs.md).
 
 Response:
 
@@ -242,6 +245,9 @@ Returns dimension metadata for one persona pool.
 ### `POST /api/persona-pool/sample`
 
 Samples personas from a pool with optional filters and stratification.
+Optional `previewLimit` (default 32) and `includePersonaIds`. Cohorts larger
+than 100 IDs return a truncated `personaIds` list plus `selectedCount` /
+`idsTruncated`.
 
 ### `GET /api/persona-pool/personas`
 
