@@ -20,7 +20,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { listSurveyHarborTasks, api, ApiError } from "@/lib/api";
-import { FALLBACK_SURVEY_HARBOR_TASKS } from "@/lib/fallbackTasks";
 import { personaModelPipelineLabel } from "@/lib/personaAgentCatalog";
 import type {
   ConfigOptionsResponse,
@@ -189,11 +188,10 @@ export function SurveyEvalCockpit({
     refetchOnWindowFocus: false,
     retry: 1,
   });
-  const harborTasks = useMemo(() => {
-    const fromApi = harborTasksQuery.data?.tasks ?? [];
-    if (fromApi.length > 0) return fromApi;
-    return harborTasksQuery.isError ? FALLBACK_SURVEY_HARBOR_TASKS : [];
-  }, [harborTasksQuery.data?.tasks, harborTasksQuery.isError]);
+  const harborTasks = useMemo(
+    () => harborTasksQuery.data?.tasks ?? [],
+    [harborTasksQuery.data?.tasks],
+  );
 
   const taskCards = useMemo(() => surveyHarborTaskCards(harborTasks), [harborTasks]);
   const setupTaskPath =

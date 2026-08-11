@@ -6,8 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { listOsAppEvalTasks, api, ApiError, harborTrialLiveScreenshotUrl } from "@/lib/api";
-import { FALLBACK_OS_APP_TASKS } from "@/lib/fallbackTasks";
-import { mergeTaskCatalog } from "@/lib/mergeTaskCatalog";
 import {
   cuaPersonaModelSelectOptions,
   DEFAULT_CUA_AGENT_MODEL,
@@ -58,10 +56,6 @@ import { FOCUS_RING, Sym } from "./cockpitShared";
 import type { PlaygroundTaskType } from "./TaskTypeSwitch";
 
 const DEFAULT_AGENT_MODEL = DEFAULT_CUA_AGENT_MODEL;
-
-function mergeOsAppTasks(apiTasks: OsAppEvalTask[] | undefined): OsAppEvalTask[] {
-  return mergeTaskCatalog(FALLBACK_OS_APP_TASKS, apiTasks);
-}
 
 export interface OsAppEvalCockpitProps {
   options: ConfigOptionsResponse | null;
@@ -137,7 +131,7 @@ export function OsAppEvalCockpit({
     retry: 1,
   });
   const tasks = useMemo(
-    () => mergeOsAppTasks(tasksQuery.data?.tasks),
+    () => tasksQuery.data?.tasks ?? [],
     [tasksQuery.data?.tasks],
   );
   const setupTaskPath =
