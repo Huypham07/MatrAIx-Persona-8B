@@ -1,7 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { formatBatchCellStatusLabel } from "@/lib/trialStatus";
-import { personaDisplayId, personaPrimaryName } from "@/lib/personaDisplay";
+import { isMachinePersonaName, personaDisplayId, personaPrimaryName } from "@/lib/personaDisplay";
 import type { PersonaPoolPersonaCard } from "@/lib/types";
 
 import { BatchMosaicCanvas, MOSAIC_STATUS_COLORS } from "./BatchMosaicCanvas";
@@ -395,6 +395,17 @@ function personaMetaFromCard(card: PersonaPoolPersonaCard | undefined): BatchTri
   };
 }
 
+// Status feeds carry bare ids ("wiki-ebc…") while cohort cards key the
+// prefixed form ("persona-wiki-ebc…") — accept either.
+function lookupPersonaCard(
+  personaById: Record<string, PersonaPoolPersonaCard>,
+  personaId: string | null | undefined,
+): PersonaPoolPersonaCard | undefined {
+  const raw = (personaId ?? "").trim();
+  if (!raw) return undefined;
+  return personaById[raw] ?? personaById[personaDisplayId(raw)] ?? personaById[raw.replace(/^persona[-_]/i, "")];
+}
+
 function resolveBatchGridSlots(
   personaIds: string[],
   harborTrials: HarborTrialRow[] | undefined,
@@ -480,7 +491,7 @@ export function buildBatchGridCells(
       status = "running";
     }
 
-    const card = personaById[slot.personaId];
+    const card = lookupPersonaCard(personaById, slot.personaId);
     const persona = personaMetaFromCard(card);
 
     return {
@@ -530,15 +541,23 @@ export function buildBatchCellsFromStatus(
   for (let i = 0; i < snapshot.codes.length; i += 1) {
     const status = STATUS_CODE_TO_STATUS[snapshot.codes[i]] ?? "pending";
     const personaId = snapshot.personaIds[i] ?? undefined;
-    const card = personaId ? personaById[personaId] : undefined;
-    const name = snapshot.personaNames[i] ?? card?.name ?? undefined;
+    const card = lookupPersonaCard(personaById, personaId);
+    // Feed names are machine ids ("persona-wiki-…") until real names land —
+    // never surface those; prefer the cohort card's display name.
+    const feedName = snapshot.personaNames[i] ?? undefined;
+    const name = card?.name ?? (feedName && !isMachinePersonaName(feedName) ? feedName : undefined);
     cells.push({
       id: snapshot.trialNames[i] ?? `trial-${i}`,
       label: name ?? personaId ?? `#${i + 1}`,
       status,
       persona:
         personaId || card
-          ? { personaId: personaId ?? "", name, dimensions: card?.dimensions ?? {} }
+          ? {
+              personaId: card?.personaId ?? personaId ?? "",
+              name,
+              source: card?.source,
+              dimensions: card?.dimensions ?? {},
+            }
           : undefined,
     });
   }
@@ -546,13 +565,18 @@ export function buildBatchCellsFromStatus(
   const total = Math.max(expectedTotal, cells.length);
   for (let i = cells.length; i < total; i += 1) {
     const personaId = personaIds[i];
-    const card = personaId ? personaById[personaId] : undefined;
+    const card = lookupPersonaCard(personaById, personaId);
     cells.push({
       id: personaId ? `persona-${personaId}` : `pending-${i}`,
       label: card?.name ?? personaId ?? `#${i + 1}`,
       status: "pending",
       persona: personaId
-        ? { personaId, name: card?.name, dimensions: card?.dimensions ?? {} }
+        ? {
+            personaId: card?.personaId ?? personaId,
+            name: card?.name,
+            source: card?.source,
+            dimensions: card?.dimensions ?? {},
+          }
         : undefined,
     });
   }

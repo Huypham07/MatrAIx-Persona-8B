@@ -6,6 +6,9 @@ export interface CockpitBatchRecord {
   /** Full cohort size — may exceed personaIds when launching by pool ref. */
   selectedCount?: number;
   taskId?: string;
+  /** Pool the launch resolved (cohort path for 1M samples) — needed to re-fetch
+   * cards after reload; the setup store may have reverted to the raw dataset. */
+  personaPool?: string;
 }
 
 type CockpitBatchStore = Partial<Record<HarborCockpitTaskKind, CockpitBatchRecord | null>>;
@@ -100,6 +103,10 @@ export function readCockpitBatch(taskKind: HarborCockpitTaskKind): CockpitBatchR
     personaIds,
     selectedCount,
     taskId: typeof record.taskId === "string" ? record.taskId : undefined,
+    personaPool:
+      typeof record.personaPool === "string" && record.personaPool.trim()
+        ? record.personaPool.trim()
+        : undefined,
   };
 }
 
