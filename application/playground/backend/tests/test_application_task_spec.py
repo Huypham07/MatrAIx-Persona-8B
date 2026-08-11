@@ -25,7 +25,7 @@ def test_application_task_spec_manifest_groups_core_protocols() -> None:
         "application/tasks/example-survey_product-feedback"
     )
     assert manifest["applicationTypes"]["chatbot"]["canonicalTask"] == (
-        "application/tasks/chat_recai"
+        "application/tasks/example-chat-api_support_chatbot"
     )
     assert manifest["applicationTypes"]["web"]["canonicalTask"] == (
         "application/tasks/example-web-playwright_quote-choice"
@@ -66,7 +66,10 @@ def test_canonical_survey_task_shape() -> None:
 
 
 def test_survey_reference_tasks_use_shared_runtime_and_task_local_input() -> None:
-    for folder in ("example-survey_product-feedback", "survey_product-attitudes"):
+    for folder in (
+        "example-survey_product-feedback",
+        "survey_annual-checkup-habits",
+    ):
         task = TASKS_ROOT / folder
         raw = tomllib.loads((task / "task.toml").read_text(encoding="utf-8"))
 
@@ -82,19 +85,22 @@ def test_survey_reference_tasks_use_shared_runtime_and_task_local_input() -> Non
 
 
 def test_canonical_chatbot_task_shape() -> None:
-    task = TASKS_ROOT / "chat_recai"
+    task = TASKS_ROOT / "example-chat-api_support_chatbot"
     persona = ENVIRONMENTS_ROOT / "shared-chat-persona"
-    sidecar = ENVIRONMENTS_ROOT / "chatbot-api-sidecar_recai"
+    sidecar = ENVIRONMENTS_ROOT / "chatbot-api-sidecar_acme-support-api"
     raw = tomllib.loads((task / "task.toml").read_text(encoding="utf-8"))
 
-    assert raw["task"]["name"] == "application/recai"
+    assert raw["task"]["name"] == "application/api-support-chatbot"
     assert raw["metadata"]["type"] == "chatbot"
     assert raw["metadata"]["domain"] == "commerce-retail"
     assert raw["environment"]["definition"] == "application/shared-chat-persona"
-    assert raw["environment"]["local_compose"] == "application/chatbot-api-sidecar_recai"
+    assert (
+        raw["environment"]["local_compose"]
+        == "application/chatbot-api-sidecar_acme-support-api"
+    )
     assert "/app/output" in raw["artifacts"]
     assert (persona / "Dockerfile").is_file()
-    assert (sidecar / "recommender-api" / "server.py").is_file()
+    assert (sidecar / "support-api" / "server.py").is_file()
     assert (task / "input" / "self_report_schema.yaml").is_file()
     assert not (task / "input" / "output_schema.md").exists()
 

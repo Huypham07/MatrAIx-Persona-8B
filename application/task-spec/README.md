@@ -131,7 +131,7 @@ need it.
 | Type | Benchmark question | Canonical example | Type contract (includes diagram) |
 |---|---|---|---|
 | **Survey** | How do personas answer this questionnaire? | `example-survey_product-feedback` | [survey/README.md](survey/README.md) |
-| **Chatbot** | Can the chat experience resolve the user's goal? | `chat_recai` | [chatbot/README.md](chatbot/README.md) |
+| **Chatbot** | Can the chat experience resolve the user's goal? | `example-chat-api_support_chatbot` | [chatbot/README.md](chatbot/README.md) |
 | **Web** | Can the agent use a website correctly? | `example-web-playwright_quote-choice` | [web/README.md](web/README.md) |
 | **OS / app** | Can the agent complete native / cross-app work safely? | `example-computer-use-ios_photo-access-review` | [os-app/README.md](os-app/README.md) |
 

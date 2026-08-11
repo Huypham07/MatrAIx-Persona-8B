@@ -1,20 +1,30 @@
 from __future__ import annotations
 
 import pathlib
+import subprocess
 from typing import Any
 
 import yaml
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-RECIPES_DIR = ROOT / "configs/jobs"
 EXPECTED_CURATED_RECIPES = {
     "configs/jobs/application-task-job-recipe/appSim-example-survey-product-feedback-random-n4.yaml",
 }
 
 
 def _recipe_paths() -> list[pathlib.Path]:
-    return sorted(RECIPES_DIR.rglob("*.yaml"))
+    """Only git-tracked recipes — ignore local leftovers under configs/jobs/."""
+    listed = subprocess.check_output(
+        ["git", "ls-files", "configs/jobs"],
+        cwd=ROOT,
+        text=True,
+    ).splitlines()
+    return sorted(
+        ROOT / relative
+        for relative in listed
+        if relative.endswith(".yaml")
+    )
 
 
 def _agent_persona_paths(recipe: dict[str, Any]) -> list[str]:

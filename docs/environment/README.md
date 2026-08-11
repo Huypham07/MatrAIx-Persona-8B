@@ -70,7 +70,6 @@ Remote plane details: [unified-runtime.md](runtime.md).
 
 ```text
 environment/
-  adapters/                 Optional external benchmark adapters (manifest-backed)
   agents/matraix/      Persona-conditioned agent implementations
   runtime/harbor/           Matraix Playground CLI, trial loop, models, verifier, viewer backend
   task-environments/
@@ -176,44 +175,11 @@ flowchart LR
 
 ## Benchmark adapters
 
-Adapters convert external benchmarks into Matraix Playground-compatible task directories under
-`environment/adapters/<adapter-name>/`.
-
-### Adapter layout
-
-Each adapter keeps its code and generated outputs local to its own directory:
-
-```text
-environment/adapters/
-  manifest.schema.json
-  <adapter-name>/
-    README.md
-    manifest.toml
-    pyproject.toml
-    src/<package-name>/
-    _generated/       ignored local output
-```
-
-Generated tasks, downloaded datasets, trajectories, screenshots, videos, and historical job outputs do not belong in git. Put them under the adapter-local `_generated/` directory while developing, then upload selected artifacts to external storage and link them from documentation.
-
-### Adapter manifest
-
-Every adapter must include `manifest.toml` with:
-
-- source repository, path, and commit
-- target path in Playground
-- package name and Python package import name
-- owner or original author
-- external data and credential requirements
-- smoke commands that validate the adapter without writing to shared paths
-- excluded source paths, especially lockfiles and generated outputs
-- status: `enabled`, `experimental`, or `archived`
-
-Use `manifest.schema.json` as the contract for required fields.
-
-### Current adapters
-
-- `simpleqa/`: experimental OpenAI SimpleQA adapter migrated from MatrAIx-ai/MatrAIx/adapters/simpleqa.
+External Harbor-format benchmark adapters (for example SimpleQA) are **not
+shipped in this public repository**. They convert third-party benchmarks into
+generic Harbor task directories, which is a different contract from MatrAIx
+`application/tasks/*`. Keep and develop adapters in the private Community tree
+if you need that workflow.
 
 ---
 

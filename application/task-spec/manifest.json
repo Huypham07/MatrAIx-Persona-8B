@@ -19,7 +19,7 @@
     "chatbot": {
       "status": "active",
       "driver": "chat_api_controller",
-      "canonicalTask": "application/tasks/chat_recai",
+      "canonicalTask": "application/tasks/example-chat-api_support_chatbot",
       "artifactContract": [
         "transcript",
         "recommendation_result",
