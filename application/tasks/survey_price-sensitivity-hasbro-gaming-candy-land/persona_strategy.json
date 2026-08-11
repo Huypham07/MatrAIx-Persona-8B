@@ -1,7 +1,6 @@
 {
   "schemaVersion": "1.0",
   "sources": [],
-  "defaultMode": "stratified",
   "dimensionFilters": {
     "economic_motivation": [
       "Cost-sensitive",
@@ -17,8 +16,12 @@
       "Parent of young kids"
     ]
   },
-  "stratifyFields": [
-    "economic_motivation"
-  ],
-  "sampleSize": 8
+  "sampling": {
+    "mode": "stratified",
+    "fields": [
+      "economic_motivation"
+    ],
+    "allocation": "equalTotal",
+    "sampleSize": 8
+  }
 }

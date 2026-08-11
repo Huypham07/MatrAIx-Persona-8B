@@ -5,8 +5,10 @@ import { PERSONA_BENCH_POOL, PERSONA_CARD_PREVIEW_LIMIT, PERSONA_UI_ID_LIST_MAX 
 import { readCockpitBatch } from "./cockpitBatchStorage";
 import {
   emptyPersonaDimensionFilters,
+  readStrategySampling,
   type PersonaDimensionFilters,
   type PersonaSamplingMode,
+  type StratifiedAllocation,
 } from "./personaSamplingTypes";
 
 /** Legacy pool slug renamed to matraix-persona-dev-sample (directory removed). */
@@ -38,14 +40,15 @@ export interface CockpitPersonaSetupRecord {
   useEntirePool: boolean;
   samplingMode: PersonaSamplingMode;
   groupFilters: PersonaDimensionFilters;
-  stratifyFields: string[];
+  fields: string[];
+  /** Stratified allocation: perCell | proportional | equalTotal. */
+  stratifiedAllocation: StratifiedAllocation;
   sampleSize: number;
   /**
-   * Personas per stratify combination (stratified mode).
-   * `null` = not set — sample with 1/cell then cap at `sampleSize`.
-   * Only an explicit number skips the sampleSize ceiling (per-cell is primary).
+   * Personas per stratify combination (stratified + perCell).
+   * `null` when allocation is proportional / equalTotal — use `sampleSize` instead.
    */
-  sampleSizePerValueGroup: number | null;
+  perCell: number | null;
   parallelTrials: number;
   personaModel: string;
   /** Pool used for the current cohort (never restore leftover synthetic paths). */
@@ -170,15 +173,23 @@ function normalizeRecord(
         ? record.samplingMode
         : "single",
     groupFilters: record.groupFilters ?? emptyPersonaDimensionFilters(),
-    stratifyFields: Array.isArray(record.stratifyFields)
-      ? record.stratifyFields.filter((field): field is string => typeof field === "string")
+    fields: Array.isArray(record.fields)
+      ? record.fields.filter((field): field is string => typeof field === "string")
       : ["age_bracket", "region"],
+    stratifiedAllocation:
+      record.stratifiedAllocation === "proportional" ||
+      record.stratifiedAllocation === "equalTotal" ||
+      record.stratifiedAllocation === "perCell"
+        ? record.stratifiedAllocation
+        : record.perCell === null
+          ? "equalTotal"
+          : "perCell",
     sampleSize: typeof record.sampleSize === "number" && record.sampleSize > 0 ? record.sampleSize : 4,
-    sampleSizePerValueGroup:
-      record.sampleSizePerValueGroup === null
+    perCell:
+      record.perCell === null
         ? null
-        : typeof record.sampleSizePerValueGroup === "number" && record.sampleSizePerValueGroup >= 1
-          ? Math.round(record.sampleSizePerValueGroup)
+        : typeof record.perCell === "number" && record.perCell >= 1
+          ? Math.round(record.perCell)
           : 1,
     parallelTrials:
       typeof record.parallelTrials === "number" && record.parallelTrials > 0 ? record.parallelTrials : 2,
@@ -203,9 +214,10 @@ export function defaultPersonaSetup(fallbackPersonaModel: string): CockpitPerson
     useEntirePool: false,
     samplingMode: "single",
     groupFilters: emptyPersonaDimensionFilters(),
-    stratifyFields: ["age_bracket", "region"],
+    fields: ["age_bracket", "region"],
+    stratifiedAllocation: "perCell",
     sampleSize: 4,
-    sampleSizePerValueGroup: 1,
+    perCell: 1,
     parallelTrials: 2,
     personaModel: fallbackPersonaModel,
     personaPool: PERSONA_BENCH_POOL,
@@ -221,10 +233,8 @@ export function setupFromPersonaStrategy(
   const next = base ? { ...base } : defaultPersonaSetup(fallbackPersonaModel);
   if (!strategy) return next;
 
-  const mode = strategy.defaultMode;
-  if (mode === "single" || mode === "random" || mode === "stratified" || mode === "all") {
-    next.samplingMode = mode;
-  }
+  const sampling = readStrategySampling(strategy);
+  next.samplingMode = sampling.mode;
 
   next.groupFilters = {
     sources: Array.isArray(strategy.sources)
@@ -250,29 +260,21 @@ export function setupFromPersonaStrategy(
         : {},
   };
 
-  if (Array.isArray(strategy.stratifyFields) && strategy.stratifyFields.length > 0) {
-    next.stratifyFields = strategy.stratifyFields.filter(
-      (field): field is string => typeof field === "string" && Boolean(field.trim()),
-    );
+  if (sampling.fields.length > 0) {
+    next.fields = sampling.fields;
   }
 
-  // Stratified quotas are mutually exclusive in persona_strategy.json.
-  const hasPerCell =
-    typeof strategy.sampleSizePerValueGroup === "number" &&
-    strategy.sampleSizePerValueGroup >= 1;
-  const hasSampleSize =
-    typeof strategy.sampleSize === "number" && strategy.sampleSize > 0;
-
-  if (hasPerCell) {
-    next.sampleSizePerValueGroup = Math.min(
+  next.stratifiedAllocation = sampling.allocation;
+  if (sampling.allocation === "perCell") {
+    next.perCell = Math.min(
       50,
-      Math.max(1, Math.round(strategy.sampleSizePerValueGroup as number)),
+      Math.max(1, Math.round(sampling.perCell ?? 1)),
     );
-  } else if (hasSampleSize) {
-    next.sampleSize = Math.min(500, Math.max(2, Math.round(strategy.sampleSize as number)));
-    next.sampleSizePerValueGroup = null;
   } else {
-    next.sampleSizePerValueGroup = null;
+    next.perCell = null;
+    if (sampling.sampleSize != null) {
+      next.sampleSize = Math.min(500, Math.max(2, Math.round(sampling.sampleSize)));
+    }
   }
 
   if (typeof strategy.pool === "string" && strategy.pool.trim()) {

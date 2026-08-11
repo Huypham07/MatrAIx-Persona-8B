@@ -24,8 +24,10 @@ import { PersonaFilterModal } from "./PersonaFilterModal";
 import {
   activeFilterCount,
   filtersForSampleApi,
+  readStrategySampling,
   type PersonaDimensionFilters,
   type PersonaSamplingMode,
+  type StratifiedAllocation,
 } from "./personaSamplingTypes";
 import type { PlaygroundTaskType } from "../TaskTypeSwitch";
 
@@ -52,6 +54,20 @@ const TAB_TITLES: Record<PersonaSamplingMode, string> = {
 };
 
 const TAB_ORDER: PersonaSamplingMode[] = ["single", "random", "stratified", "all"];
+
+const ALLOCATION_LABELS: Record<StratifiedAllocation, string> = {
+  perCell: "Per-cell",
+  proportional: "Proportional",
+  equalTotal: "Equal-total",
+};
+
+const ALLOCATION_TITLES: Record<StratifiedAllocation, string> = {
+  perCell: "Take N personas from every stratify combination",
+  proportional: "Allocate sample size by cell population (Hamilton)",
+  equalTotal: "Ensure coverage then clip to sample size",
+};
+
+const ALLOCATION_ORDER: StratifiedAllocation[] = ["perCell", "proportional", "equalTotal"];
 
 /** Default showcase personas from matraix-persona-dev-sample (smoke + spread). */
 const QUICK_PICK_PERSONA_IDS = ["0042", "0001", "0328", "0058", "0012", "0020", "0030", "0040"];
@@ -108,29 +124,31 @@ function strategyModeLabel(mode: string | null | undefined): string {
 }
 
 function strategyHeadline(strategy: TaskPersonaStrategy): string {
-  const stratify = (strategy.stratifyFields ?? []).filter((value) => value.trim());
-  const sample =
-    typeof strategy.sampleSize === "number" && strategy.sampleSize > 0
-      ? strategy.sampleSize
-      : null;
-  const perCell =
-    typeof strategy.sampleSizePerValueGroup === "number" && strategy.sampleSizePerValueGroup >= 1
-      ? strategy.sampleSizePerValueGroup
-      : null;
-  const isStratified = strategy.defaultMode === "stratified" || stratify.length > 0;
-  const mode = strategyModeLabel(strategy.defaultMode);
-  if (isStratified && perCell != null) return `${mode} · ${perCell} per combination`;
-  if (sample != null) return `${mode} · sample ${sample}`;
+  const sampling = readStrategySampling(strategy);
+  const mode = strategyModeLabel(sampling.mode);
+  const isStratified = sampling.mode === "stratified" || sampling.fields.length > 0;
+  if (isStratified) {
+    const allocLabel = ALLOCATION_LABELS[sampling.allocation];
+    if (sampling.allocation === "perCell" && sampling.perCell != null) {
+      return `${mode} · ${allocLabel} · ${sampling.perCell} per combination`;
+    }
+    if (sampling.sampleSize != null) {
+      return `${mode} · ${allocLabel} · sample ${sampling.sampleSize}`;
+    }
+    return `${mode} · ${allocLabel}`;
+  }
+  if (sampling.sampleSize != null) return `${mode} · sample ${sampling.sampleSize}`;
   return mode;
 }
 
 function TaskStrategySummary({ strategy }: { strategy: TaskPersonaStrategy }) {
   const [expanded, setExpanded] = useState(false);
+  const sampling = readStrategySampling(strategy);
   const dimEntries = Object.entries(strategy.dimensionFilters ?? {}).filter(
     ([, values]) => Array.isArray(values) && values.length > 0,
   );
   const sources = (strategy.sources ?? []).filter((value) => value.trim());
-  const stratify = (strategy.stratifyFields ?? []).filter((value) => value.trim());
+  const stratify = sampling.fields;
   const filterBits = dimEntries.length + (sources.length > 0 ? 1 : 0);
   const hasDetails = sources.length > 0 || dimEntries.length > 0 || stratify.length > 0;
 
@@ -165,23 +183,59 @@ function TaskStrategySummary({ strategy }: { strategy: TaskPersonaStrategy }) {
         ) : null}
       </button>
       {expanded ? (
-        <div className="mt-1.5 max-h-28 space-y-1 overflow-y-auto custom-scrollbar pr-0.5">
-          {sources.length > 0 ? (
-            <p className="text-[12px] leading-snug text-text-variant">
-              <span className="text-text-dim">Sources · </span>
-              {sources.join(", ")}
-            </p>
+        <div className="mt-1.5 max-h-36 space-y-2 overflow-y-auto custom-scrollbar pr-0.5">
+          {sources.length > 0 || dimEntries.length > 0 ? (
+            <div>
+              <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-text-dim">
+                Filters · {filterBits}
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {sources.map((source) => (
+                  <span
+                    key={source}
+                    className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary"
+                  >
+                    {source}
+                  </span>
+                ))}
+                {dimEntries.map(([dim, values]) => (
+                  <span
+                    key={dim}
+                    className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary"
+                    title={values.join(", ")}
+                  >
+                    {humanizeToken(dim)} · {values.length}
+                  </span>
+                ))}
+              </div>
+            </div>
           ) : null}
-          {dimEntries.map(([dim, values]) => (
-            <p key={dim} className="text-[12px] leading-snug text-text-variant">
-              <span className="text-text-dim">{humanizeToken(dim)} · </span>
-              {values.join(", ")}
-            </p>
-          ))}
           {stratify.length > 0 ? (
+            <div>
+              <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-text-dim">
+                Stratify · {stratify.length}
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {stratify.map((field) => (
+                  <span
+                    key={field}
+                    className="rounded-full border border-secondary/35 bg-secondary/10 px-2 py-0.5 text-[11px] text-secondary"
+                  >
+                    {humanizeToken(field)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {sampling.mode === "stratified" ? (
             <p className="text-[12px] leading-snug text-text-variant">
-              <span className="text-text-dim">Stratify · </span>
-              {stratify.map(humanizeToken).join(", ")}
+              <span className="text-text-dim">Allocation · </span>
+              {ALLOCATION_LABELS[sampling.allocation]}
+              {sampling.allocation === "perCell" && sampling.perCell != null
+                ? ` · ${sampling.perCell}/cell`
+                : sampling.sampleSize != null
+                  ? ` · sample ${sampling.sampleSize}`
+                  : ""}
             </p>
           ) : null}
           {!hasDetails ? (
@@ -216,14 +270,17 @@ export interface PersonaSamplingRailProps {
   onUseEntirePoolChange?: (value: boolean) => void;
   sampleSize: number;
   onSampleSizeChange: (size: number) => void;
-  /** Personas per stratify combination; null = cap at sampleSize (no explicit per-cell). */
-  sampleSizePerValueGroup: number | null;
+  /** Personas per stratify combination; null when allocation is proportional / equalTotal. */
+  perCell: number | null;
   onSampleSizePerValueGroupChange: (size: number) => void;
+  /** Stratified allocation mode (only meaningful when mode === "stratified"). */
+  stratifiedAllocation: StratifiedAllocation;
+  onStratifiedAllocationChange: (allocation: StratifiedAllocation) => void;
   seed: number;
   filters: PersonaDimensionFilters;
   onFiltersChange: (filters: PersonaDimensionFilters) => void;
-  stratifyFields: string[];
-  onStratifyFieldsChange: (fields: string[]) => void;
+  fields: string[];
+  onFieldsChange: (fields: string[]) => void;
   taskType?: PlaygroundTaskType;
   /** Active task path — used for strategy pool coverage recovery hints. */
   taskPath?: string | null;
@@ -252,13 +309,15 @@ export function PersonaSamplingRail({
   onUseEntirePoolChange,
   sampleSize,
   onSampleSizeChange,
-  sampleSizePerValueGroup,
+  perCell,
   onSampleSizePerValueGroupChange,
+  stratifiedAllocation,
+  onStratifiedAllocationChange,
   seed,
   filters,
   onFiltersChange,
-  stratifyFields,
-  onStratifyFieldsChange,
+  fields,
+  onFieldsChange,
   taskType,
   taskPath = null,
   hasTaskStrategy = false,
@@ -459,21 +518,19 @@ export function PersonaSamplingRail({
     setPullError(null);
     try {
       const dimensionFilters = filtersForSampleApi(filters);
-      // Only send per-cell when explicitly set. Omitting it makes the backend
-      // take ~1/cell then truncate to sampleSize (task strategies often set
-      // sampleSize alone without sampleSizePerValueGroup).
-      const perCell =
-        mode === "stratified" && sampleSizePerValueGroup != null
-          ? clampPerCell(sampleSizePerValueGroup)
-          : undefined;
+      const isPerCell = mode === "stratified" && stratifiedAllocation === "perCell";
+      const perCellQuota = isPerCell
+        ? clampPerCell(perCell ?? 1)
+        : undefined;
       const result = await api.samplePersonaPool({
         pool: sourcePool,
         sampleSize,
         seed,
         sources: filters.sources.length ? filters.sources : undefined,
         dimensionFilters,
-        stratifyFields: mode === "stratified" ? stratifyFields : undefined,
-        sampleSizePerValueGroup: perCell,
+        fields: mode === "stratified" ? fields : undefined,
+        perCell: perCellQuota,
+        allocation: mode === "stratified" ? stratifiedAllocation : undefined,
         taskPath: taskPath?.trim() || undefined,
       });
       const cards = result.personas.slice(0, PERSONA_CARD_PREVIEW_LIMIT).map((row) => ({
@@ -509,10 +566,11 @@ export function PersonaSamplingRail({
     onSelectedPersonaIdsChange,
     onUseEntirePoolChange,
     sampleSize,
-    sampleSizePerValueGroup,
+    perCell,
     seed,
     sourcePool,
-    stratifyFields,
+    stratifiedAllocation,
+    fields,
     taskPath,
   ]);
 
@@ -690,6 +748,25 @@ export function PersonaSamplingRail({
           })}
         </div>
 
+        {mode === "stratified" ? (
+          <div className="cockpit-segment cockpit-segment--grid mb-2 grid-cols-3">
+            {ALLOCATION_ORDER.map((alloc) => (
+              <button
+                key={alloc}
+                type="button"
+                title={ALLOCATION_TITLES[alloc]}
+                disabled={disabled || strategyLocked}
+                onClick={() => onStratifiedAllocationChange(alloc)}
+                className={`cockpit-segment__btn cockpit-segment__btn--compact w-full ${FOCUS_RING} ${
+                  stratifiedAllocation === alloc ? "cockpit-segment__btn--active" : ""
+                }`}
+              >
+                {ALLOCATION_LABELS[alloc]}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         {disabled && selectedPersonaIds.length > 0 ? (
           <p className="glass-tile mb-2 rounded-lg px-2.5 py-1.5 text-[12px] leading-snug text-text-variant">
             Cohort locked for this run — use Reset to change personas or sample settings.
@@ -736,29 +813,77 @@ export function PersonaSamplingRail({
         {mode !== "single" && mode !== "all" && (
           <div className="mb-2 space-y-1.5">
             {customSamplingUnlocked ? (
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => setFilterOpen(true)}
-                className={`glass-tile glass-tile--hover flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition ${FOCUS_RING}`}
-              >
-                <Sym name="tune" size={16} className="shrink-0 text-primary" />
-                <span className="min-w-0 flex-1 text-[13px] font-medium text-text-main">
-                  Persona filters
-                </span>
-                {filterCount > 0 ? (
-                  <span className="rounded-full bg-primary/15 px-1.5 font-mono text-[11px] text-primary">
-                    {filterCount}
+              <div className="space-y-1.5">
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => setFilterOpen(true)}
+                  className={`glass-tile glass-tile--hover flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition ${FOCUS_RING}`}
+                >
+                  <Sym name="tune" size={16} className="shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1 text-[13px] font-medium text-text-main">
+                    Persona filters
                   </span>
-                ) : null}
-                <Sym name="chevron_right" size={16} className="shrink-0 text-text-dim" />
-              </button>
+                  {filterCount > 0 ? (
+                    <span
+                      className="rounded-full bg-primary/15 px-1.5 font-mono text-[11px] text-primary"
+                      title={`${filterCount} filter group${filterCount === 1 ? "" : "s"}`}
+                    >
+                      {filterCount}
+                    </span>
+                  ) : null}
+                  {mode === "stratified" && fields.length > 0 ? (
+                    <span
+                      className="rounded-full bg-secondary/15 px-1.5 font-mono text-[11px] text-secondary"
+                      title={`${fields.length} stratify axis${fields.length === 1 ? "" : "es"}`}
+                    >
+                      {fields.length}×
+                    </span>
+                  ) : null}
+                  <Sym name="chevron_right" size={16} className="shrink-0 text-text-dim" />
+                </button>
+
+                {(filterCount > 0 || (mode === "stratified" && fields.length > 0)) && (
+                  <div className="flex flex-wrap gap-1 px-0.5">
+                    {filters.sources.map((source) => (
+                      <span
+                        key={`src:${source}`}
+                        className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary"
+                      >
+                        {source}
+                      </span>
+                    ))}
+                    {Object.entries(filters.dimensionFilters)
+                      .filter(([, values]) => values.length > 0)
+                      .map(([dim, values]) => (
+                        <span
+                          key={dim}
+                          className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary"
+                          title={values.join(", ")}
+                        >
+                          {humanizeToken(dim)}
+                          <span className="text-primary/70"> · {values.length}</span>
+                        </span>
+                      ))}
+                    {mode === "stratified"
+                      ? fields.map((field) => (
+                          <span
+                            key={`st:${field}`}
+                            className="rounded-full border border-secondary/35 bg-secondary/10 px-2 py-0.5 text-[11px] text-secondary"
+                          >
+                            stratify · {humanizeToken(field)}
+                          </span>
+                        ))
+                      : null}
+                  </div>
+                )}
+              </div>
             ) : null}
 
             <div className="flex items-end gap-2">
               {customSamplingUnlocked ? (
                 <>
-                  {mode === "stratified" && sampleSizePerValueGroup != null ? (
+                  {mode === "stratified" && stratifiedAllocation === "perCell" ? (
                     <label className="flex w-[4.25rem] shrink-0 flex-col gap-0.5">
                       <span className="text-[12px] text-text-dim">Per cell</span>
                       <input
@@ -767,9 +892,9 @@ export function PersonaSamplingRail({
                         min={1}
                         max={50}
                         step={1}
-                        value={perCellDraft ?? sampleSizePerValueGroup}
+                        value={perCellDraft ?? (perCell ?? 1)}
                         disabled={disabled}
-                        onFocus={() => setPerCellDraft(String(sampleSizePerValueGroup))}
+                        onFocus={() => setPerCellDraft(String(perCell ?? 1))}
                         onChange={(e) => {
                           const raw = e.target.value;
                           if (raw === "" || /^\d+$/.test(raw)) {
@@ -782,7 +907,7 @@ export function PersonaSamplingRail({
                           onSampleSizePerValueGroupChange(
                             clampPerCell(
                               raw === "" || raw == null
-                                ? sampleSizePerValueGroup
+                                ? (perCell ?? 1)
                                 : Number(raw),
                             ),
                           );
@@ -1003,8 +1128,8 @@ export function PersonaSamplingRail({
         catalog={catalogQuery.data ?? null}
         filters={filters}
         stratifyMode={mode === "stratified"}
-        stratifyFields={stratifyFields}
-        onStratifyFieldsChange={onStratifyFieldsChange}
+        fields={fields}
+        onFieldsChange={onFieldsChange}
         onClose={() => setFilterOpen(false)}
         onConfirm={onFiltersChange}
       />

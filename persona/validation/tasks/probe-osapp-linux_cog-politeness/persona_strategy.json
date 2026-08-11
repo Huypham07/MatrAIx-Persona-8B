@@ -1,8 +1,18 @@
 {
   "schemaVersion": "1.0",
   "sources": [],
-  "defaultMode": "stratified",
-  "dimensionFilters": { "cog_politeness": ["Very polite", "Rude"] },
-  "stratifyFields": ["cog_politeness"],
-  "sampleSize": 10
+  "dimensionFilters": {
+    "cog_politeness": [
+      "Very polite",
+      "Rude"
+    ]
+  },
+  "sampling": {
+    "mode": "stratified",
+    "fields": [
+      "cog_politeness"
+    ],
+    "allocation": "equalTotal",
+    "sampleSize": 10
+  }
 }

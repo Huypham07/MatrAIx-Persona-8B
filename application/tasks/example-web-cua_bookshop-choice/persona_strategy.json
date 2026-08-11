@@ -1,7 +1,6 @@
 {
   "schemaVersion": "1.0",
   "sources": [],
-  "defaultMode": "stratified",
   "dimensionFilters": {
     "age_bracket": [
       "18-24",
@@ -17,9 +16,13 @@
       "Community"
     ]
   },
-  "stratifyFields": [
-    "age_bracket",
-    "values_priority"
-  ],
-  "sampleSizePerValueGroup": 1
+  "sampling": {
+    "mode": "stratified",
+    "fields": [
+      "age_bracket",
+      "values_priority"
+    ],
+    "allocation": "perCell",
+    "perCell": 1
+  }
 }

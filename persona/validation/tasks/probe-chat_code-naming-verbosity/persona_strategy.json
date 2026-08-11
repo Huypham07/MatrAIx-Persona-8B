@@ -1,8 +1,18 @@
 {
   "schemaVersion": "1.0",
   "sources": [],
-  "defaultMode": "stratified",
-  "dimensionFilters": { "code_naming_verbosity": ["Highly verbose (long descriptive names)", "Terse abbreviated names"] },
-  "stratifyFields": ["code_naming_verbosity"],
-  "sampleSize": 10
+  "dimensionFilters": {
+    "code_naming_verbosity": [
+      "Highly verbose (long descriptive names)",
+      "Terse abbreviated names"
+    ]
+  },
+  "sampling": {
+    "mode": "stratified",
+    "fields": [
+      "code_naming_verbosity"
+    ],
+    "allocation": "equalTotal",
+    "sampleSize": 10
+  }
 }

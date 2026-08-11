@@ -21,6 +21,7 @@ import {
   emptyPersonaDimensionFilters,
   type PersonaDimensionFilters,
   type PersonaSamplingMode,
+  type StratifiedAllocation,
 } from "./personaSamplingTypes";
 
 function applyPersonaHandoffToSetup(
@@ -61,10 +62,13 @@ export function useSetupPersonaSampling(
   const [selectedCount, setSelectedCount] = useState(initial.selectedCount);
   const [useEntirePool, setUseEntirePool] = useState(initial.useEntirePool);
   const [groupFilters, setGroupFilters] = useState<PersonaDimensionFilters>(initial.groupFilters);
-  const [stratifyFields, setStratifyFields] = useState<string[]>(initial.stratifyFields);
+  const [fields, setFields] = useState<string[]>(initial.fields);
+  const [stratifiedAllocation, setStratifiedAllocationState] = useState<StratifiedAllocation>(
+    initial.stratifiedAllocation,
+  );
   const [sampleSize, setSampleSize] = useState(initial.sampleSize);
-  const [sampleSizePerValueGroup, setSampleSizePerValueGroup] = useState(
-    initial.sampleSizePerValueGroup,
+  const [perCell, setPerCell] = useState(
+    initial.perCell,
   );
   const [seed] = useState(42);
   const [parallelTrials, setParallelTrials] = useState(initial.parallelTrials);
@@ -102,14 +106,24 @@ export function useSetupPersonaSampling(
     setSelectedCount(record.selectedCount);
     setUseEntirePool(record.useEntirePool);
     setGroupFilters(record.groupFilters);
-    setStratifyFields(record.stratifyFields);
+    setFields(record.fields);
+    setStratifiedAllocationState(record.stratifiedAllocation);
     setSampleSize(record.sampleSize);
-    setSampleSizePerValueGroup(record.sampleSizePerValueGroup);
+    setPerCell(record.perCell);
     setPersonaModel(record.personaModel);
     setParallelTrials(record.parallelTrials);
     setPersonaPool(sanitizePersonaPool(record.personaPool));
     setUseTaskDefaultStrategyState(record.useTaskDefaultStrategy);
     setTaskDefaultStrategyDismissed(record.taskDefaultStrategyDismissed === true);
+  }, []);
+
+  const setStratifiedAllocation = useCallback((next: StratifiedAllocation) => {
+    setStratifiedAllocationState(next);
+    if (next === "perCell") {
+      setPerCell((prev) => (prev == null ? 1 : prev));
+    } else {
+      setPerCell(null);
+    }
   }, []);
 
   const resetToTaskStrategy = useCallback(() => {
@@ -142,9 +156,11 @@ export function useSetupPersonaSampling(
       // Drop strategy-owned filters so custom mode starts clean.
       setGroupFilters(emptyPersonaDimensionFilters());
       // Custom stratified UI expects an editable per-cell; invent 1 only after unlock.
-      setSampleSizePerValueGroup((prev) => (prev == null ? 1 : prev));
+      if (stratifiedAllocation === "perCell") {
+        setPerCell((prev) => (prev == null ? 1 : prev));
+      }
     },
-    [resetToTaskStrategy],
+    [resetToTaskStrategy, stratifiedAllocation],
   );
 
   useEffect(() => {
@@ -278,9 +294,10 @@ export function useSetupPersonaSampling(
         useEntirePool,
         samplingMode,
         groupFilters,
-        stratifyFields,
+        fields,
+        stratifiedAllocation,
         sampleSize,
-        sampleSizePerValueGroup,
+        perCell,
         parallelTrials,
         personaModel,
         personaPool,
@@ -297,9 +314,10 @@ export function useSetupPersonaSampling(
     useEntirePool,
     samplingMode,
     groupFilters,
-    stratifyFields,
+    fields,
+    stratifiedAllocation,
     sampleSize,
-    sampleSizePerValueGroup,
+    perCell,
     parallelTrials,
     personaModel,
     personaPool,
@@ -373,12 +391,14 @@ export function useSetupPersonaSampling(
     togglePersona,
     groupFilters,
     setGroupFilters,
-    stratifyFields,
-    setStratifyFields,
+    fields,
+    setFields,
+    stratifiedAllocation,
+    setStratifiedAllocation,
     sampleSize,
     setSampleSize,
-    sampleSizePerValueGroup,
-    setSampleSizePerValueGroup,
+    perCell,
+    setPerCell,
     seed,
     parallelTrials,
     setParallelTrials,

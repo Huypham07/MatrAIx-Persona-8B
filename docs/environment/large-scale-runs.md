@@ -33,8 +33,9 @@ Sources:
 1. **Task strategy** — most tasks ship `persona_strategy.json`. Sample in
    Playground, or run
    `generate_application_job.py --task application/tasks/<name>`.
-   For a stratified sample, set `sampleSize` to the **total** you want.
-   `sampleSizePerValueGroup` is a per-group quota, not a second total.
+   For a stratified sample, set ``sampling.allocation`` to ``perCell`` /
+   ``proportional`` / ``equalTotal``. Per-cell uses ``sampling.perCell``;
+   the other two use ``sampling.sampleSize`` as the total.
 2. **Public Persona 1M** —
    [`MatrAIx2026/MatrAIx_Persona_1M_Public_Release`](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release).
    Import it locally, then point the job at that path. See

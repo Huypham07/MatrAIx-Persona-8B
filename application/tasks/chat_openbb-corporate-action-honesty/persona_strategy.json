@@ -1,7 +1,6 @@
 {
   "schemaVersion": "1.0",
   "sources": [],
-  "defaultMode": "stratified",
   "dimensionFilters": {
     "trust_level": [
       "Trusting",
@@ -27,9 +26,13 @@
       "Business & Management"
     ]
   },
-  "stratifyFields": [
-    "trust_level",
-    "cog_skepticism"
-  ],
-  "sampleSizePerValueGroup": 1
+  "sampling": {
+    "mode": "stratified",
+    "fields": [
+      "trust_level",
+      "cog_skepticism"
+    ],
+    "allocation": "perCell",
+    "perCell": 1
+  }
 }

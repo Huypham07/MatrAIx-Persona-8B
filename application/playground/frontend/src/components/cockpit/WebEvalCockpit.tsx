@@ -172,12 +172,14 @@ export function WebEvalCockpit({
     setUseEntirePool,
     groupFilters,
     setGroupFilters,
-    stratifyFields,
-    setStratifyFields,
+    fields,
+    setFields,
+    stratifiedAllocation,
+    setStratifiedAllocation,
     sampleSize,
     setSampleSize,
-    sampleSizePerValueGroup,
-    setSampleSizePerValueGroup,
+    perCell,
+    setPerCell,
     seed,
     parallelTrials,
     setParallelTrials,
@@ -516,13 +518,15 @@ export function WebEvalCockpit({
           onUseEntirePoolChange={setUseEntirePool}
           sampleSize={sampleSize}
           onSampleSizeChange={setSampleSize}
-          sampleSizePerValueGroup={sampleSizePerValueGroup}
-          onSampleSizePerValueGroupChange={setSampleSizePerValueGroup}
+          perCell={perCell}
+          onSampleSizePerValueGroupChange={setPerCell}
+          stratifiedAllocation={stratifiedAllocation}
+          onStratifiedAllocationChange={setStratifiedAllocation}
           seed={seed}
           filters={groupFilters}
           onFiltersChange={setGroupFilters}
-          stratifyFields={stratifyFields}
-          onStratifyFieldsChange={setStratifyFields}
+          fields={fields}
+          onFieldsChange={setFields}
           hasTaskStrategy={hasTaskStrategy}
           taskPersonaStrategy={taskPersonaStrategy}
           useTaskDefaultStrategy={useTaskDefaultStrategy}

@@ -1,7 +1,6 @@
 {
   "schemaVersion": "1.0",
   "sources": [],
-  "defaultMode": "stratified",
   "dimensionFilters": {
     "age_bracket": [
       "18-24",
@@ -24,9 +23,13 @@
       "Poor"
     ]
   },
-  "stratifyFields": [
-    "age_bracket",
-    "health_insurance_status"
-  ],
-  "sampleSize": 20
+  "sampling": {
+    "mode": "stratified",
+    "fields": [
+      "age_bracket",
+      "health_insurance_status"
+    ],
+    "allocation": "equalTotal",
+    "sampleSize": 20
+  }
 }

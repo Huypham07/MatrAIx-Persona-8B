@@ -1,7 +1,6 @@
 {
   "schemaVersion": "1.0",
   "sources": [],
-  "defaultMode": "stratified",
   "dimensionFilters": {
     "values_priority": [
       "Security",
@@ -13,8 +12,12 @@
       "Cautious adopter"
     ]
   },
-  "stratifyFields": [
-    "tech_savviness"
-  ],
-  "sampleSize": 6
+  "sampling": {
+    "mode": "stratified",
+    "fields": [
+      "tech_savviness"
+    ],
+    "allocation": "equalTotal",
+    "sampleSize": 6
+  }
 }

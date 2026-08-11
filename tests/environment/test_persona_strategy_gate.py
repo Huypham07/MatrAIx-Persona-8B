@@ -20,7 +20,7 @@ def test_validate_persona_strategy_requires_cohort(tmp_path: Path) -> None:
         json.dumps(
             {
                 "schemaVersion": "1.0",
-                "defaultMode": "random",
+                "sampling": {"mode": "random", "sampleSize": 4},
                 "dimensionFilters": {},
             }
         ),
@@ -40,11 +40,15 @@ def test_validate_persona_strategy_stratified_needs_axes(tmp_path: Path) -> None
         json.dumps(
             {
                 "schemaVersion": "1.0",
-                "defaultMode": "stratified",
+                "sampling": {
+                    "mode": "stratified",
+                    "allocation": "equalTotal",
+                    "sampleSize": 4,
+                },
                 "dimensionFilters": {"region": ["Oceania"]},
             }
         ),
         encoding="utf-8",
     )
     errors = validate_persona_strategy_file(tmp_path)
-    assert any("stratifyFields" in err for err in errors)
+    assert any("sampling.fields" in err for err in errors)

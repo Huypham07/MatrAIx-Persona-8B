@@ -117,17 +117,22 @@ def _load_strategy(path: Path) -> dict[str, object]:
         sources = raw.get("sources") or []
         if not isinstance(sources, list):
             sources = []
-        stratify = raw.get("stratifyFields") or []
+        sampling = raw.get("sampling") if isinstance(raw.get("sampling"), dict) else {}
+        stratify = sampling.get("fields") or []
         if not isinstance(stratify, list):
             stratify = []
-        per_group = raw.get("sampleSizePerValueGroup")
-        sample_size = raw.get("sampleSize")
+        per_group = sampling.get("perCell")
+        sample_size = sampling.get("sampleSize")
         return {
             "dimensionFilters": normalized_filters,
             "sources": [str(s).strip() for s in sources if str(s).strip()],
-            "stratifyFields": [str(s).strip() for s in stratify if str(s).strip()],
-            "sampleSizePerValueGroup": per_group if isinstance(per_group, int) else None,
-            "sampleSize": sample_size if isinstance(sample_size, int) else None,
+            "sampling": {
+                "mode": str(sampling.get("mode") or "random"),
+                "fields": [str(s).strip() for s in stratify if str(s).strip()],
+                "allocation": sampling.get("allocation"),
+                "perCell": per_group if isinstance(per_group, int) else None,
+                "sampleSize": sample_size if isinstance(sample_size, int) else None,
+            },
         }
 
 
@@ -160,25 +165,26 @@ def _stratum_top_up_from_strategy(
             "after consistency filtering"
         )
 
+    sampling = strategy.get("sampling") if isinstance(strategy.get("sampling"), dict) else {}
     stratify_fields = [
         str(field).removeprefix("dimensions.").strip()
-        for field in (strategy.get("stratifyFields") or [])
+        for field in (sampling.get("fields") or [])
         if str(field).strip()
     ]
     filter_keys = set(filters)
     uncovered = [field for field in stratify_fields if field not in filter_keys]
     if uncovered:
         print(
-            "WARNING: stratifyFields not listed in dimensionFilters will stay "
+            "WARNING: sampling.fields not listed in dimensionFilters will stay "
             f"randomly filled: {uncovered}. Add them to dimensionFilters if "
             "Playground stratified sampling needs guaranteed cell coverage."
         )
 
-    per_group = strategy.get("sampleSizePerValueGroup")
+    per_group = sampling.get("perCell")
     if isinstance(per_group, int) and per_group >= 1:
         stratum_min = per_group
     else:
-        sample_size = strategy.get("sampleSize")
+        sample_size = sampling.get("sampleSize")
         if isinstance(sample_size, int) and sample_size >= 1 and len(strata) > 0:
             # Enough for at least one full stratified draw across filter cells.
             stratum_min = max(DEFAULT_STRATEGY_STRATUM_MIN, (sample_size + len(strata) - 1) // len(strata))
@@ -194,7 +200,12 @@ def _stratum_top_up_from_strategy(
     meta = {
         "strategy_path": str(strategy_path.relative_to(REPO_ROOT)),
         "dimensionFilters": filters,
-        "stratifyFields": stratify_fields,
+        "sampling": {
+            "fields": stratify_fields,
+            "allocation": sampling.get("allocation"),
+            "perCell": per_group if isinstance(per_group, int) else None,
+            "sampleSize": sampling.get("sampleSize"),
+        },
         "strata_count": len(strata),
     }
     return strata, meta, sources, stratum_min

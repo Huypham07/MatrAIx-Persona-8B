@@ -1102,7 +1102,17 @@ def test_persona_distributions_are_config_driven(tmp_path: Path) -> None:
     task_dir = repo_root / "application" / "tasks" / task
     task_dir.mkdir(parents=True, exist_ok=True)
     (task_dir / "persona_strategy.json").write_text(
-        json.dumps({"stratifyFields": ["life_stage"]}), encoding="utf-8"
+        json.dumps(
+            {
+                "sampling": {
+                    "mode": "stratified",
+                    "fields": ["life_stage"],
+                    "allocation": "perCell",
+                    "perCell": 1,
+                }
+            }
+        ),
+        encoding="utf-8",
     )
     (task_dir / "reporting.json").write_text(
         json.dumps(
@@ -1198,7 +1208,17 @@ def test_persona_standalone_facets_from_empty_groupby(tmp_path: Path) -> None:
     task_dir = repo_root / "application" / "tasks" / task
     task_dir.mkdir(parents=True, exist_ok=True)
     (task_dir / "persona_strategy.json").write_text(
-        json.dumps({"stratifyFields": ["life_stage"]}), encoding="utf-8"
+        json.dumps(
+            {
+                "sampling": {
+                    "mode": "stratified",
+                    "fields": ["life_stage"],
+                    "allocation": "perCell",
+                    "perCell": 1,
+                }
+            }
+        ),
+        encoding="utf-8",
     )
     (task_dir / "reporting.json").write_text(
         json.dumps(
@@ -1269,7 +1289,7 @@ def test_persona_standalone_facets_from_empty_groupby(tmp_path: Path) -> None:
 
 
 def test_persona_distribution_dimensions_fall_back_to_filters(tmp_path: Path) -> None:
-    """When persona_strategy has no stratifyFields, distribution directives without
+    """When persona_strategy has no sampling.fields, distribution directives without
     explicit axes default to the dimensionFilters keys."""
     repo_root = tmp_path
     task = "example-persona-filters"
@@ -1327,7 +1347,7 @@ def test_persona_distribution_dimensions_fall_back_to_filters(tmp_path: Path) ->
     rating_dist = next(
         dist for dist in distributions if dist["facetKey"] == "overall_experience_rating"
     )
-    # No stratifyFields → fell back to the dimensionFilters key.
+    # No sampling.fields → fell back to the dimensionFilters key.
     assert rating_dist["groupByPersonaDimension"] == "life_stage"
 
 

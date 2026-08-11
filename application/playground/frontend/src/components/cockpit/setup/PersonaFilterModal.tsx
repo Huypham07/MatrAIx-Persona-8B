@@ -28,8 +28,8 @@ export interface PersonaFilterModalProps {
   catalog: PersonaPoolCatalog | null;
   filters: PersonaDimensionFilters;
   stratifyMode?: boolean;
-  stratifyFields?: string[];
-  onStratifyFieldsChange?: (fields: string[]) => void;
+  fields?: string[];
+  onFieldsChange?: (fields: string[]) => void;
   onClose: () => void;
   onConfirm: (filters: PersonaDimensionFilters) => void;
 }
@@ -41,6 +41,24 @@ function poolLabel(pool: string | undefined): string {
 
 function dimLabel(dim: PersonaPoolDimensionOption): string {
   return (dim.label || dim.id.replace(/_/g, " ")).trim();
+}
+
+function findDimensionLabel(
+  catalog: PersonaPoolCatalog | null,
+  dimId: string,
+): string {
+  const groups = catalog?.dimensionCategories?.devProfile?.groups ?? [];
+  for (const group of groups) {
+    for (const dim of group.dimensions ?? []) {
+      if (dim.id === dimId) return dimLabel(dim);
+    }
+    for (const sub of group.subgroups ?? []) {
+      for (const dim of sub.dimensions ?? []) {
+        if (dim.id === dimId) return dimLabel(dim);
+      }
+    }
+  }
+  return dimId.replace(/_/g, " ");
 }
 
 function matchesQuery(text: string, query: string): boolean {
@@ -78,8 +96,8 @@ export function PersonaFilterModal({
   catalog,
   filters,
   stratifyMode = false,
-  stratifyFields = [],
-  onStratifyFieldsChange,
+  fields = [],
+  onFieldsChange,
   onClose,
   onConfirm,
 }: PersonaFilterModalProps) {
@@ -168,12 +186,13 @@ export function PersonaFilterModal({
       chips.push({ key: `source:${source}`, label: "Source", value: source });
     }
     for (const [dimId, values] of Object.entries(draft.dimensionFilters)) {
+      const label = findDimensionLabel(catalog, dimId);
       for (const value of values) {
-        chips.push({ key: `${dimId}:${value}`, label: dimId, value });
+        chips.push({ key: `${dimId}:${value}`, label, value });
       }
     }
     return chips;
-  }, [draft]);
+  }, [catalog, draft]);
 
   if (!open) return null;
 
@@ -219,18 +238,18 @@ export function PersonaFilterModal({
   };
 
   const toggleStratifyField = (dimId: string) => {
-    if (!onStratifyFieldsChange) return;
-    const next = stratifyFields.includes(dimId)
-      ? stratifyFields.filter((item) => item !== dimId)
-      : [...stratifyFields, dimId];
-    onStratifyFieldsChange(next);
+    if (!onFieldsChange) return;
+    const next = fields.includes(dimId)
+      ? fields.filter((item) => item !== dimId)
+      : [...fields, dimId];
+    onFieldsChange(next);
   };
 
   const renderDimension = (dim: PersonaPoolDimensionOption) => {
     const visibleValues = filterDimensionValues(dim, normalizedQuery);
     const dimOpen = expandedDim === dim.id || (Boolean(normalizedQuery) && visibleValues.length > 0);
     const selected = draft.dimensionFilters[dim.id] ?? [];
-    const stratified = stratifyFields.includes(dim.id);
+    const stratified = fields.includes(dim.id);
     return (
       <div key={dim.id} className="rounded-md border border-outline/30 bg-surface/20">
         <button
@@ -465,32 +484,76 @@ export function PersonaFilterModal({
         </div>
 
         <div className="border-t border-outline/40 bg-surface/40 px-5 py-4">
-          {selectedChips.length > 0 ? (
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {selectedChips.map((chip) => (
-                <button
-                  key={chip.key}
-                  type="button"
-                  onClick={() => removeChip(chip)}
-                  className="glass-tile glass-tile--active inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] text-primary"
-                >
-                  <span className="text-text-dim">{chip.label}:</span> {chip.value}
-                  <Sym name="close" size={12} />
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="mb-3 text-[13px] text-text-dim">No filters — full pool eligible.</p>
-          )}
+          <div className="mb-3 space-y-2.5">
+            {selectedChips.length > 0 ? (
+              <div>
+                <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-text-dim">
+                  Filters · {activeFilterCount(draft)}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedChips.map((chip) => (
+                    <button
+                      key={chip.key}
+                      type="button"
+                      onClick={() => removeChip(chip)}
+                      className="glass-tile glass-tile--active inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] text-primary"
+                    >
+                      <span className="text-text-dim">{chip.label}:</span> {chip.value}
+                      <Sym name="close" size={12} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-[13px] text-text-dim">No filters — full pool eligible.</p>
+            )}
+
+            {stratifyMode ? (
+              <div>
+                <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-text-dim">
+                  Stratify axes · {fields.length}
+                </p>
+                {fields.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {fields.map((field) => {
+                      const label = findDimensionLabel(catalog, field);
+                      return (
+                        <button
+                          key={field}
+                          type="button"
+                          onClick={() => toggleStratifyField(field)}
+                          className="inline-flex items-center gap-1 rounded-full border border-secondary/40 bg-secondary/10 px-2.5 py-1 text-[12px] text-secondary"
+                        >
+                          <span className="text-[10px] uppercase tracking-wide text-secondary/80">
+                            stratify
+                          </span>
+                          {label}
+                          <Sym name="close" size={12} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[13px] text-text-dim">
+                    Tap <span className="text-secondary">stratify</span> on a dimension to add an axis.
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </div>
+
           <div className="flex items-center justify-between gap-3">
             <p className="text-[13px] text-text-variant">
-              <span className="font-mono text-text-main">{activeFilterCount(draft)}</span> filter groups
-              {stratifyMode && stratifyFields.length > 0 && (
-                <span>
+              <span className="font-mono text-text-main">{activeFilterCount(draft)}</span> filter
+              {activeFilterCount(draft) === 1 ? "" : "s"}
+              {stratifyMode ? (
+                <>
                   {" "}
-                  · stratify on <span className="font-mono text-text-main">{stratifyFields.join(", ")}</span>
-                </span>
-              )}
+                  ·{" "}
+                  <span className="font-mono text-secondary">{fields.length}</span> stratify
+                  {fields.length === 1 ? " axis" : " axes"}
+                </>
+              ) : null}
             </p>
             <div className="flex gap-2">
               <button
@@ -508,7 +571,7 @@ export function PersonaFilterModal({
                 }}
                 className={`rounded-md bg-primary px-4 py-2 text-[14px] font-medium text-on-primary ${FOCUS_RING}`}
               >
-                Apply filters
+                Apply
               </button>
             </div>
           </div>

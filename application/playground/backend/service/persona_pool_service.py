@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import random
 import re
 import shutil
 import yaml
@@ -18,6 +19,8 @@ from matraix.persona_job import (
     sample_personas,
     sample_personas_stratified,
 )
+
+from backend.service.persona_sampling_alloc import sample_proportional_from_buckets
 
 PERSONA_CARD_DIMENSIONS = (
     "age_bracket",
@@ -72,6 +75,24 @@ def with_coverage_hint(message: str, *, task_path: str | None = None) -> str:
     if "matraix-persona-1m" in text:
         return text
     return f"{text}\n\n{coverage_recovery_hint(task_path=task_path)}"
+
+
+def _normalize_allocation(
+    allocation: str | None,
+    *,
+    sample_size_per_value_group: int | None,
+) -> str | None:
+    """Return perCell | proportional | equalTotal | None (non-stratified)."""
+    text = str(allocation or "").strip()
+    if text in {"per_cell", "per-cell"}:
+        text = "perCell"
+    if text in {"equal_total", "equal-total"}:
+        text = "equalTotal"
+    if text in {"perCell", "proportional", "equalTotal"}:
+        return text
+    if isinstance(sample_size_per_value_group, int) and sample_size_per_value_group >= 1:
+        return "perCell"
+    return None
 
 
 def _utc_now() -> str:
@@ -1150,6 +1171,7 @@ class PersonaPoolService:
         dimension_filters: dict[str, str | list[str]] | None = None,
         stratify_fields: list[str] | None = None,
         sample_size_per_value_group: int | None = None,
+        allocation: str | None = None,
         task_path: str | None = None,
         preview_limit: int = PERSONA_CARD_PREVIEW_DEFAULT,
         include_persona_ids: bool | None = None,
@@ -1160,6 +1182,10 @@ class PersonaPoolService:
         )
 
         list_filters = self._filters_as_lists(self._normalize_dimension_filters(dimension_filters))
+        allocation_norm = _normalize_allocation(
+            allocation,
+            sample_size_per_value_group=sample_size_per_value_group,
+        )
 
         # Production 1M: sample + materialize a YAML cohort. Never synthesize.
         if is_production_1m_root(persona_pool):
@@ -1171,6 +1197,7 @@ class PersonaPoolService:
                 dimension_filters=list_filters or None,
                 stratify_fields=stratify_fields,
                 sample_size_per_value_group=sample_size_per_value_group,
+                allocation=allocation_norm,
             )
             return self._shape_sample_response(
                 result,
@@ -1179,10 +1206,10 @@ class PersonaPoolService:
             )
 
         # Stratified quotas:
-        # - sampleSizePerValueGroup set → N per cell (primary); sampleSize is not a clip.
-        # - only sampleSize → ensure ≥1/cell, then stratified sample capped at sampleSize.
-        #   sampleSize must be ≥ # expected cells when that product is known.
-        explicit_per_cell = (
+        # - perCell → N per cell (primary); sampleSize is not a clip.
+        # - equalTotal / only sampleSize → ensure ≥1/cell, then clip to sampleSize.
+        # - proportional → Hamilton allocation by cell population, total = sampleSize.
+        explicit_per_cell = allocation_norm == "perCell" or (
             isinstance(sample_size_per_value_group, int) and sample_size_per_value_group >= 1
         )
         expected = (
@@ -1193,6 +1220,7 @@ class PersonaPoolService:
         if (
             stratify_fields
             and not explicit_per_cell
+            and allocation_norm != "proportional"
             and expected is not None
             and sample_size < len(expected)
         ):
@@ -1200,14 +1228,14 @@ class PersonaPoolService:
                 with_coverage_hint(
                     "sampleSize={} is below the stratified cell count={} "
                     "(need ≥1 persona per combination). Raise sampleSize, set "
-                    "sampleSizePerValueGroup, or sample from matraix-persona-1m.".format(
+                    "perCell allocation, or sample from matraix-persona-1m.".format(
                         sample_size, len(expected)
                     ),
                     task_path=task_path,
                 )
             )
 
-        if stratify_fields and expected is not None:
+        if stratify_fields and expected is not None and allocation_norm != "proportional":
             per_cell = (
                 int(sample_size_per_value_group)
                 if explicit_per_cell
@@ -1236,6 +1264,7 @@ class PersonaPoolService:
                 dimension_filters=dimension_filters,
                 stratify_fields=stratify_fields,
                 sample_size_per_value_group=sample_size_per_value_group,
+                allocation=allocation_norm,
             )
         except ValueError as exc:
             raise ValueError(with_coverage_hint(str(exc), task_path=task_path)) from exc
@@ -1255,6 +1284,7 @@ class PersonaPoolService:
         dimension_filters: dict[str, str | list[str]] | None = None,
         stratify_fields: list[str] | None = None,
         sample_size_per_value_group: int | None = None,
+        allocation: str | None = None,
     ) -> dict[str, Any]:
         matched = self.filter_pool(
             persona_pool=persona_pool,
@@ -1263,45 +1293,61 @@ class PersonaPoolService:
         )
         if sample_size < 1:
             raise ValueError("sample_size must be >= 1")
+        allocation_norm = _normalize_allocation(
+            allocation,
+            sample_size_per_value_group=sample_size_per_value_group,
+        )
         if stratify_fields:
             bare_fields = [
                 str(field).removeprefix("dimensions.").strip() for field in stratify_fields
             ]
             bare_fields = [field for field in bare_fields if field]
-            bucket_counts: dict[str, int] = {}
+            buckets: dict[str, list[dict[str, Any]]] = {}
             for entry in matched:
                 key = _stratify_bucket_key(entry, bare_fields, repo_root=self.repo_root)
                 if key is None:
                     continue
-                bucket_counts[key] = bucket_counts.get(key, 0) + 1
-            n_buckets = len(bucket_counts)
+                buckets.setdefault(key, []).append(entry)
+            n_buckets = len(buckets)
             if n_buckets < 1:
                 label = ", ".join(bare_fields)
                 raise ValueError(f"No personas with stratify fields ({label})")
 
-            if sample_size_per_value_group is not None:
-                per_group = sample_size_per_value_group
+            if allocation_norm == "proportional":
+                chosen = sample_proportional_from_buckets(
+                    buckets, sample_size=sample_size, seed=seed
+                )
+            elif allocation_norm == "perCell" or sample_size_per_value_group is not None:
+                per_group = (
+                    int(sample_size_per_value_group)
+                    if isinstance(sample_size_per_value_group, int)
+                    and sample_size_per_value_group >= 1
+                    else 1
+                )
+                chosen = sample_personas_stratified(
+                    matched,
+                    stratify_fields=list(stratify_fields),
+                    sample_size_per_value_group=per_group,
+                    seed=seed,
+                    repo_root=self.repo_root,
+                )
             else:
-                # Spread total sampleSize across cells: ceil(N / cells), then clip.
+                # equalTotal: ceil(N / cells) then clip to sampleSize.
                 if sample_size < n_buckets:
                     raise ValueError(
                         "sampleSize={} is below the stratified cell count={} "
                         "(need ≥1 persona per combination)".format(sample_size, n_buckets)
                     )
                 per_group = max(1, (sample_size + n_buckets - 1) // n_buckets)
-
-            chosen = sample_personas_stratified(
-                matched,
-                stratify_fields=list(stratify_fields),
-                sample_size_per_value_group=per_group,
-                seed=seed,
-                repo_root=self.repo_root,
-            )
-            # Explicit per-cell quota: take N×cells; ignore sampleSize (mutually
-            # exclusive strategies — strategy files must set only one).
-            # sampleSize-only stratified: take ceil(N/cells) then truncate to N.
-            if sample_size_per_value_group is None and len(chosen) > sample_size:
-                chosen = chosen[:sample_size]
+                chosen = sample_personas_stratified(
+                    matched,
+                    stratify_fields=list(stratify_fields),
+                    sample_size_per_value_group=per_group,
+                    seed=seed,
+                    repo_root=self.repo_root,
+                )
+                if len(chosen) > sample_size:
+                    chosen = chosen[:sample_size]
         else:
             if sample_size > len(matched):
                 raise ValueError(
@@ -1327,7 +1373,7 @@ class PersonaPoolService:
             "seed": seed,
             "personaIds": persona_ids,
             "personas": personas,
-            "stratifyFields": list(stratify_fields or []),
+            "fields": list(stratify_fields or []),
         }
 
     def _cohorts_root(self) -> Path:

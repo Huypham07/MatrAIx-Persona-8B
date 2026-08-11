@@ -45,11 +45,14 @@ def test_build_retrieval_plan_applies_task_strategy(tmp_path: Path) -> None:
             {
                 "schemaVersion": "1.0",
                 "pool": "persona/datasets/matraix-persona-dev-sample",
-                "defaultMode": "stratified",
                 "sources": ["wiki"],
                 "dimensionFilters": {"age_bracket": ["25-34", "35-44"]},
-                "stratifyFields": ["age_bracket"],
-                "sampleSize": 4,
+                "sampling": {
+                    "mode": "stratified",
+                    "fields": ["age_bracket"],
+                    "allocation": "equalTotal",
+                    "sampleSize": 4,
+                },
                 "seed": 7,
             }
         ),

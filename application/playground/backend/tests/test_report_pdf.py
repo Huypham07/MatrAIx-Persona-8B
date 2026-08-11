@@ -39,8 +39,7 @@ def test_build_batch_report_pdf_returns_pdf_bytes():
             "taskPath": "application/tasks/example-survey_product-feedback",
             "taskTitle": "Product feedback survey",
             "personaStrategy": {
-                "defaultMode": "random",
-                "sampleSize": 12,
+                "sampling": {"mode": "random", "sampleSize": 12},
                 "seed": 42,
                 "sources": ["Nemotron"],
             },
@@ -119,8 +118,7 @@ def test_build_batch_report_pdf_returns_pdf_bytes():
             "description": "Collect product opinions from simulated users.",
             "instructionMarkdown": "# Answer in character\n\nBe honest.",
             "personaStrategy": {
-                "defaultMode": "random",
-                "sampleSize": 12,
+                "sampling": {"mode": "random", "sampleSize": 12},
                 "seed": 42,
             },
         },

@@ -31,6 +31,7 @@ import type {
 import { Markdown } from "@/components/Markdown";
 import { QuestionnairePreview } from "@/components/QuestionnairePreview";
 import { PersonaAvatar } from "./cockpit/setup/PersonaAvatar";
+import { readStrategySampling } from "./cockpit/setup/personaSamplingTypes";
 import {
   buildTaskDocSections,
   type TaskDocTabId,
@@ -2779,12 +2780,15 @@ function normalizePersonaStrategy(
   strategy: TaskPersonaStrategy | null | undefined,
 ): BatchReportPdfPersonaStrategy | null {
   if (!strategy) return null;
+  const sampling = readStrategySampling(strategy);
   return {
-    mode: strategy.defaultMode ?? null,
-    sampleSizePerValueGroup: strategy.sampleSizePerValueGroup ?? null,
-    sampleSize: strategy.sampleSize ?? null,
+    mode: sampling.mode,
+    allocation: sampling.mode === "stratified" ? sampling.allocation : null,
+    perCell:
+      sampling.allocation === "perCell" ? sampling.perCell : null,
+    sampleSize: sampling.sampleSize,
     seed: strategy.seed ?? null,
-    stratifyFields: strategy.stratifyFields ?? undefined,
+    fields: sampling.fields.length ? sampling.fields : undefined,
     dimensionFilters: strategy.dimensionFilters ?? undefined,
     sources: strategy.sources ?? undefined,
   };
@@ -3028,6 +3032,13 @@ function humanizeStrategyKey(raw: string): string {
   return raw.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function humanizeAllocationLabel(raw: string | null | undefined): string {
+  if (raw === "perCell") return "Per-cell";
+  if (raw === "proportional") return "Proportional";
+  if (raw === "equalTotal") return "Equal-total";
+  return raw ? humanizeStrategyKey(raw) : "";
+}
+
 function BatchReportPersonaFactGrid({
   facts,
 }: {
@@ -3249,17 +3260,27 @@ function BatchReportPersonaStrategy({ meta }: { meta: BatchReportPdfMeta }) {
   const filters = Object.entries(strategy?.dimensionFilters ?? {}).filter(
     ([, values]) => Array.isArray(values) && values.length > 0,
   );
-  const stratify = strategy?.stratifyFields ?? [];
+  const stratify = strategy?.fields ?? [];
 
   const strategyFacts: Array<{ label: string; value: string; title?: string }> = [];
   if (strategy?.mode) {
     strategyFacts.push({ label: "Mode", value: humanizeStrategyKey(String(strategy.mode)) });
   }
-  if (strategy?.sampleSizePerValueGroup != null) {
+  if (strategy?.allocation) {
     strategyFacts.push({
-      label: "Per group",
-      value: String(strategy.sampleSizePerValueGroup),
-      title: "Personas per value group requested by the default strategy",
+      label: "Allocation",
+      value: humanizeAllocationLabel(strategy.allocation),
+      title: "Stratified allocation used by the default strategy",
+    });
+  }
+  if (
+    (strategy?.allocation === "perCell" || !strategy?.allocation) &&
+    strategy?.perCell != null
+  ) {
+    strategyFacts.push({
+      label: "Per cell",
+      value: String(strategy.perCell),
+      title: "Personas per stratify combination requested by the default strategy",
     });
   } else if (strategy?.sampleSize != null) {
     strategyFacts.push({
