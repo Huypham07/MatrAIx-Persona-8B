@@ -495,8 +495,11 @@ def sample_row_ids_with_index(
 
         cells = list(product(*field_values))
         rng.shuffle(cells)
+        # Explicit per-cell quota is primary: take N per cell across ALL cells;
+        # sample_size is not a clip (mirrors PersonaPoolService contract).
+        target = per_cell * len(cells) if per_cell is not None else sample_size
         for cell in cells:
-            if len(chosen) >= sample_size:
+            if len(chosen) >= target:
                 break
             parts = []
             if base is not None:
@@ -507,12 +510,12 @@ def sample_row_ids_with_index(
             if cell_ids.size == 0:
                 continue
             take = per_cell if per_cell is not None else 1
-            take = min(take, int(cell_ids.size), sample_size - len(chosen))
+            take = min(take, int(cell_ids.size), target - len(chosen))
             if take <= 0:
                 continue
             pick = rng.choice(cell_ids, size=take, replace=False)
             chosen.extend(int(x) for x in np.atleast_1d(pick))
-        return np.asarray(chosen[:sample_size], dtype=np.uint32)
+        return np.asarray(chosen[:target], dtype=np.uint32)
 
     # Random (optionally filtered).
     pool = base if base is not None else np.arange(index.rows, dtype=np.uint32)
