@@ -41,7 +41,6 @@ import os
 import subprocess
 import urllib.request
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -135,27 +134,6 @@ def catalog_item_view(item: Dict[str, Any]) -> Dict[str, Any]:
 # --------------------------------------------------------------------------- #
 # Preflight (user-facing readiness checks)
 # --------------------------------------------------------------------------- #
-#: The settings.json keys that point at the on-disk files a RecAI domain bundle
-#: must ship (item table, column descriptions, ranker checkpoint, similarity
-#: matrix). Mirrors ``scripts.setup_recai_resources._REFERENCED_KEYS`` so the
-#: preflight validates exactly what the installer wrote.
-_BUNDLE_REFERENCED_KEYS = (
-    "GAME_INFO_FILE",
-    "TABLE_COL_DESC_FILE",
-    "MODEL_CKPT_FILE",
-    "ITEM_SIM_FILE",
-)
-
-#: Domains whose native resource bundle the Studio expects to be installed.
-#: Mirrors ``ConfigManager.ALLOWED["domain"]`` — the single ``all_resources``
-#: bundle is the source of truth for every selectable domain.
-_BUNDLE_DOMAINS = ("movie", "beauty_product", "game")
-
-#: Friendly display labels for the resource domains, so the checklist never shows
-#: a raw token like "beauty_product".
-_DOMAIN_LABELS = {"movie": "Movies", "beauty_product": "Beauty products", "game": "Games"}
-
-
 def _sidecar_reachable(base_url: str, timeout: float = 5.0) -> bool:
     """True if a chatbot sidecar answers ``GET /ready`` with a 2xx.
 
@@ -188,190 +166,158 @@ def _docker_daemon_ok(timeout: float = 2.0) -> bool:
 
 
 def preflight_checks() -> List[Dict[str, Any]]:
-    """Compute the user-facing, interface-aware readiness checklist.
+    """Compute the user-facing readiness checklist for application tasks.
 
-    Reports each probe as ``{"group", "name", "ok", "detail"}`` regardless of
-    pass/fail, so the UI can group the overall readiness of the whole system —
-    not just the RecAI recommender — in plain language. Groups:
+    Reports each probe as ``{"group", "name", "ok", "detail", "optional?"}``.
+    ``ready`` (caller) is true only when every non-optional check passes.
 
-    * **Core** — model credentials (any run needs these).
-    * **Chatbot** — the RecAI recommender (engine + its native resource bundles,
-      collapsed across domains), plus the OpenBB and Medical adapters, which are
-      selectable but whose external services are verified at run time.
-    * **Survey** / **Web** / **OS app** — the other application interfaces,
-      available to run.
+    Hard-block (required) vs optional — aligned to shipped ``application/tasks``:
 
-    Check *names* are human-readable and never echo raw environment-variable
-    names. Inspection is filesystem-only except for a short ``/ready`` probe of
-    the optional chatbot sidecars; it never imports RecAI or any application
-    backend.
+    **Required** (block platform ready)
+
+    * Model credentials — at least one of OpenAI / Anthropic / DashScope
+      (every survey / chat / web / os-app run needs a persona or agent model).
+    * Survey forms / Web tasks — surfaces are always available in-process.
+
+    **Optional** (needed only for specific tasks; do not block ``ready``)
+
+    * Docker — survey, web, chat, and Linux OS-app Harbor runs.
+    * use.computer API — macOS / iOS OS-app tasks.
+    * OpenBB sidecar — ``chat_openbb-corporate-action-honesty``.
+    * Meal planning sidecar — ``chat_meal-planning-nutrition``.
+    * Acme support API — ``example-chat-api_support_chatbot``.
+    * Acme MCP — ``example-chat-mcp_support_chatbot``.
+
+    RecAI / multi-agent medical are not probed here.
     """
     checks: List[Dict[str, Any]] = []
 
-    # ---- Core — what any run, on any interface, needs ------------------- #
-    openai_key = os.environ.get("OPENAI_API_KEY")
+    # ---- Core — required model credentials + optional per-provider ---- #
+    openai_key = bool(os.environ.get("OPENAI_API_KEY"))
+    anthropic_key = bool(
+        os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_API_KEY")
+    )
+    dashscope_key = bool(os.environ.get("DASHSCOPE_API_KEY"))
+    configured = [
+        label
+        for label, present in (
+            ("OpenAI", openai_key),
+            ("Anthropic", anthropic_key),
+            ("DashScope", dashscope_key),
+        )
+        if present
+    ]
+    checks.append(
+        {
+            "group": "Core",
+            "name": "Model credentials",
+            "ok": bool(configured),
+            "detail": (
+                "Configured: {}.".format(", ".join(configured))
+                if configured
+                else "Not configured. Set OpenAI, Anthropic, or DashScope credentials "
+                "to run application tasks."
+            ),
+        }
+    )
     checks.append(
         {
             "group": "Core",
             "name": "OpenAI credentials",
-            "ok": bool(openai_key),
+            "ok": openai_key,
+            "optional": True,
             "detail": (
-                "Configured."
+                "Configured. Used by many chat SUTs and OpenAI persona models."
                 if openai_key
-                else "Not configured. Required to run real turns."
+                else "Not configured. Needed for OpenAI persona models and several chat SUTs."
             ),
         }
     )
-
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_API_KEY")
     checks.append(
         {
             "group": "Core",
             "name": "Anthropic credentials",
-            "ok": bool(anthropic_key),
+            "ok": anthropic_key,
+            "optional": True,
             "detail": (
-                "Configured."
+                "Configured. Used by Claude persona models (Playground default)."
                 if anthropic_key
-                else "Not configured. Required for Anthropic persona models."
+                else "Not configured. Needed for Anthropic / Claude persona models."
             ),
         }
     )
-
-    dashscope_key = os.environ.get("DASHSCOPE_API_KEY")
     checks.append(
         {
             "group": "Core",
             "name": "DashScope (Qwen / DeepSeek)",
-            "ok": bool(dashscope_key),
+            "ok": dashscope_key,
             "optional": True,
             "detail": (
                 "Configured."
                 if dashscope_key
-                else "Not configured. Required for DashScope persona models "
-                "(Qwen, DeepSeek via OpenAI-compatible API)."
+                else "Not configured. Needed only for DashScope persona models "
+                "(Qwen, DeepSeek)."
             ),
         }
     )
 
-    # ---- Chatbot — RecAI is deeply probed; other adapters are offered --- #
-    root = _interecagent_root()
-    llm4crs = os.path.join(root, "llm4crs")
-    engine_ok = os.path.isdir(root) and os.path.isdir(llm4crs)
-    checks.append(
-        {
-            "group": "Chatbot",
-            "name": "Recommendation engine",
-            "ok": engine_ok,
-            "detail": (
-                "InteRecAgent engine found."
-                if engine_ok
-                else "InteRecAgent engine not found; the recai/ submodule looks "
-                "incomplete (missing llm4crs/)."
-            ),
-        }
-    )
+    # ---- Chatbot — shipped chat task sidecars (all optional) ----------- #
+    from backend.service.chatbot_sidecar_service import sidecar_status
 
-    # The RecAI native bundles, collapsed across every supported domain.
-    checks.append(_recai_resources_check(root))
+    for application_id, name, task_slug in (
+        (
+            "finance_openbb",
+            "OpenBB (finance)",
+            "chat_openbb-corporate-action-honesty",
+        ),
+        (
+            "meal_planning_nutrition",
+            "Meal planning",
+            "chat_meal-planning-nutrition",
+        ),
+        (
+            "acme_support_api",
+            "Acme support API",
+            "example-chat-api_support_chatbot",
+        ),
+        (
+            "acme_support_mcp",
+            "Acme MCP support",
+            "example-chat-mcp_support_chatbot",
+        ),
+    ):
+        status = sidecar_status(application_id)
+        ok = bool(status.get("ok"))
+        health_url = str(status.get("healthUrl") or "")
+        checks.append(
+            {
+                "group": "Chatbot",
+                "name": name,
+                "ok": ok,
+                "optional": True,
+                "applicationId": application_id,
+                "detail": (
+                    "{} ready at {}.".format(name, health_url)
+                    if ok
+                    else "{} not ready at {}. Start it to run {}.".format(
+                        name, health_url, task_slug
+                    )
+                ),
+            }
+        )
 
-    from backend.service.chatbot_sidecar_service import (
-        resolve_health_url,
-        sidecar_port_reachable,
-        sidecar_reachable,
-    )
-
-    recai_url = resolve_health_url("recai")
-    recai_api_ok = sidecar_reachable(recai_url)
-    checks.append(
-        {
-            "group": "Chatbot",
-            "name": "RecAI chat API",
-            "ok": recai_api_ok,
-            "optional": True,
-            "applicationId": "recai",
-            "detail": (
-                "RecAI chat API ready at {}.".format(recai_url)
-                if recai_api_ok
-                else "RecAI chat API not ready at {}. Start it before a Harbor chat run.".format(
-                    recai_url
-                )
-            ),
-        }
-    )
-
-    # The finance/medical adapters route to HTTP sidecars. Probe each one's
-    # /ready so readiness reflects full capability readiness (not just liveness).
-    # Marked optional: a down sidecar shows here but does not gate overall
-    # readiness (RecAI / Survey / Web still run without them).
-    from playground.inprocess.chatbot_eval import _sidecar_base_url
-
-    finance_url = _sidecar_base_url(
-        "CHATBOT_UPSTREAM_FINANCE", "FINANCE_CHATBOT_URL", "http://127.0.0.1:8901"
-    )
-    finance_ok = _sidecar_reachable(finance_url)
-    checks.append(
-        {
-            "group": "Chatbot",
-            "name": "OpenBB (finance)",
-            "ok": finance_ok,
-            "optional": True,
-            "applicationId": "finance_openbb",
-            "detail": (
-                "Finance sidecar ready at {}.".format(finance_url)
-                if finance_ok
-                else "Finance sidecar not ready at {}. Start it to run a finance chat.".format(
-                    finance_url
-                )
-            ),
-        }
-    )
-    medical_url = _sidecar_base_url(
-        "CHATBOT_UPSTREAM_MEDICAL", "MEDICAL_CHATBOT_URL", "http://127.0.0.1:8902"
-    )
-    medical_ok = _sidecar_reachable(medical_url, timeout=10.0)
-    checks.append(
-        {
-            "group": "Chatbot",
-            "name": "Medical assistant",
-            "ok": medical_ok,
-            "optional": True,
-            "applicationId": "medical_assistant",
-            "detail": (
-                "Medical sidecar ready at {}.".format(medical_url)
-                if medical_ok
-                else "Medical sidecar not ready at {}. Start it to run a medical chat.".format(
-                    medical_url
-                )
-            ),
-        }
-    )
-
-    mcp_url = resolve_health_url("acme_support_mcp")
-    mcp_ok = sidecar_port_reachable("127.0.0.1", 8903)
-    checks.append(
-        {
-            "group": "Chatbot",
-            "name": "Acme MCP support",
-            "ok": mcp_ok,
-            "optional": True,
-            "applicationId": "acme_support_mcp",
-            "detail": (
-                "MCP server ready at {}.".format(mcp_url)
-                if mcp_ok
-                else "MCP server not ready at {}. Start it to run the MCP chat task.".format(
-                    mcp_url
-                )
-            ),
-        }
-    )
-
-    # ---- Survey + Web interfaces --------------------------------------- #
+    # ---- Survey + Web surfaces ----------------------------------------- #
     checks.append(
         {
             "group": "Survey",
             "name": "Survey forms",
             "ok": True,
-            "detail": "Survey interface available. Instruments load when you open it.",
+            "detail": (
+                "Survey interface available "
+                "(example-survey_product-feedback, survey_annual-checkup-habits, "
+                "survey_price-sensitivity-hasbro-gaming-candy-land). "
+                "Harbor runs also need Docker."
+            ),
         }
     )
     checks.append(
@@ -379,10 +325,15 @@ def preflight_checks() -> List[Dict[str, Any]]:
             "group": "Web",
             "name": "Web tasks",
             "ok": True,
-            "detail": "Browser interface available. It runs when you start a web task.",
+            "detail": (
+                "Browser interface available "
+                "(web_mit-ocw-course-choice, web_notion-plan-comparison, "
+                "example-web-*). Harbor runs also need Docker."
+            ),
         }
     )
 
+    # ---- OS app / Harbor runtime (optional per platform) --------------- #
     docker_ok = _docker_daemon_ok()
     checks.append(
         {
@@ -391,9 +342,10 @@ def preflight_checks() -> List[Dict[str, Any]]:
             "ok": docker_ok,
             "optional": True,
             "detail": (
-                "Docker daemon reachable."
+                "Docker daemon reachable. Needed for survey, web, chat, and Linux OS-app tasks."
                 if docker_ok
-                else "Docker not running. Required for Linux and web OS-app tasks."
+                else "Docker not running. Needed for survey, web, chat, and Linux OS-app "
+                "(example-computer-use-linux_note-to-csv)."
             ),
         }
     )
@@ -405,126 +357,17 @@ def preflight_checks() -> List[Dict[str, Any]]:
             "ok": bool(use_computer_key),
             "optional": True,
             "detail": (
-                "Configured."
+                "Configured. Needed for macOS / iOS OS-app tasks "
+                "(os-app-macos_stocks-mu-sentiment, os-app-ios_news-subscription-decision, "
+                "example-computer-use-macos_*, example-computer-use-ios_*)."
                 if use_computer_key
-                else "Not configured. Required for macOS and iOS OS-app tasks."
+                else "Not configured. Needed for macOS / iOS OS-app tasks "
+                "(os-app-macos_stocks-mu-sentiment, os-app-ios_news-subscription-decision)."
             ),
         }
     )
 
     return checks
-
-
-def _recai_resources_check(interecagent_root: str) -> Dict[str, Any]:
-    """One collapsed readiness check across every RecAI resource domain.
-
-    Validates the real native bundle (``settings.json`` + the files it
-    references) for each supported domain via :func:`_bundle_check`, and reports
-    a single plain-language line — the per-domain status lives in ``detail`` —
-    instead of one row per domain.
-    """
-    def _label(domain: str) -> str:
-        return _DOMAIN_LABELS.get(domain, domain.replace("_", " ").capitalize())
-
-    installed: List[str] = []
-    missing: List[str] = []
-    for domain in _BUNDLE_DOMAINS:
-        if _bundle_check(interecagent_root, domain)["ok"]:
-            installed.append(_label(domain))
-        else:
-            missing.append(_label(domain))
-    if not missing:
-        ok = True
-        detail = "Resource bundles installed for {}.".format(", ".join(installed))
-    elif installed:
-        ok = False
-        detail = "Installed: {}. Missing: {}.".format(", ".join(installed), ", ".join(missing))
-    else:
-        ok = False
-        detail = "Resource bundles not installed for {}.".format(", ".join(missing))
-    return {
-        "group": "Chatbot",
-        "name": "RecAI resources",
-        "ok": ok,
-        "optional": True,
-        "detail": detail,
-    }
-
-
-def _interecagent_root() -> str:
-    """Absolute path to the RecAI engine root used for resource validation.
-
-    Honors an ``INTERECAGENT_ROOT`` override (the bridge reads the same var) and
-    otherwise falls back to the task-environment ``recai/InteRecAgent`` checkout
-    (sparse-cloned on demand via ``scripts/setup_recai_resources.py``). The
-    fallback is computed straight from this module's location so it is unaffected
-    by a faked ``recbot`` package in tests.
-    """
-    override = os.environ.get("INTERECAGENT_ROOT")
-    if override:
-        return os.path.abspath(override)
-    from backend.service.task_environment import resolve_chat_endpoint_host_dir
-
-    repo_root = Path(__file__).resolve().parents[4]
-    task_dir = repo_root / "application" / "tasks" / "chat_recai"
-    host_dir = resolve_chat_endpoint_host_dir(task_dir)
-    if host_dir is None:
-        base = (
-            repo_root
-            / "environment"
-            / "task-environments"
-            / "application"
-            / "chatbot-api-sidecar_recai"
-            / "recommender-api"
-        )
-    else:
-        candidate = host_dir / "recommender-api"
-        base = candidate if candidate.is_dir() else host_dir
-    return str(base / "recai" / "InteRecAgent")
-
-
-def _bundle_check(interecagent_root: str, domain: str) -> Dict[str, Any]:
-    """Validate one domain's real native bundle (settings.json + its files).
-
-    Mirrors ``scripts.setup_recai_resources._verify_domain``: the bundle lives at
-    ``<root>/resources/<domain>/`` and is valid when ``settings.json`` exists and
-    every file it references (:data:`_BUNDLE_REFERENCED_KEYS`) is present on disk.
-    Reported with a human-readable name; details never leak env-var names.
-    """
-    name = "Recommendation resources ({})".format(domain)
-    domain_dir = os.path.join(interecagent_root, "resources", domain)
-    settings_path = os.path.join(domain_dir, "settings.json")
-    if not os.path.isfile(settings_path):
-        return {
-            "name": name,
-            "ok": False,
-            "detail": "Native resource bundle not installed for {}.".format(domain),
-        }
-    try:
-        import json as _json
-
-        with open(settings_path, "r", encoding="utf-8") as fh:
-            settings = _json.load(fh)
-    except (OSError, ValueError):
-        return {
-            "name": name,
-            "ok": False,
-            "detail": "Resource bundle for {} is unreadable or corrupt.".format(domain),
-        }
-    missing: List[str] = []
-    for key in _BUNDLE_REFERENCED_KEYS:
-        ref = settings.get(key) if isinstance(settings, dict) else None
-        if not ref or not os.path.isfile(os.path.join(domain_dir, str(ref))):
-            missing.append(str(ref) if ref else key)
-    if missing:
-        return {
-            "name": name,
-            "ok": False,
-            "detail": "Resource bundle for {} is incomplete ({} missing).".format(
-                domain, ", ".join(missing)
-            ),
-        }
-    return {"name": name, "ok": True, "detail": "Native resource bundle installed."}
 
 
 # --------------------------------------------------------------------------- #

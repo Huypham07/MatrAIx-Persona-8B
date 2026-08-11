@@ -27,12 +27,47 @@ def test_preflight_shape(client):
     assert "ready" in body and isinstance(body["ready"], bool)
     assert isinstance(body["checks"], list) and body["checks"]
     names = {c["name"] for c in body["checks"]}
-    assert "OpenAI credentials" in names
-    assert "Anthropic credentials" in names
-    assert "DashScope (Qwen / DeepSeek)" in names
-    assert {"OpenBB (finance)", "Medical assistant", "Survey forms", "Web tasks", "Docker", "use.computer API"} <= names
+    assert "Model credentials" in names
+    assert {
+        "OpenAI credentials",
+        "Anthropic credentials",
+        "DashScope (Qwen / DeepSeek)",
+        "OpenBB (finance)",
+        "Meal planning",
+        "Acme support API",
+        "Acme MCP support",
+        "Survey forms",
+        "Web tasks",
+        "Docker",
+        "use.computer API",
+    } <= names
+    # Not part of the shipped application task set — keep out of readiness.
+    assert "Recommendation engine" not in names
+    assert "RecAI resources" not in names
+    assert "RecAI chat API" not in names
+    assert "Medical assistant" not in names
     for check in body["checks"]:
         assert set(check.keys()) >= {"name", "ok", "detail", "group"}
+
+
+def test_preflight_required_vs_optional_contract(client):
+    body = client.get("/api/preflight").json()
+    by_name = {c["name"]: c for c in body["checks"]}
+    required = {name for name, check in by_name.items() if not check.get("optional")}
+    optional = {name for name, check in by_name.items() if check.get("optional")}
+    assert required == {"Model credentials", "Survey forms", "Web tasks"}
+    assert {
+        "OpenAI credentials",
+        "Anthropic credentials",
+        "DashScope (Qwen / DeepSeek)",
+        "OpenBB (finance)",
+        "Meal planning",
+        "Acme support API",
+        "Acme MCP support",
+        "Docker",
+        "use.computer API",
+    } <= optional
+    assert body["ready"] == all(c["ok"] for c in body["checks"] if not c.get("optional"))
 
 
 def test_preflight_does_not_leak_env_var_names(client):
@@ -52,16 +87,23 @@ def test_preflight_does_not_leak_env_var_names(client):
             assert token not in check["detail"]
 
 
-def test_interecagent_root_falls_back_to_task_app_path(monkeypatch):
-    from backend.api.app import _interecagent_root
+def test_preflight_model_credentials_any_provider(client, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
+    monkeypatch.delenv("DASHSCOPE_API_KEY", raising=False)
+    body = client.get("/api/preflight").json()
+    model = next(c for c in body["checks"] if c["name"] == "Model credentials")
+    assert model["ok"] is False
+    assert model.get("optional") is not True
+    assert body["ready"] is False
 
-    monkeypatch.delenv("INTERECAGENT_ROOT", raising=False)
-    root = _interecagent_root().replace("\\", "/")
-    expected_suffix = (
-        "/environment/task-environments/application/chatbot-api-sidecar_recai/recommender-api/recai/InteRecAgent"
-    )
-    assert expected_suffix in root
-    assert "/applications/tasks/" not in root
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "sk-test")
+    body = client.get("/api/preflight").json()
+    model = next(c for c in body["checks"] if c["name"] == "Model credentials")
+    assert model["ok"] is True
+    assert "DashScope" in model["detail"]
+    assert body["ready"] is True
 
 
 def test_preflight_dashscope_check_optional(client, monkeypatch):
@@ -77,12 +119,15 @@ def test_preflight_dashscope_check_optional(client, monkeypatch):
     assert dashscope["ok"] is True
 
 
-def test_preflight_anthropic_check(client, monkeypatch):
+def test_preflight_anthropic_check_optional(client, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     body = client.get("/api/preflight").json()
     anthropic = next(c for c in body["checks"] if c["name"] == "Anthropic credentials")
     assert anthropic["ok"] is False
+    assert anthropic.get("optional") is True
+    assert body["ready"] is True
 
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     body = client.get("/api/preflight").json()
@@ -128,32 +173,47 @@ def test_sidecar_reachable_false_when_unreachable(monkeypatch):
 
 
 def test_preflight_marks_down_sidecars_optional(client, monkeypatch):
-    from backend.api import app as appmod
+    from backend.service import chatbot_sidecar_service as sidecar_mod
 
-    monkeypatch.setattr(appmod, "_sidecar_reachable", lambda url, timeout=1.5: False)
+    monkeypatch.setattr(
+        sidecar_mod,
+        "sidecar_status",
+        lambda application_id, repo_root=None: {
+            "applicationId": application_id,
+            "ok": False,
+            "healthUrl": "http://127.0.0.1:9",
+            "canStart": True,
+            "detail": "down",
+        },
+    )
     body = client.get("/api/preflight").json()
     by_name = {c["name"]: c for c in body["checks"]}
-    for name in ("OpenBB (finance)", "Medical assistant"):
+    for name in ("OpenBB (finance)", "Meal planning", "Acme support API", "Acme MCP support"):
         assert by_name[name]["ok"] is False
         assert by_name[name]["optional"] is True
         assert "not ready" in by_name[name]["detail"]
+    assert "Medical assistant" not in by_name
     assert body["ready"] == all(c["ok"] for c in body["checks"] if not c.get("optional"))
 
 
 def test_preflight_reachable_sidecar_shows_ok(client, monkeypatch):
-    from backend.api import app as appmod
+    from backend.service import chatbot_sidecar_service as sidecar_mod
 
-    monkeypatch.setattr(appmod, "_sidecar_reachable", lambda url, timeout=1.5: True)
+    monkeypatch.setattr(
+        sidecar_mod,
+        "sidecar_status",
+        lambda application_id, repo_root=None: {
+            "applicationId": application_id,
+            "ok": True,
+            "healthUrl": "http://127.0.0.1:8905",
+            "canStart": True,
+            "detail": "ready",
+        },
+    )
     body = client.get("/api/preflight").json()
-    medical = next(c for c in body["checks"] if c["name"] == "Medical assistant")
-    assert medical["ok"] is True
-    assert "ready" in medical["detail"]
-
-
-def test_preflight_recai_resources_optional(client):
-    body = client.get("/api/preflight").json()
-    res = next(c for c in body["checks"] if c["name"] == "RecAI resources")
-    assert res.get("optional") is True
+    meal = next(c for c in body["checks"] if c["name"] == "Meal planning")
+    assert meal["ok"] is True
+    assert "ready" in meal["detail"]
 
 
 def test_preflight_os_app_checks_optional(client, monkeypatch):
@@ -163,15 +223,7 @@ def test_preflight_os_app_checks_optional(client, monkeypatch):
     for name in ("Docker", "use.computer API"):
         assert by_name[name]["optional"] is True
     assert by_name["use.computer API"]["group"] == "OS app"
-
-
-def test_preflight_validates_real_resource_bundle(client):
-    body = client.get("/api/preflight").json()
-    res = next(c for c in body["checks"] if c["name"] == "RecAI resources")
-    assert res["group"] == "Chatbot"
-    for label in ("Movies", "Beauty products", "Games"):
-        assert label in res["detail"]
-    assert "beauty_product" not in res["detail"]
+    assert "survey" in by_name["Docker"]["detail"].lower() or "Linux" in by_name["Docker"]["detail"]
 
 
 def test_config_options(client):
