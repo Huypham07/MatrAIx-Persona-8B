@@ -21,6 +21,26 @@ def test_persona_agents_use_matraix_namespace() -> None:
         assert "personabench" not in text.lower(), path
 
 
+def test_persona_scripts_use_matraix_imports() -> None:
+    """Persona tooling scripts must import matraix, not the retired personabench package."""
+    roots = (
+        ROOT / "persona" / "scripts",
+        ROOT / "persona" / "reporting",
+        ROOT / "persona" / "curation" / "scripts",
+    )
+    py_files = [
+        path
+        for root in roots
+        if root.is_dir()
+        for path in root.rglob("*.py")
+        if path.is_file()
+    ]
+    assert py_files
+    for path in py_files:
+        text = path.read_text(encoding="utf-8")
+        assert "personabench" not in text, path
+
+
 def test_harbor_factory_registers_matraix_persona_agents() -> None:
     factory_source = (
         ROOT / "environment/runtime/harbor/agents/factory.py"
