@@ -35,6 +35,11 @@ import { InstructionPanel } from "./InstructionPanel";
 import { OsAppEvalScorecard } from "./TaskEvalScorecard";
 import { CockpitSetupShell } from "./setup/CockpitSetupShell";
 import { PersonaSamplingRail } from "./setup/PersonaSamplingRail";
+import {
+  buildPersonaLaunchFields,
+  hasLaunchableCohort,
+  resolveCohortSize,
+} from "./setup/personaLaunchFields";
 import { CockpitPipelineDiagram } from "./setup/CockpitPipelineDiagram";
 import { TaskSelectionRail } from "./setup/TaskSelectionRail";
 import { CockpitRunCenter } from "./setup/CockpitRunCenter";
@@ -146,6 +151,10 @@ export function OsAppEvalCockpit({
     setSamplingMode,
     selectedPersonaIds,
     setSelectedPersonaIds,
+    selectedCount,
+    setSelectedCount,
+    useEntirePool,
+    setUseEntirePool,
     groupFilters,
     setGroupFilters,
     stratifyFields,
@@ -183,7 +192,7 @@ export function OsAppEvalCockpit({
     expectedTrialCount,
     completedTrials: batchCompletedTrials,
     batchError,
-  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "os-app");
+  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "os-app", selectedCount);
 
 
   const { setupLocked, visiblePersonaIds } = useCockpitSetupLock(
@@ -267,20 +276,35 @@ export function OsAppEvalCockpit({
   const taskCards = useMemo(() => osAppTaskCards(tasks), [tasks]);
 
   const harborLaunchBody = useCallback(
-    (targetTask: OsAppEvalTask) => ({
-      taskPath: targetTask.taskPath,
-      sampleSize: selectedPersonaIds.length,
+    (targetTask: OsAppEvalTask) => {
+      const personaFields = buildPersonaLaunchFields({
+        personaPool,
+        selectedPersonaIds,
+        selectedCount,
+        useEntirePool,
+        parallelTrials,
+      });
+      return {
+        taskPath: targetTask.taskPath,
+        seed,
+        personaModel,
+        agentName: "persona-computer-1",
+        osAppBackend: resolveCuaRuntime(targetTask.id, targetTask.platform),
+        ...personaFields,
+        mode: "auto" as const,
+        osAppSubmissionProfile: targetTask.osAppSubmissionProfile ?? undefined,
+      };
+    },
+    [
+      selectedPersonaIds,
+      selectedCount,
+      useEntirePool,
       seed,
       personaModel,
-      agentName: "persona-computer-1",
-      osAppBackend: resolveCuaRuntime(targetTask.id, targetTask.platform),
+      resolveCuaRuntime,
+      parallelTrials,
       personaPool,
-      personaIds: selectedPersonaIds,
-      nConcurrentTrials: Math.min(parallelTrials, selectedPersonaIds.length),
-      mode: "auto" as const,
-      osAppSubmissionProfile: targetTask.osAppSubmissionProfile ?? undefined,
-    }),
-    [selectedPersonaIds, seed, personaModel, resolveCuaRuntime, parallelTrials, personaPool],
+    ],
   );
 
   const handleRun = useCallback(() => {
@@ -306,7 +330,13 @@ export function OsAppEvalCockpit({
   }, [persona, task, isRunning, run, personaModel, activeCuaRuntime]);
 
   const handleLaunch = useCallback(async () => {
-    if (selectedPersonaIds.length === 0 || !task || isRunning) return;
+    if (
+      !hasLaunchableCohort({ selectedPersonaIds, selectedCount, useEntirePool }) ||
+      !task ||
+      isRunning
+    ) {
+      return;
+    }
     if (isBatchRun) {
       setLaunchError(null);
       try {
@@ -319,7 +349,17 @@ export function OsAppEvalCockpit({
       return;
     }
     handleRun();
-  }, [selectedPersonaIds, task, isRunning, isBatchRun, harborLaunchBody, handleRun]);
+  }, [
+    selectedPersonaIds,
+    selectedCount,
+    useEntirePool,
+    task,
+    isRunning,
+    isBatchRun,
+    harborLaunchBody,
+    handleRun,
+    setBatchJobName,
+  ]);
 
   const handleNewRun = useCallback(() => {
     reset();
@@ -450,6 +490,10 @@ export function OsAppEvalCockpit({
           onModeChange={setSamplingMode}
           selectedPersonaIds={visiblePersonaIds}
           onSelectedPersonaIdsChange={setSelectedPersonaIds}
+          selectedCount={selectedCount}
+          onSelectedCountChange={setSelectedCount}
+          useEntirePool={useEntirePool}
+          onUseEntirePoolChange={setUseEntirePool}
           sampleSize={sampleSize}
           onSampleSizeChange={setSampleSize}
           sampleSizePerValueGroup={sampleSizePerValueGroup}
@@ -491,9 +535,16 @@ export function OsAppEvalCockpit({
           progressSublabel={
             batchJobName && batchComplete ? BATCH_RUN_COMPLETE_HINT : undefined
           }
-          canRun={visiblePersonaIds.length > 0 && Boolean(task) && !runBusy}
+          canRun={
+            hasLaunchableCohort({ selectedPersonaIds, selectedCount, useEntirePool }) &&
+            Boolean(task) &&
+            !runBusy
+          }
           isBatch={isBatchRun}
-          personaCount={visiblePersonaIds.length}
+          personaCount={Math.max(
+            resolveCohortSize({ selectedPersonaIds, selectedCount }),
+            visiblePersonaIds.length,
+          )}
           parallelTrials={parallelTrials}
           onParallelTrialsChange={setParallelTrials}
           runBusy={runBusy}

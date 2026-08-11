@@ -260,6 +260,8 @@ persona/curation/attribute_pool/sources/raw/
 # persona/datasets/matraix-persona-dev-sample/ (not matched by this pattern).
 persona/datasets/bench-dev-*/
 persona/datasets/_generated/
+# Launch caches next to a source dataset (dev sample, saved datasets, …).
+persona/datasets/*/cohorts/
 # Production 1M release mirror + sampled cohorts (large / machine-local).
 persona/datasets/matraix-persona-1m/release/
 persona/datasets/matraix-persona-1m/cohorts/

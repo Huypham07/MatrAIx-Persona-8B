@@ -18,6 +18,7 @@ import {
   type CockpitPersonaSetupRecord,
 } from "./cockpitPersonaSetupStorage";
 import {
+  emptyPersonaDimensionFilters,
   type PersonaDimensionFilters,
   type PersonaSamplingMode,
 } from "./personaSamplingTypes";
@@ -30,6 +31,8 @@ function applyPersonaHandoffToSetup(
   return {
     ...base,
     selectedPersonaIds: ids,
+    selectedCount: ids.length,
+    useEntirePool: false,
     personaPool: sanitizePersonaPool(handoff.pool) || base.personaPool || PERSONA_BENCH_POOL,
     samplingMode: ids.length > 1 ? "random" : "single",
     useTaskDefaultStrategy: false,
@@ -55,6 +58,8 @@ export function useSetupPersonaSampling(
   );
   const [samplingMode, setSamplingMode] = useState<PersonaSamplingMode>(initial.samplingMode);
   const [selectedPersonaIds, setSelectedPersonaIds] = useState<string[]>(initial.selectedPersonaIds);
+  const [selectedCount, setSelectedCount] = useState(initial.selectedCount);
+  const [useEntirePool, setUseEntirePool] = useState(initial.useEntirePool);
   const [groupFilters, setGroupFilters] = useState<PersonaDimensionFilters>(initial.groupFilters);
   const [stratifyFields, setStratifyFields] = useState<string[]>(initial.stratifyFields);
   const [sampleSize, setSampleSize] = useState(initial.sampleSize);
@@ -94,6 +99,8 @@ export function useSetupPersonaSampling(
     skipNextPersistRef.current = true;
     setSamplingMode(record.samplingMode);
     setSelectedPersonaIds(record.selectedPersonaIds);
+    setSelectedCount(record.selectedCount);
+    setUseEntirePool(record.useEntirePool);
     setGroupFilters(record.groupFilters);
     setStratifyFields(record.stratifyFields);
     setSampleSize(record.sampleSize);
@@ -132,6 +139,8 @@ export function useSetupPersonaSampling(
       // Explicit operator opt-out — do not confuse with pre-hydrate false.
       setTaskDefaultStrategyDismissed(true);
       setUseTaskDefaultStrategyState(false);
+      // Drop strategy-owned filters so custom mode starts clean.
+      setGroupFilters(emptyPersonaDimensionFilters());
       // Custom stratified UI expects an editable per-cell; invent 1 only after unlock.
       setSampleSizePerValueGroup((prev) => (prev == null ? 1 : prev));
     },
@@ -170,8 +179,10 @@ export function useSetupPersonaSampling(
       // Keep last cohort selection across remount/navigation. Strategy apply
       // clears preview ids intentionally for explicit "Task default" toggles,
       // but hydrate must not wipe a selection the operator already made.
-      if (stored.selectedPersonaIds.length > 0) {
+      if (stored.selectedPersonaIds.length > 0 || stored.selectedCount > 0) {
         applied.selectedPersonaIds = stored.selectedPersonaIds;
+        applied.selectedCount = stored.selectedCount || stored.selectedPersonaIds.length;
+        applied.useEntirePool = stored.useEntirePool;
       }
     } else if (hasTaskSpecificStore) {
       applied = {
@@ -185,8 +196,10 @@ export function useSetupPersonaSampling(
         personaModel: effectiveModel,
         parallelTrials: stored.parallelTrials,
       });
-      if (stored.selectedPersonaIds.length > 0) {
+      if (stored.selectedPersonaIds.length > 0 || stored.selectedCount > 0) {
         applied.selectedPersonaIds = stored.selectedPersonaIds;
+        applied.selectedCount = stored.selectedCount || stored.selectedPersonaIds.length;
+        applied.useEntirePool = stored.useEntirePool;
       }
     }
 
@@ -261,6 +274,8 @@ export function useSetupPersonaSampling(
       taskKind,
       {
         selectedPersonaIds,
+        selectedCount,
+        useEntirePool,
         samplingMode,
         groupFilters,
         stratifyFields,
@@ -278,6 +293,8 @@ export function useSetupPersonaSampling(
     taskKind,
     normalizedPath,
     selectedPersonaIds,
+    selectedCount,
+    useEntirePool,
     samplingMode,
     groupFilters,
     stratifyFields,
@@ -303,7 +320,8 @@ export function useSetupPersonaSampling(
     });
   }, [selectedPersonaIds]);
 
-  const isBatchRun = samplingMode !== "single" || selectedPersonaIds.length > 1;
+  const isBatchRun =
+    samplingMode !== "single" || selectedCount > 1 || selectedPersonaIds.length > 1;
 
   const personaModelKnob = options?.knobs.find((k) => k.key === "personaModel");
   const personaModelOptions =
@@ -314,15 +332,27 @@ export function useSetupPersonaSampling(
 
   const togglePersona = useCallback(
     (personaId: string) => {
-      if (samplingMode === "single") {
-        setSelectedPersonaIds((prev) => (prev.includes(personaId) ? [] : [personaId]));
+      if (useEntirePool) {
+        // Ref-based cohorts are not individually toggled; keep preview selection cosmetic.
         return;
       }
-      setSelectedPersonaIds((prev) =>
-        prev.includes(personaId) ? prev.filter((id) => id !== personaId) : [...prev, personaId],
-      );
+      if (samplingMode === "single") {
+        setSelectedPersonaIds((prev) => {
+          const next = prev.includes(personaId) ? [] : [personaId];
+          setSelectedCount(next.length);
+          return next;
+        });
+        return;
+      }
+      setSelectedPersonaIds((prev) => {
+        const next = prev.includes(personaId)
+          ? prev.filter((id) => id !== personaId)
+          : [...prev, personaId];
+        setSelectedCount(next.length);
+        return next;
+      });
     },
-    [samplingMode],
+    [samplingMode, useEntirePool],
   );
 
   const hasTaskStrategy = Boolean(taskPersonaStrategy);
@@ -336,6 +366,10 @@ export function useSetupPersonaSampling(
     setSamplingMode,
     selectedPersonaIds,
     setSelectedPersonaIds,
+    selectedCount,
+    setSelectedCount,
+    useEntirePool,
+    setUseEntirePool,
     togglePersona,
     groupFilters,
     setGroupFilters,

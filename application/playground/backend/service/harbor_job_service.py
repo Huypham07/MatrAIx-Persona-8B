@@ -995,6 +995,7 @@ class HarborJobService:
         persona_sources: list[str] | None = None,
         persona_filters: dict[str, str] | None = None,
         cohort_id: str | None = None,
+        use_entire_pool: bool = False,
         os_app_submission_profile: str | None = None,
         os_app_backend: str | None = None,
         cua_backend: str | None = None,
@@ -1021,7 +1022,7 @@ class HarborJobService:
             os_app_backend = cua_backend
         if persona_ids is not None and len(persona_ids) == 0:
             raise ValueError("persona_ids must not be empty when provided")
-        if not persona_ids and sample_size < 1:
+        if not persona_ids and not use_entire_pool and sample_size < 1:
             raise ValueError("sample_size must be >= 1")
 
         resolved_persona_ids = list(persona_ids or [])
@@ -1029,6 +1030,7 @@ class HarborJobService:
         resolved_seed = seed
         resolved_sources = persona_sources
         resolved_filters = persona_filters
+        resolved_use_entire_pool = bool(use_entire_pool)
 
         if cohort_id:
             from backend.service.persona_pool_service import PersonaPoolService
@@ -1044,7 +1046,11 @@ class HarborJobService:
             if resolved.get("personaIds"):
                 resolved_persona_ids = list(resolved["personaIds"])
 
-        if not resolved_persona_ids and (resolved_sources or resolved_filters):
+        if (
+            not resolved_persona_ids
+            and not resolved_use_entire_pool
+            and (resolved_sources or resolved_filters)
+        ):
             from backend.service.persona_pool_service import PersonaPoolService
 
             sampled = PersonaPoolService.from_repo(repo_root=self.repo_root).sample_pool(
@@ -1054,6 +1060,7 @@ class HarborJobService:
                 sources=resolved_sources,
                 dimension_filters=resolved_filters,
                 task_path=task_path,
+                include_persona_ids=True,
             )
             resolved_persona_ids = list(sampled["personaIds"])
             resolved_pool = str(sampled.get("pool") or resolved_pool)
@@ -1111,6 +1118,7 @@ class HarborJobService:
             "sample_size": len(resolved_persona_ids) if resolved_persona_ids else sample_size,
             "seed": resolved_seed,
             "persona_ids": resolved_persona_ids,
+            "use_entire_pool": resolved_use_entire_pool and not resolved_persona_ids,
             "execution_mode": execution_mode,
             "trial_profile": trial_profile,
             "cua_backend": os_app_backend,

@@ -398,6 +398,7 @@ function personaMetaFromCard(card: PersonaPoolPersonaCard | undefined): BatchTri
 function resolveBatchGridSlots(
   personaIds: string[],
   harborTrials: HarborTrialRow[] | undefined,
+  expectedTotal = 0,
 ): BatchGridSlot[] {
   const trials = harborTrials ?? [];
   if (personaIds.length > 0) {
@@ -417,16 +418,31 @@ function resolveBatchGridSlots(
         unmatched.push(trial);
       }
     }
+    const previewKeys = new Set(personaIds.map((id) => personaDisplayId(id)));
+    const leftovers = [...byPersona.entries()]
+      .filter(([key]) => !previewKeys.has(key))
+      .map(([, trial]) => trial);
     let nextUnmatched = 0;
-    return personaIds.map((personaId) => {
-      let trial = byPersona.get(personaDisplayId(personaId));
+    let nextLeftover = 0;
+    const slotCount = Math.max(personaIds.length, expectedTotal, trials.length);
+    return Array.from({ length: slotCount }, (_, index) => {
+      const personaId = personaIds[index];
+      let trial = personaId ? byPersona.get(personaDisplayId(personaId)) : undefined;
+      if (!trial && nextLeftover < leftovers.length) {
+        trial = leftovers[nextLeftover++];
+      }
       if (!trial && nextUnmatched < unmatched.length) {
         // Temporarily show an unattributed live trial on a still-empty slot so
         // the running count stays accurate; it snaps to the right cell once
         // persona_meta lands.
         trial = unmatched[nextUnmatched++];
       }
-      return { personaId, label: `persona-${personaId}`, trial };
+      const id = personaId ?? trial?.personaId ?? trial?.trialName ?? `pending-${index}`;
+      return {
+        personaId: id,
+        label: trial?.personaName ?? (personaId ? `persona-${personaId}` : `persona-${index + 1}`),
+        trial,
+      };
     });
   }
   return trials.map((trial) => ({
@@ -446,10 +462,11 @@ export function buildBatchGridCells(
     jobStarted?: boolean;
     parallelTrials?: number;
     personaById?: Record<string, PersonaPoolPersonaCard>;
+    expectedTotal?: number;
   } = {},
 ): BatchTrialCell[] {
-  const { personaById = {} } = opts;
-  const slots = resolveBatchGridSlots(personaIds, harborTrials);
+  const { personaById = {}, expectedTotal = 0 } = opts;
+  const slots = resolveBatchGridSlots(personaIds, harborTrials, expectedTotal);
   if (slots.length === 0) return [];
 
   return slots.map((slot) => {

@@ -57,6 +57,11 @@ import { InstructionPanel } from "./InstructionPanel";
 import { SurveyEvalScorecard } from "./TaskEvalScorecard";
 import { CockpitSetupShell } from "./setup/CockpitSetupShell";
 import { PersonaSamplingRail } from "./setup/PersonaSamplingRail";
+import {
+  buildPersonaLaunchFields,
+  hasLaunchableCohort,
+  resolveCohortSize,
+} from "./setup/personaLaunchFields";
 import { CockpitPipelineDiagram } from "./setup/CockpitPipelineDiagram";
 import { TaskSelectionRail } from "./setup/TaskSelectionRail";
 import { CockpitRunCenter } from "./setup/CockpitRunCenter";
@@ -209,6 +214,10 @@ export function SurveyEvalCockpit({
     setSamplingMode,
     selectedPersonaIds,
     setSelectedPersonaIds,
+    selectedCount,
+    setSelectedCount,
+    useEntirePool,
+    setUseEntirePool,
     groupFilters,
     setGroupFilters,
     stratifyFields,
@@ -246,7 +255,7 @@ export function SurveyEvalCockpit({
     expectedTrialCount,
     completedTrials: batchCompletedTrials,
     batchError,
-  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "survey");
+  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "survey", selectedCount);
   const setupLocked = phase !== "idle" || Boolean(batchJobName);
   const visiblePersonaIds = setupLocked && batchPersonaIds.length > 0 ? batchPersonaIds : selectedPersonaIds;
   const activeTaskId = batchJobName && batchTaskId ? batchTaskId : selectedTaskId;
@@ -370,22 +379,30 @@ export function SurveyEvalCockpit({
   }, [selectedCard, launchSurveyRun]);
 
   const handleLaunch = useCallback(async () => {
-    if (selectedPersonaIds.length === 0 || !selectedCard || isRunning) return;
+    if (
+      !hasLaunchableCohort({ selectedPersonaIds, selectedCount, useEntirePool }) ||
+      !selectedCard ||
+      isRunning
+    ) {
+      return;
+    }
     if (isBatchRun) {
       setLaunchError(null);
       try {
-        const launched = await api.launchHarborJob(
-          {
-            taskPath: selectedCard.taskPath || HARBOR_TASK_PATHS.survey,
-            sampleSize: selectedPersonaIds.length,
-            seed,
-            personaModel,
-            personaPool,
-            personaIds: selectedPersonaIds,
-            nConcurrentTrials: Math.min(parallelTrials, selectedPersonaIds.length),
-            mode: "auto",
-          },
-        );
+        const personaFields = buildPersonaLaunchFields({
+          personaPool,
+          selectedPersonaIds,
+          selectedCount,
+          useEntirePool,
+          parallelTrials,
+        });
+        const launched = await api.launchHarborJob({
+          taskPath: selectedCard.taskPath || HARBOR_TASK_PATHS.survey,
+          seed,
+          personaModel,
+          ...personaFields,
+          mode: "auto",
+        });
         setBatchJobName(launched.jobName, { taskId: selectedCard.id });
       } catch (exc) {
         const message = exc instanceof ApiError ? exc.message : exc instanceof Error ? exc.message : String(exc);
@@ -396,6 +413,8 @@ export function SurveyEvalCockpit({
     handleRun();
   }, [
     selectedPersonaIds,
+    selectedCount,
+    useEntirePool,
     selectedCard,
     isRunning,
     isBatchRun,
@@ -404,6 +423,7 @@ export function SurveyEvalCockpit({
     parallelTrials,
     personaPool,
     handleRun,
+    setBatchJobName,
   ]);
 
   const handleNewRun = useCallback(() => {
@@ -545,6 +565,10 @@ export function SurveyEvalCockpit({
           onModeChange={setSamplingMode}
           selectedPersonaIds={visiblePersonaIds}
           onSelectedPersonaIdsChange={setSelectedPersonaIds}
+          selectedCount={selectedCount}
+          onSelectedCountChange={setSelectedCount}
+          useEntirePool={useEntirePool}
+          onUseEntirePoolChange={setUseEntirePool}
           sampleSize={sampleSize}
           onSampleSizeChange={setSampleSize}
           sampleSizePerValueGroup={sampleSizePerValueGroup}
@@ -584,9 +608,16 @@ export function SurveyEvalCockpit({
           progressSublabel={
             batchJobName && batchComplete ? BATCH_RUN_COMPLETE_HINT : undefined
           }
-          canRun={selectedPersonaIds.length > 0 && Boolean(selectedCard) && !runBusy}
+          canRun={
+            hasLaunchableCohort({ selectedPersonaIds, selectedCount, useEntirePool }) &&
+            Boolean(selectedCard) &&
+            !runBusy
+          }
           isBatch={isBatchRun}
-          personaCount={visiblePersonaIds.length}
+          personaCount={Math.max(
+            resolveCohortSize({ selectedPersonaIds, selectedCount }),
+            visiblePersonaIds.length,
+          )}
           parallelTrials={parallelTrials}
           onParallelTrialsChange={setParallelTrials}
           runBusy={runBusy}

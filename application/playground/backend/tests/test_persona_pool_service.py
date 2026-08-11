@@ -209,6 +209,36 @@ def test_save_pool_as_dataset(tmp_path):
     assert again["pool"] == "persona/datasets/my-robinhood-cohort"
 
 
+def test_save_pool_as_dataset_from_sample_cohort(tmp_path, monkeypatch):
+    repo = tmp_path
+    _write_pool(repo)
+    monkeypatch.setattr(
+        "playground.harbor.playground._repo_root",
+        lambda: repo,
+    )
+    cohort = (
+        repo / "persona" / "datasets" / "matraix-persona-dev-sample" / "cohorts" / "cohort-dev110"
+    )
+    cohort.mkdir(parents=True)
+    (cohort / "persona_0001.yaml").write_text(
+        "persona_id: '0001'\nversion: '1.0'\nsource: Nemotron\ndimensions: {}\n",
+        encoding="utf-8",
+    )
+    (cohort / "persona_0002.yaml").write_text(
+        "persona_id: '0002'\nversion: '1.0'\nsource: OASIS\ndimensions: {}\n",
+        encoding="utf-8",
+    )
+    service = PersonaPoolService(repo_root=repo)
+    saved = service.save_pool_as_dataset(
+        source_pool="persona/datasets/matraix-persona-dev-sample/cohorts/cohort-dev110",
+        name="Dev Feedback 110",
+    )
+    assert saved["pool"] == "persona/datasets/dev-feedback-110"
+    assert saved["count"] == 2
+    listed = {item["pool"] for item in service.list_datasets()}
+    assert "persona/datasets/dev-feedback-110" in listed
+
+
 def test_save_list_and_resolve_cohort(tmp_path, monkeypatch):
     repo = tmp_path
     _write_pool(repo)
@@ -574,3 +604,105 @@ def test_list_persona_cards_all_personas(tmp_path, monkeypatch):
 
     full_pool = service.list_persona_cards(limit=500, all_personas=True)
     assert [card["personaId"] for card in full_pool["personas"]] == ["0001", "0002"]
+
+
+def _write_large_pool(repo: Path, count: int = 120) -> None:
+    pool = repo / "persona" / "datasets" / "matraix-persona-dev-sample"
+    pool.mkdir(parents=True, exist_ok=True)
+    personas = []
+    for i in range(1, count + 1):
+        pid = f"{i:04d}"
+        (pool / f"persona_{pid}.yaml").write_text(
+            f"persona_id: '{pid}'\nversion: '1.0'\nsource: Nemotron\ndimensions:\n  economic_motivation: Price-sensitive\n",
+            encoding="utf-8",
+        )
+        personas.append(
+            {
+                "persona_id": pid,
+                "path": f"persona/datasets/matraix-persona-dev-sample/persona_{pid}.yaml",
+                "source": "Nemotron",
+                "dimensions": {"economic_motivation": "Price-sensitive"},
+            }
+        )
+    (pool / "manifest.json").write_text(
+        json.dumps(
+            {
+                "count": count,
+                "smoke_persona_id": "0001",
+                "schema_version": "1.0",
+                "source_counts": {"Nemotron": count},
+                "dimension_categories": "persona/schema/dimension_categories.json",
+                "personas": personas,
+            }
+        ),
+        encoding="utf-8",
+    )
+    schema = repo / "persona" / "schema"
+    schema.mkdir(parents=True, exist_ok=True)
+    (schema / "dimension_categories.json").write_text(
+        json.dumps(
+            {
+                "schemaVersion": "1.0",
+                "personaSources": ["Nemotron"],
+                "devProfile": {
+                    "dimensionCount": 1,
+                    "groups": [
+                        {
+                            "id": "values",
+                            "label": "Values",
+                            "dimensionIds": ["economic_motivation"],
+                        }
+                    ],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    (schema / "dimensions.json").write_text(
+        json.dumps(
+            {
+                "schemaVersion": "1.0",
+                "dimensions": [
+                    {
+                        "id": "economic_motivation",
+                        "label": "Economic motivation",
+                        "category": "Values & Motivation",
+                        "values": ["Price-sensitive"],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_sample_pool_truncates_ids_and_materializes_large_cohort(tmp_path, monkeypatch):
+    repo = tmp_path
+    _write_large_pool(repo, count=120)
+    monkeypatch.setattr(
+        "playground.harbor.playground._repo_root",
+        lambda: repo,
+    )
+    service = PersonaPoolService(repo_root=repo)
+    result = service.sample_pool(sample_size=120, seed=7)
+    assert result["selectedCount"] == 120
+    assert result["sampleSize"] == 120
+    assert result["idsTruncated"] is True
+    assert len(result["personaIds"]) <= 32
+    assert len(result["personas"]) <= 32
+    assert result["pool"].startswith("persona/datasets/matraix-persona-dev-sample/cohorts/")
+    assert (repo / result["pool"]).is_dir()
+
+
+def test_list_persona_ids_truncates_over_ui_max(tmp_path, monkeypatch):
+    repo = tmp_path
+    _write_large_pool(repo, count=120)
+    monkeypatch.setattr(
+        "playground.harbor.playground._repo_root",
+        lambda: repo,
+    )
+    service = PersonaPoolService(repo_root=repo)
+    listed = service.list_persona_ids("persona/datasets/matraix-persona-dev-sample")
+    assert listed["count"] == 120
+    assert listed["idsTruncated"] is True
+    assert len(listed["personaIds"]) <= 32

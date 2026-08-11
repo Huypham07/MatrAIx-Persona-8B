@@ -222,6 +222,7 @@ In `task.toml`, set `[environment].docker_image` to a Docker image name (convert
 | [Handbook](../README.md) | Docs home |
 | [Agents](agents.md) | Agent ↔ API key matrix |
 | [Runtime](runtime.md) | Matraix Playground vs remote plane |
+| [Large-scale runs](large-scale-runs.md) | Bigger cohorts, one job |
 | [Web interaction](web-interaction.md) | Playwright / browser-use / Cocoa / CUA |
 | [Application](../application/README.md) | Tasks and Playground |
 | [Playground API](../application/playground-api.md) | HTTP API reference |

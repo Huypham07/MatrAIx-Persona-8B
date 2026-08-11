@@ -33,6 +33,11 @@ import { OsAppEvalCockpit } from "./OsAppEvalCockpit";
 import { type PlaygroundTaskType } from "./TaskTypeSwitch";
 import { CockpitSetupShell } from "./setup/CockpitSetupShell";
 import { PersonaSamplingRail } from "./setup/PersonaSamplingRail";
+import {
+  buildPersonaLaunchFields,
+  hasLaunchableCohort,
+  resolveCohortSize,
+} from "./setup/personaLaunchFields";
 import { CockpitPipelineDiagram } from "./setup/CockpitPipelineDiagram";
 import { TaskSelectionRail, type ChatTransport, type TaskCardModel } from "./setup/TaskSelectionRail";
 import { BatchTrialGrid } from "./setup/BatchTrialGrid";
@@ -309,6 +314,10 @@ function ChatbotEvalCockpit({
     setSamplingMode,
     selectedPersonaIds,
     setSelectedPersonaIds,
+    selectedCount,
+    setSelectedCount,
+    useEntirePool,
+    setUseEntirePool,
     groupFilters,
     setGroupFilters,
     stratifyFields,
@@ -352,7 +361,7 @@ function ChatbotEvalCockpit({
     expectedTrialCount,
     personaById,
     batchError,
-  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "chatbot");
+  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "chatbot", selectedCount);
   const [exportSnapshot, setExportSnapshot] = useState<ExportSnapshot | null>(null);
 
   // After navigating away/back, single-trial restore brings back the transcript
@@ -543,18 +552,29 @@ function ChatbotEvalCockpit({
   ]);
 
   const handleLaunch = useCallback(async () => {
-    if (selectedPersonaIds.length === 0 || isRunning || !chatTaskPath || !selectedTask) return;
+    if (
+      !hasLaunchableCohort({ selectedPersonaIds, selectedCount, useEntirePool }) ||
+      isRunning ||
+      !chatTaskPath ||
+      !selectedTask
+    ) {
+      return;
+    }
     if (isBatchRun) {
       setLaunchError(null);
       try {
+        const personaFields = buildPersonaLaunchFields({
+          personaPool,
+          selectedPersonaIds,
+          selectedCount,
+          useEntirePool,
+          parallelTrials,
+        });
         const launched = await api.launchHarborJob({
           taskPath: chatTaskPath,
-          sampleSize: selectedPersonaIds.length,
           seed,
           personaModel,
-          personaPool,
-          personaIds: selectedPersonaIds,
-          nConcurrentTrials: Math.min(parallelTrials, selectedPersonaIds.length),
+          ...personaFields,
           mode: "auto",
           chatDomain: requestDomain,
           chatApplicationId: knownLaunchApplicationId ?? undefined,
@@ -571,6 +591,8 @@ function ChatbotEvalCockpit({
     handleRun();
   }, [
     selectedPersonaIds,
+    selectedCount,
+    useEntirePool,
     isRunning,
     isBatchRun,
     applicationId,
@@ -585,6 +607,7 @@ function ChatbotEvalCockpit({
     chatTaskPath,
     selectedTask,
     handleRun,
+    setBatchJobName,
   ]);
 
   const handleRetry = useCallback(() => {
@@ -809,6 +832,10 @@ function ChatbotEvalCockpit({
           onModeChange={setSamplingMode}
           selectedPersonaIds={visiblePersonaIds}
           onSelectedPersonaIdsChange={setSelectedPersonaIds}
+          selectedCount={selectedCount}
+          onSelectedCountChange={setSelectedCount}
+          useEntirePool={useEntirePool}
+          onUseEntirePoolChange={setUseEntirePool}
           sampleSize={sampleSize}
           onSampleSizeChange={setSampleSize}
           sampleSizePerValueGroup={sampleSizePerValueGroup}
@@ -873,9 +900,16 @@ function ChatbotEvalCockpit({
             </div>
           )}
           <RunLaunchBar
-            canRun={visiblePersonaIds.length > 0 && Boolean(chatTaskPath) && !runBusy}
+            canRun={
+              hasLaunchableCohort({ selectedPersonaIds, selectedCount, useEntirePool }) &&
+              Boolean(chatTaskPath) &&
+              !runBusy
+            }
             isBatch={isBatchRun}
-            personaCount={visiblePersonaIds.length}
+            personaCount={Math.max(
+              resolveCohortSize({ selectedPersonaIds, selectedCount }),
+              visiblePersonaIds.length,
+            )}
             parallelTrials={parallelTrials}
             onParallelTrialsChange={setParallelTrials}
             isRunning={runBusy}

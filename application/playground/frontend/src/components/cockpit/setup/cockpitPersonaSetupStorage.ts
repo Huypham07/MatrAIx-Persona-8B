@@ -1,6 +1,6 @@
 import type { HarborCockpitTaskKind } from "@/lib/harborCockpitMappers";
 import type { TaskPersonaStrategy } from "@/lib/types";
-import { PERSONA_BENCH_POOL } from "@/lib/types";
+import { PERSONA_BENCH_POOL, PERSONA_CARD_PREVIEW_LIMIT, PERSONA_UI_ID_LIST_MAX } from "@/lib/types";
 
 import { readCockpitBatch } from "./cockpitBatchStorage";
 import {
@@ -15,7 +15,14 @@ const LEGACY_BENCH_DEV_SAMPLE = "persona/datasets/bench-dev-sample";
 /** Drop legacy synthetic strategy pools from restored setup. */
 export function sanitizePersonaPool(pool: string | null | undefined): string {
   const text = (pool ?? "").trim();
-  if (!text || text.includes("/_generated/")) return PERSONA_BENCH_POOL;
+  if (!text) return PERSONA_BENCH_POOL;
+  // Allow launch caches next to their source dataset; drop leftover synthetic pools.
+  if (/persona\/datasets\/[^/]+\/cohorts\/cohort-/.test(text)) {
+    return text;
+  }
+  if (text.includes("/_generated/")) {
+    return PERSONA_BENCH_POOL;
+  }
   // Old cockpit / task setups still point at the removed bench-dev-sample path.
   if (text === LEGACY_BENCH_DEV_SAMPLE || text.endsWith("/bench-dev-sample")) {
     return PERSONA_BENCH_POOL;
@@ -25,6 +32,10 @@ export function sanitizePersonaPool(pool: string | null | undefined): string {
 
 export interface CockpitPersonaSetupRecord {
   selectedPersonaIds: string[];
+  /** Full cohort size (may exceed selectedPersonaIds when launching by pool ref). */
+  selectedCount: number;
+  /** When true, launch uses the whole personaPool without echoing IDs. */
+  useEntirePool: boolean;
   samplingMode: PersonaSamplingMode;
   groupFilters: PersonaDimensionFilters;
   stratifyFields: string[];
@@ -37,7 +48,7 @@ export interface CockpitPersonaSetupRecord {
   sampleSizePerValueGroup: number | null;
   parallelTrials: number;
   personaModel: string;
-  /** Pool used for the current cohort (never restore legacy ``_generated`` paths). */
+  /** Pool used for the current cohort (never restore leftover synthetic paths). */
   personaPool: string;
   /** When true, sampling follows the task's persona_strategy.json and custom filters stay locked. */
   useTaskDefaultStrategy: boolean;
@@ -135,10 +146,23 @@ function normalizeRecord(
   fallbackPersonaModel: string,
 ): CockpitPersonaSetupRecord | null {
   if (!record) return null;
+  const selectedPersonaIds = Array.isArray(record.selectedPersonaIds)
+    ? record.selectedPersonaIds
+        .filter((id): id is string => typeof id === "string")
+        .slice(0, PERSONA_UI_ID_LIST_MAX)
+    : [];
+  const selectedCount =
+    typeof record.selectedCount === "number" && record.selectedCount > 0
+      ? Math.round(record.selectedCount)
+      : selectedPersonaIds.length;
+  const useEntirePool =
+    record.useEntirePool === true || selectedCount > PERSONA_UI_ID_LIST_MAX;
   return {
-    selectedPersonaIds: Array.isArray(record.selectedPersonaIds)
-      ? record.selectedPersonaIds.filter((id): id is string => typeof id === "string")
-      : [],
+    selectedPersonaIds: useEntirePool
+      ? selectedPersonaIds.slice(0, PERSONA_CARD_PREVIEW_LIMIT)
+      : selectedPersonaIds,
+    selectedCount,
+    useEntirePool,
     samplingMode:
       record.samplingMode === "random" ||
       record.samplingMode === "stratified" ||
@@ -175,6 +199,8 @@ function normalizeRecord(
 export function defaultPersonaSetup(fallbackPersonaModel: string): CockpitPersonaSetupRecord {
   return {
     selectedPersonaIds: [],
+    selectedCount: 0,
+    useEntirePool: false,
     samplingMode: "single",
     groupFilters: emptyPersonaDimensionFilters(),
     stratifyFields: ["age_bracket", "region"],
@@ -255,6 +281,8 @@ export function setupFromPersonaStrategy(
 
   // Fresh strategy apply clears prior preview selection and locks custom filters.
   next.selectedPersonaIds = [];
+  next.selectedCount = 0;
+  next.useEntirePool = false;
   next.useTaskDefaultStrategy = true;
   next.taskDefaultStrategyDismissed = false;
   return next;

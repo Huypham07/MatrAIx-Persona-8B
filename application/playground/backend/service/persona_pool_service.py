@@ -32,11 +32,14 @@ DEFAULT_PERSONA_POOL = "persona/datasets/matraix-persona-dev-sample"
 DATASETS_DIR = "persona/datasets"
 COHORTS_DIR = "persona/datasets/cohorts"
 # Top-level dirs under persona/datasets that are not selectable pools.
-_DATASETS_SKIP_TOP_LEVEL = frozenset({"_generated", "cohorts", "matraix-persona-1m"})
+_DATASETS_SKIP_TOP_LEVEL = frozenset(
+    {"_generated", "_sampled", "cohorts", "matraix-persona-1m"}
+)
 # Names that cannot be used when saving a pool as a named dataset.
 _RESERVED_DATASET_SLUGS = frozenset(
     {
         "_generated",
+        "_sampled",
         "cohorts",
         "matraix-persona-1m",
         "matraix-persona-dev-sample",
@@ -45,16 +48,20 @@ _RESERVED_DATASET_SLUGS = frozenset(
 DIMENSION_CATEGORIES_PATH = "persona/schema/dimension_categories.json"
 # Soft guard for stratify cell cartesian products from dimensionFilters.
 MAX_FILTER_STRATA = 2048
+# UI keeps a full personaId list only at or below this size; larger cohorts are ref-based.
+PERSONA_UI_ID_LIST_MAX = 100
+PERSONA_CARD_PREVIEW_DEFAULT = 32
 CohortKind = Literal["recipe", "frozen"]
 
 
 def coverage_recovery_hint(*, task_path: str | None = None) -> str:
-    """Hint when a fixture pool cannot satisfy filters — prefer production 1M."""
+    """Hint when a dataset cannot satisfy filters — never synthesize personas."""
     _ = task_path
     return (
-        "Pool coverage is too thin for these filters. Sample from "
-        "persona/datasets/matraix-persona-1m, widen dimensionFilters / sources, "
-        "or launch a saved cohort that already has enough matches."
+        "Not enough matching personas in this dataset for the current filters. "
+        "Widen filters / sources, switch dataset (dev sample vs matraix-persona-1m), "
+        "or use a saved cohort that already has enough matches. "
+        "Playground does not synthesize missing personas."
     )
 
 
@@ -76,6 +83,15 @@ def _cohort_slug(value: str) -> str:
     if not slug:
         raise ValueError("cohort id must not be empty")
     return slug
+
+
+def _sampled_cohort_pool(parent_pool: str, digest: str) -> str:
+    """``<source-dataset>/cohorts/cohort-<digest>`` so the parent pool is visible."""
+    pool = (parent_pool or DEFAULT_PERSONA_POOL).strip().rstrip("/")
+    marker = "/cohorts/cohort-"
+    if marker in pool:
+        pool = pool.split(marker, 1)[0]
+    return f"{pool}/cohorts/cohort-{digest}"
 
 
 def _repo_root() -> Path:
@@ -369,7 +385,8 @@ class PersonaPoolService:
         """Discover selectable persona pools under ``persona/datasets/``.
 
         Surfaces checked-in local pools, plus the production MatrAIx 1M pool.
-        Legacy ``_generated`` synthetic pools are intentionally omitted.
+        Launch caches (``<dataset>/cohorts/``) and leftover ``_generated`` dirs
+        are omitted.
         """
         from backend.service.persona_1m_pool import (
             production_1m_available,
@@ -443,10 +460,10 @@ class PersonaPoolService:
             raise ValueError("source_pool is required")
         from backend.service.persona_1m_pool import is_production_1m_root
 
-        if is_production_1m_root(src_rel):
+        if is_production_1m_root(src_rel) or src_rel.rstrip("/") == DEFAULT_PERSONA_POOL:
             raise ValueError(
-                "Cannot save the full MatrAIx Persona 1M root as a dataset. "
-                "Generate a cohort first, then save that cohort."
+                "Cannot save a full source dataset as a new dataset. "
+                "Pull a cohort first, then save that cohort."
             )
 
         src_dir = self._pool_dir(src_rel)
@@ -749,10 +766,13 @@ class PersonaPoolService:
                     if pid:
                         ids.append(pid)
 
+        count = len(ids)
+        truncated = count > PERSONA_UI_ID_LIST_MAX
         return {
             "pool": persona_pool,
-            "personaIds": ids,
-            "count": len(ids),
+            "personaIds": ids[:PERSONA_CARD_PREVIEW_DEFAULT] if truncated else ids,
+            "count": count,
+            "idsTruncated": truncated,
         }
 
     def list_persona_cards(
@@ -1000,6 +1020,126 @@ class PersonaPoolService:
         more = f" (+{len(short) - 6} more)" if len(short) > 6 else ""
         return f"Incomplete stratify coverage: {preview}{more}"
 
+    def _shape_sample_response(
+        self,
+        result: dict[str, Any],
+        *,
+        preview_limit: int = PERSONA_CARD_PREVIEW_DEFAULT,
+        include_persona_ids: bool | None = None,
+    ) -> dict[str, Any]:
+        """Truncate cards/IDs for UI; keep selectedCount as the full cohort size."""
+        ids = [str(pid) for pid in (result.get("personaIds") or []) if str(pid).strip()]
+        personas = [row for row in (result.get("personas") or []) if isinstance(row, dict)]
+        sample_size = int(result.get("sampleSize") or len(ids) or len(personas) or 0)
+        if include_persona_ids is None:
+            include_persona_ids = sample_size <= PERSONA_UI_ID_LIST_MAX
+        if sample_size <= PERSONA_UI_ID_LIST_MAX:
+            card_limit = min(sample_size, max(int(preview_limit), sample_size), 100)
+        else:
+            card_limit = min(sample_size, max(1, int(preview_limit)))
+        preview_cards = personas[:card_limit]
+        if not preview_cards and ids:
+            preview_cards = [
+                {
+                    "personaId": pid,
+                    "name": f"persona-{pid}",
+                    "dimensions": {},
+                }
+                for pid in ids[:card_limit]
+            ]
+        preview_ids = [
+            str(row.get("personaId") or "").strip()
+            for row in preview_cards
+            if str(row.get("personaId") or "").strip()
+        ]
+        shaped = dict(result)
+        shaped["sampleSize"] = sample_size
+        shaped["selectedCount"] = sample_size
+        shaped["personas"] = preview_cards
+        shaped["personaIds"] = ids if include_persona_ids else preview_ids
+        shaped["idsTruncated"] = (not include_persona_ids) and sample_size > len(shaped["personaIds"])
+        return shaped
+
+    def _materialize_sample_cohort(
+        self,
+        chosen: list[dict[str, Any]],
+        *,
+        parent_pool: str,
+        seed: int,
+    ) -> dict[str, Any]:
+        """Copy chosen YAML personas into a stable cohort dir for ref-based launch."""
+        import hashlib
+
+        persona_ids = [
+            str(entry.get("persona_id") or entry.get("id") or "").strip()
+            for entry in chosen
+        ]
+        persona_ids = [pid for pid in persona_ids if pid]
+        digest = hashlib.sha1(
+            json.dumps(
+                {"pool": parent_pool, "seed": seed, "ids": persona_ids},
+                sort_keys=True,
+            ).encode("utf-8")
+        ).hexdigest()[:12]
+        rel_pool = _sampled_cohort_pool(parent_pool, digest)
+        out_dir = self.repo_root / rel_pool
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        manifest_personas: list[dict[str, Any]] = []
+        cards: list[dict[str, Any]] = []
+        for entry in chosen:
+            persona_id = str(entry.get("persona_id") or entry.get("id") or "").strip()
+            if not persona_id:
+                continue
+            source_path = _resolve_persona_yaml_path(
+                self.repo_root, entry, persona_id, self._pool_dir(parent_pool)
+            )
+            rel_yaml = f"{rel_pool}/persona_{persona_id}.yaml"
+            dest = self.repo_root / rel_yaml
+            if source_path.is_file():
+                shutil.copy2(source_path, dest)
+            else:
+                payload = {
+                    "persona_id": persona_id,
+                    "version": "1.0",
+                    "source": str(entry.get("source") or "unknown"),
+                    "dimensions": dict(entry.get("dimensions") or {}),
+                }
+                dest.write_text(
+                    yaml.safe_dump(payload, sort_keys=False, allow_unicode=False),
+                    encoding="utf-8",
+                )
+            card = self._persona_card({**entry, "path": rel_yaml, "persona_id": persona_id})
+            cards.append(card)
+            manifest_personas.append(
+                {
+                    "persona_id": persona_id,
+                    "path": rel_yaml,
+                    "source": card.get("source"),
+                    "dimensions": dict(card.get("dimensions") or {}),
+                }
+            )
+
+        manifest = {
+            "kind": "matraix-sample-cohort",
+            "parent_pool": parent_pool,
+            "count": len(manifest_personas),
+            "seed": seed,
+            "schema_version": "1.0",
+            "created_at": _utc_now(),
+            "personas": manifest_personas,
+        }
+        (out_dir / "manifest.json").write_text(
+            json.dumps(manifest, indent=2, ensure_ascii=True) + "\n",
+            encoding="utf-8",
+        )
+        return {
+            "pool": rel_pool,
+            "personaIds": [item["persona_id"] for item in manifest_personas],
+            "personas": cards,
+            "count": len(manifest_personas),
+        }
+
     def sample_pool(
         self,
         *,
@@ -1011,6 +1151,8 @@ class PersonaPoolService:
         stratify_fields: list[str] | None = None,
         sample_size_per_value_group: int | None = None,
         task_path: str | None = None,
+        preview_limit: int = PERSONA_CARD_PREVIEW_DEFAULT,
+        include_persona_ids: bool | None = None,
     ) -> dict[str, Any]:
         from backend.service.persona_1m_pool import (
             is_production_1m_root,
@@ -1021,7 +1163,7 @@ class PersonaPoolService:
 
         # Production 1M: sample + materialize a YAML cohort. Never synthesize.
         if is_production_1m_root(persona_pool):
-            return sample_production_1m(
+            result = sample_production_1m(
                 repo_root=self.repo_root,
                 sample_size=sample_size,
                 seed=seed,
@@ -1029,6 +1171,11 @@ class PersonaPoolService:
                 dimension_filters=list_filters or None,
                 stratify_fields=stratify_fields,
                 sample_size_per_value_group=sample_size_per_value_group,
+            )
+            return self._shape_sample_response(
+                result,
+                preview_limit=preview_limit,
+                include_persona_ids=include_persona_ids,
             )
 
         # Stratified quotas:
@@ -1081,7 +1228,7 @@ class PersonaPoolService:
                 raise ValueError(with_coverage_hint(gap, task_path=task_path))
 
         try:
-            return self._sample_pool_inner(
+            result = self._sample_pool_inner(
                 persona_pool=persona_pool,
                 sample_size=sample_size,
                 seed=seed,
@@ -1092,6 +1239,11 @@ class PersonaPoolService:
             )
         except ValueError as exc:
             raise ValueError(with_coverage_hint(str(exc), task_path=task_path)) from exc
+        return self._shape_sample_response(
+            result,
+            preview_limit=preview_limit,
+            include_persona_ids=include_persona_ids,
+        )
 
     def _sample_pool_inner(
         self,
@@ -1157,12 +1309,23 @@ class PersonaPoolService:
                 )
             chosen = sample_personas(matched, sample_size=sample_size, seed=seed)
         personas = [self._persona_card(entry) for entry in chosen]
+        persona_ids = [row["personaId"] for row in personas if row["personaId"]]
+        pool_out = persona_pool
+        if len(persona_ids) > PERSONA_UI_ID_LIST_MAX:
+            materialized = self._materialize_sample_cohort(
+                chosen,
+                parent_pool=persona_pool,
+                seed=seed,
+            )
+            pool_out = str(materialized["pool"])
+            persona_ids = list(materialized["personaIds"])
+            personas = list(materialized["personas"])
         return {
-            "pool": persona_pool,
+            "pool": pool_out,
             "matchedCount": len(matched),
-            "sampleSize": len(personas),
+            "sampleSize": len(persona_ids),
             "seed": seed,
-            "personaIds": [row["personaId"] for row in personas if row["personaId"]],
+            "personaIds": persona_ids,
             "personas": personas,
             "stratifyFields": list(stratify_fields or []),
         }
