@@ -151,7 +151,7 @@ export const api = {
   downloadHarborJobReportPdf: (jobName: string) =>
     downloadFile(
       `/api/harbor/jobs/${encodeURIComponent(jobName)}/report.pdf`,
-      `${jobName}-batch-report.pdf`,
+      `${jobName}-persona-task-batch-report.pdf`,
     ),
   getHarborJobLive: (jobName: string) =>
     request<HarborJobLiveResponse>(`/api/harbor/jobs/${encodeURIComponent(jobName)}/live`),
