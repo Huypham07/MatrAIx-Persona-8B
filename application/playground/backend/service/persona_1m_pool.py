@@ -468,11 +468,9 @@ def _flatten_stratum_buckets(
         else:
             chosen.extend(bucket)
 
+    # Explicit per-cell quota is primary: N per cell across all cells,
+    # sample_size is not a clip (mirrors PersonaPoolService contract).
     if per_cell is None and len(chosen) > sample_size:
-        rng.shuffle(chosen)
-        chosen = chosen[:sample_size]
-    elif per_cell is not None and len(chosen) > sample_size:
-        # Prefer covering more cells: keep at most sample_size after shuffle.
         rng.shuffle(chosen)
         chosen = chosen[:sample_size]
     return chosen
@@ -535,8 +533,23 @@ def _stratified_sample_production(
         seen_ids.add(persona_id)
         return True
 
+    # Explicit per-cell: early-exit only when the expected cell count is known
+    # (every stratify field constrained by filters) — otherwise a full pass is
+    # required, since new cells may appear anywhere in the stream.
+    expected_cells: int | None = None
+    if per_cell is not None and dimension_filters:
+        if all(dimension_filters.get(field) for field in bare):
+            expected_cells = 1
+            for field in bare:
+                expected_cells *= len(dimension_filters[field])
+
     def done() -> bool:
-        return sum(len(bucket) for bucket in buckets.values()) >= sample_size
+        total = sum(len(bucket) for bucket in buckets.values())
+        if per_cell is None:
+            return total >= sample_size
+        if expected_cells is None:
+            return False
+        return total >= per_cell * expected_cells
 
     # Single forward pass; stop once the cohort is full.
     for row in _iter_decoded_rows(paths, codec):
