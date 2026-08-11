@@ -77,7 +77,7 @@ tasks:
 | Field | Type | Meaning |
 |-------|------|---------|
 | `agents[].name` | string | Persona agent name (e.g., `persona-claude-code`, `persona-browser-use`). |
-| `agents[].model_name` | string | Provider-prefixed model identifier (e.g., `anthropic/claude-sonnet-4-6`, `openai/gpt-4o-mini`, `dashscope/qwen3.7-max`). |
+| `agents[].model_name` | string | Provider-prefixed model identifier (e.g., `anthropic/claude-sonnet-4-6`, `openai/gpt-4o-mini`, `dashscope/qwen3.7-max`, `openrouter/z-ai/glm-4.7`). |
 | `agents[].kwargs.persona_path` | string | Path to persona YAML profile (e.g., `persona/datasets/matraix-persona-dev-sample/persona_0042.yaml`). |
 | `agents[].env` | object | Optional environment variable overrides (e.g., `agents[].env.ANTHROPIC_API_KEY`). |
 
@@ -120,6 +120,23 @@ The **persona LLM** is separate from the chat sidecar backend (e.g., `MATRIX_CHA
 - **OpenAI:** `openai/gpt-4o-mini`, `openai/gpt-4o`, etc.
 - **Google Gemini:** `google/gemini-2.5-pro` (with `persona-gemini-cli`)
 - **DashScope (Alibaba):** `dashscope/qwen3.7-max`, `dashscope/deepseek-v4-pro`, etc.
+- **OpenRouter:** `openrouter/z-ai/glm-4.7`, `openrouter/anthropic/claude-haiku-4.5`, etc.
+
+#### OpenRouter
+
+OpenRouter model ids carry their own vendor prefix, so the full string has two
+slashes: `openrouter/z-ai/glm-4.7` resolves to the model id `z-ai/glm-4.7`. Only
+the leading `openrouter/` is stripped.
+
+Set `OPENROUTER_API_KEY`. The endpoint defaults to `https://openrouter.ai/api/v1`
+and can be overridden with `OPENROUTER_API_BASE`.
+
+The `openrouter/` prefix deliberately ignores `OPENAI_BASE_URL`. Routing an
+OpenAI-compatible client through OpenRouter by setting `OPENAI_BASE_URL` also
+diverts the `anthropic/` prefix through that proxy, because a non-empty
+`OPENAI_BASE_URL` switches Anthropic models onto the proxy's OpenAI-compatible
+endpoint. Addressing OpenRouter explicitly keeps the two independent, so one
+process can send some models to OpenRouter and others direct to Anthropic.
 
 ### API keys and environment variables
 
@@ -129,8 +146,8 @@ Set these in your shell before running a job. Each agent reads keys differently:
 
 | Agent | Required keys on host |
 |-------|----------------------|
-| `persona-json-survey` | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `DASHSCOPE_API_KEY` (match `-m`) |
-| `persona-user-sim` | Persona: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `DASHSCOPE_API_KEY`; chat sidecar: often `OPENAI_API_KEY` |
+| `persona-json-survey` | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DASHSCOPE_API_KEY`, or `OPENROUTER_API_KEY` (match `-m`) |
+| `persona-user-sim` | Persona: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DASHSCOPE_API_KEY`, or `OPENROUTER_API_KEY`; chat sidecar: often `OPENAI_API_KEY` |
 
 #### CLI harness agents (vendor-locked)
 
