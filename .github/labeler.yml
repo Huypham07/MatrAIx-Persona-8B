@@ -1,11 +1,11 @@
-# Auto-label PRs by team area
+# Auto-label PRs by code area
 
-"team: persona":
+"area: persona":
   - changed-files:
       - any-glob-to-any-file:
           - persona/**
 
-"team: application":
+"area: application":
   - changed-files:
       - any-glob-to-any-file:
           - application/**
@@ -23,7 +23,7 @@
           - docs/migration/**
           - migration/matraix/**
 
-"team: environment":
+"area: environment":
   - changed-files:
       - any-glob-to-any-file:
           - environment/**
