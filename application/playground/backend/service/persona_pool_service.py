@@ -806,8 +806,6 @@ class PersonaPoolService:
         seed: int = 42,
         all_personas: bool = False,
     ) -> dict[str, Any]:
-        import random
-
         from backend.service.persona_1m_pool import (
             is_production_1m_root,
             preview_production_1m,
