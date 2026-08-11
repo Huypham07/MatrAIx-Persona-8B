@@ -127,6 +127,44 @@ def _print_summary(aggregation: dict[str, Any], *, job_dir: Path, repo_root: Pat
         print("Error:", reporting["error"])
 
 
+def _write_batch_pdf(
+    job_dir: Path,
+    *,
+    repo_root: Path,
+    aggregation: dict[str, Any],
+) -> Path:
+    from backend.service.harbor_job_service import HarborJobService
+    from backend.service.report_pdf import (
+        build_batch_report_pdf,
+        pdf_filename,
+        task_path_from_job,
+    )
+    from backend.service.task_detail_service import get_task_detail
+
+    job_name = job_dir.name
+    service = HarborJobService.from_repo(repo_root=repo_root, jobs_dir=job_dir.parent)
+    job = service.get_job(job_name) or {"jobName": job_name, "trials": [], "launch": {}, "result": {}, "config": {}}
+
+    task_detail = None
+    task_path = task_path_from_job(job if isinstance(job, dict) else None)
+    if task_path:
+        try:
+            task_detail = get_task_detail(task_path, repo_root=repo_root)
+        except Exception:  # noqa: BLE001
+            task_detail = None
+
+    pdf_bytes = build_batch_report_pdf(
+        job_name=job_name,
+        job=job,
+        aggregation=aggregation,
+        task_detail=task_detail,
+    )
+    out_name = pdf_filename(job_name, "persona-task-batch-report")
+    out_path = job_dir / out_name
+    out_path.write_bytes(pdf_bytes)
+    return out_path
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -149,6 +187,14 @@ def main() -> None:
         action="store_true",
         help="Print the final aggregation payload as JSON",
     )
+    parser.add_argument(
+        "--pdf",
+        action="store_true",
+        help=(
+            "Write the same persona-task batch PDF as Playground "
+            "(jobs/<job>/<job>-persona-task-batch-report.pdf)"
+        ),
+    )
     args = parser.parse_args()
 
     repo_root = args.repo_root.resolve()
@@ -158,6 +204,9 @@ def main() -> None:
         repo_root=repo_root,
         enable_llm=not args.no_llm,
     )
+    if args.pdf:
+        pdf_path = _write_batch_pdf(job_dir, repo_root=repo_root, aggregation=aggregation)
+        print("PDF:", _display_path(pdf_path, repo_root=repo_root))
     if args.json:
         print(json.dumps(aggregation, ensure_ascii=False, indent=2))
         return

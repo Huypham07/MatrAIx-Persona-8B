@@ -739,7 +739,12 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
     ):
         from fastapi.responses import Response
 
-        from backend.service.report_pdf import build_batch_report_pdf, pdf_filename
+        from backend.service.report_pdf import (
+            build_batch_report_pdf,
+            pdf_filename,
+            task_path_from_job,
+        )
+        from backend.service.task_detail_service import get_task_detail
 
         job = services.harbor_jobs.get_job(job_name)
         if job is None:
@@ -748,12 +753,22 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
             aggregation = services.harbor_jobs.get_job_aggregation(job_name)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+        task_detail = None
+        task_path = task_path_from_job(job if isinstance(job, dict) else None)
+        if task_path:
+            try:
+                task_detail = get_task_detail(
+                    task_path, repo_root=services.harbor_jobs.repo_root
+                )
+            except Exception:  # noqa: BLE001
+                task_detail = None
         payload = build_batch_report_pdf(
             job_name=job_name,
             job=job,
             aggregation=aggregation,
+            task_detail=task_detail,
         )
-        filename = pdf_filename(job_name, "batch-report")
+        filename = pdf_filename(job_name, "persona-task-batch-report")
         return Response(
             content=payload,
             media_type="application/pdf",

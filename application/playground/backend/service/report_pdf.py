@@ -277,6 +277,152 @@ def _is_survey_aggregation(contexts: list[Any], application_type: str | None) ->
     )
 
 
+def _plain_text_from_markdown(md: object, *, limit: int | None = 4000) -> str:
+    text = str(md or "")
+    if not text.strip():
+        return ""
+    text = text.replace("\r\n", "\n")
+    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.M)
+    text = re.sub(r"^\s*[-*+]\s+", "- ", text, flags=re.M)
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    text = re.sub(r"\*([^*]+)\*", r"\1", text)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    return _safe(text, limit=limit)
+
+
+def task_path_from_job(job: dict[str, Any] | None) -> str | None:
+    job = job or {}
+    for key in ("taskPath", "task_path"):
+        raw = str(job.get(key) or "").strip()
+        if raw:
+            return raw
+    config = job.get("config") if isinstance(job.get("config"), dict) else {}
+    tasks = config.get("tasks") if isinstance(config.get("tasks"), list) else []
+    if tasks and isinstance(tasks[0], dict):
+        path = str(tasks[0].get("path") or "").strip()
+        if path:
+            return path
+    return None
+
+
+def _persona_pool_from_job(job: dict[str, Any] | None) -> str | None:
+    job = job or {}
+    config = job.get("config") if isinstance(job.get("config"), dict) else {}
+    meta = config.get("_job_meta") if isinstance(config.get("_job_meta"), dict) else {}
+    for source in (job, config, meta):
+        if not isinstance(source, dict):
+            continue
+        for key in ("personaPool", "persona_pool"):
+            raw = str(source.get(key) or "").strip()
+            if raw:
+                return raw
+    return None
+
+
+def _render_batch_front_matter(
+    pdf: _ReportPDF,
+    *,
+    job: dict[str, Any] | None,
+    task_detail: dict[str, Any] | None,
+) -> None:
+    """UI-parity preface: task brief + persona strategy + cohort (before results)."""
+    job = job or {}
+    detail = task_detail if isinstance(task_detail, dict) else {}
+    strategy = detail.get("personaStrategy")
+    if not isinstance(strategy, dict):
+        strategy = job.get("personaStrategy") if isinstance(job.get("personaStrategy"), dict) else {}
+
+    title = (
+        str(detail.get("title") or "").strip()
+        or str(job.get("taskTitle") or "").strip()
+        or str(job.get("taskName") or "").strip()
+    )
+    description = (
+        str(detail.get("description") or "").strip()
+        or str(job.get("description") or "").strip()
+    )
+    instruction = _plain_text_from_markdown(detail.get("instructionMarkdown"))
+    context = _plain_text_from_markdown(detail.get("contextMarkdown"))
+    domain = str(detail.get("domain") or job.get("domain") or "").strip()
+    difficulty = str(detail.get("difficulty") or job.get("difficulty") or "").strip()
+    tags = detail.get("tags") if isinstance(detail.get("tags"), list) else job.get("tags")
+    tag_line = ", ".join(str(t) for t in (tags or []) if str(t).strip()) if tags else ""
+
+    if any([title, description, instruction, context, domain, difficulty, tag_line]):
+        pdf.section("Task")
+        if title:
+            pdf.h3(title)
+        meta_bits = [p for p in (domain, difficulty, tag_line) if p]
+        if meta_bits:
+            pdf.muted(" · ".join(meta_bits))
+        if description:
+            pdf.body(description, size=9)
+        if context:
+            pdf.muted("Context")
+            pdf.body(context, size=9)
+        if instruction and instruction != description:
+            pdf.muted("Instruction")
+            # Cap front-matter length so huge task docs do not dominate the PDF.
+            body = instruction
+            if len(body) > 8000:
+                body = body[:8000] + "\n… (instruction truncated)"
+            pdf.body(body, size=9)
+
+    if strategy:
+        pdf.section("Persona strategy")
+        rows: list[tuple[str, str]] = []
+        if strategy.get("defaultMode") or strategy.get("mode"):
+            rows.append(("Mode", _safe(strategy.get("defaultMode") or strategy.get("mode"))))
+        if strategy.get("sampleSize") is not None:
+            rows.append(("Sample size", _fmt_num(strategy.get("sampleSize"))))
+        if strategy.get("sampleSizePerValueGroup") is not None:
+            rows.append(("Per cell", _fmt_num(strategy.get("sampleSizePerValueGroup"))))
+        if strategy.get("seed") is not None:
+            rows.append(("Seed", _fmt_num(strategy.get("seed"))))
+        stratify = strategy.get("stratifyFields")
+        if isinstance(stratify, list) and stratify:
+            rows.append(("Stratify", ", ".join(_safe(x) for x in stratify)))
+        sources = strategy.get("sources")
+        if isinstance(sources, list) and sources:
+            rows.append(("Sources", ", ".join(_safe(x) for x in sources)))
+        filters = strategy.get("dimensionFilters")
+        if isinstance(filters, dict) and filters:
+            bits = []
+            for key, value in filters.items():
+                if isinstance(value, list):
+                    bits.append(f"{_humanize(key)}={','.join(_safe(v) for v in value)}")
+                else:
+                    bits.append(f"{_humanize(key)}={_safe(value)}")
+            rows.append(("Filters", "; ".join(bits)))
+        if rows:
+            pdf.kv_block(rows)
+
+    pool = _persona_pool_from_job(job)
+    trials = job.get("trials") if isinstance(job.get("trials"), list) else []
+    roster: list[str] = []
+    for trial in trials:
+        if not isinstance(trial, dict):
+            continue
+        name = str(trial.get("personaName") or trial.get("personaId") or "").strip()
+        if name and name not in roster:
+            roster.append(name)
+    if pool or roster:
+        pdf.section("Cohort")
+        rows = []
+        if pool:
+            rows.append(("Persona pool", _safe(pool, limit=160)))
+        if roster:
+            rows.append((f"Personas ({len(roster)})", f"{len(roster)} unique"))
+        if rows:
+            pdf.kv_block(rows)
+        if roster:
+            pdf.muted("Full persona roster")
+            for name in roster:
+                pdf.bullet(_safe(name, limit=120))
+
+
 def _coverage_metrics(coverage: dict[str, Any]) -> list[tuple[str, str]]:
     return [
         ("Trials", _fmt_num(coverage.get("trialCount"))),
@@ -407,8 +553,11 @@ def _render_facet_distribution(
         samples = textual.get("samples") if isinstance(textual.get("samples"), list) else []
         if samples:
             pdf.muted("Sample answers")
-            for sample in samples[:12]:
-                pdf.bullet(_safe(sample, limit=4000))
+            shown = samples[:40]
+            for sample in shown:
+                pdf.bullet(_safe(sample, limit=600))
+            if len(samples) > len(shown):
+                pdf.muted(f"… ({len(samples) - len(shown)} more samples truncated)")
         return
 
     pdf.kv_block(
@@ -419,17 +568,156 @@ def _render_facet_distribution(
     )
 
 
+def _render_summaries(pdf: _ReportPDF, summaries: list[Any], *, heading: str = "Summaries") -> None:
+    items = [s for s in summaries if isinstance(s, dict)]
+    if not items:
+        return
+    pdf.muted(heading)
+    for summary in items:
+        title = summary.get("title") or summary.get("id") or "Summary"
+        auto = " · auto" if summary.get("auto") else ""
+        lens = f" · {_safe(summary.get('lens'))}" if summary.get("lens") else ""
+        status = f" · {_safe(summary.get('status'))}" if summary.get("status") else ""
+        pdf.muted(f"{_safe(title)}{auto}{lens}{status}")
+        if summary.get("error"):
+            pdf.body(f"Error: {_safe(summary.get('error'), limit=400)}", size=8)
+        overall = summary.get("overall") if isinstance(summary.get("overall"), dict) else {}
+        if overall.get("summary"):
+            pdf.body(str(overall.get("summary")), size=9)
+        buckets = summary.get("buckets") if isinstance(summary.get("buckets"), list) else []
+        shown = buckets[:24]
+        for bucket in shown:
+            if not isinstance(bucket, dict):
+                continue
+            text = _safe(bucket.get("summary") or "", limit=500)
+            line = f"{_safe(bucket.get('bucket'))} (n={_fmt_num(bucket.get('count'))})"
+            if text:
+                line += f": {text}"
+            pdf.bullet(line)
+            samples = bucket.get("samples") if isinstance(bucket.get("samples"), list) else []
+            for sample in samples[:4]:
+                pdf.bullet(f"  · {_safe(sample, limit=280)}")
+        if len(buckets) > len(shown):
+            pdf.muted(f"… ({len(buckets) - len(shown)} more summary buckets truncated)")
+
+
+def _render_judges(pdf: _ReportPDF, judges: list[Any]) -> None:
+    items = [j for j in judges if isinstance(j, dict)]
+    if not items:
+        return
+    pdf.muted("Judges / signal scans")
+    for judge in items:
+        title = judge.get("title") or judge.get("id") or "Judge"
+        status = f" · {_safe(judge.get('status'))}" if judge.get("status") else ""
+        pdf.muted(f"{_safe(title)}{status}")
+        if judge.get("overallAssessment"):
+            pdf.body(str(judge.get("overallAssessment")), size=9)
+        if judge.get("error"):
+            pdf.body(f"Error: {_safe(judge.get('error'), limit=400)}", size=8)
+        signal_stats = judge.get("signalStats") if isinstance(judge.get("signalStats"), list) else []
+        if signal_stats:
+            pdf.muted("Signal prevalence")
+            for stat in signal_stats[:24]:
+                if not isinstance(stat, dict):
+                    continue
+                present = int(stat.get("present") or 0)
+                total = int(stat.get("total") or 0)
+                pct = f" ({present * 100 // total}%)" if total else ""
+                pdf.bullet(
+                    f"{_safe(stat.get('label') or stat.get('key'))}: "
+                    f"{present}/{total}{pct}"
+                )
+                examples = stat.get("examples") if isinstance(stat.get("examples"), list) else []
+                for example in examples[:3]:
+                    pdf.bullet(f"  · {_safe(example, limit=240)}")
+        buckets = judge.get("buckets") if isinstance(judge.get("buckets"), list) else []
+        shown = buckets[:16]
+        for bucket in shown:
+            if not isinstance(bucket, dict):
+                continue
+            pdf.bullet(
+                f"{_safe(bucket.get('bucket'))} (n={_fmt_num(bucket.get('count'))})"
+                + (f": {_safe(bucket.get('assessment'), limit=320)}" if bucket.get("assessment") else "")
+            )
+            samples = bucket.get("samples") if isinstance(bucket.get("samples"), list) else []
+            for sample in samples[:3]:
+                pdf.bullet(f"  · {_safe(sample, limit=240)}")
+        if len(buckets) > len(shown):
+            pdf.muted(f"… ({len(buckets) - len(shown)} more judge buckets truncated)")
+
+
+def _cross_facet_views(context: dict[str, Any]) -> list[dict[str, Any]]:
+    views = context.get("crossFacetViews")
+    if not isinstance(views, list) or not views:
+        views = context.get("relationships")
+    if not isinstance(views, list):
+        return []
+    return [v for v in views if isinstance(v, dict)]
+
+
+def _render_cross_facet_views(pdf: _ReportPDF, context: dict[str, Any]) -> None:
+    views = _cross_facet_views(context)
+    if not views:
+        return
+    pdf.muted("Cross-facet views")
+    for view in views:
+        vtype = _safe(view.get("type") or "cross").replace("_", " ")
+        primary = _safe(view.get("primaryFacetKey") or "")
+        text_key = _safe(view.get("textFacetKey") or "")
+        bits = [vtype]
+        if primary:
+            bits.append(f"by {primary}")
+        if text_key:
+            bits.append(f"text={text_key}")
+        pdf.muted(" · ".join(bits))
+        buckets = view.get("buckets") if isinstance(view.get("buckets"), list) else []
+        shown = buckets[:20]
+        for bucket in shown:
+            if not isinstance(bucket, dict):
+                continue
+            pdf.bullet(
+                f"{_safe(bucket.get('category'))} (n={_fmt_num(bucket.get('count'))})"
+            )
+            samples = bucket.get("samples") if isinstance(bucket.get("samples"), list) else []
+            for sample in samples[:6]:
+                pdf.bullet(f"  · {_safe(sample, limit=320)}")
+        if len(buckets) > len(shown):
+            pdf.muted(f"… ({len(buckets) - len(shown)} more cross-facet buckets truncated)")
+
+
+def _render_context_analysis(pdf: _ReportPDF, context: dict[str, Any]) -> None:
+    """Summaries, judges, and cross-facets — Detailed report parity."""
+    summaries = context.get("summaries") if isinstance(context.get("summaries"), list) else []
+    auto = [s for s in summaries if isinstance(s, dict) and s.get("auto")]
+    custom = [s for s in summaries if isinstance(s, dict) and not s.get("auto")]
+    if auto:
+        _render_summaries(pdf, auto, heading="Auto summaries")
+    if custom:
+        _render_summaries(pdf, custom, heading="Custom summaries")
+    judges = context.get("judges") if isinstance(context.get("judges"), list) else []
+    _render_judges(pdf, judges)
+    _render_cross_facet_views(pdf, context)
+
+
 def _render_question_context(pdf: _ReportPDF, context: dict[str, Any], *, index: int) -> None:
     pdf.card_start()
     label = context.get("label") or context.get("key") or f"Question {index}"
     qtype = _safe(context.get("questionType") or "question")
     pdf.h3(f"Q{index}. {_safe(label, limit=220)}")
     pdf.muted(qtype.replace("_", " "))
-    facet = _primary_facet(context)
-    if facet:
-        _render_facet_distribution(pdf, facet, context=context)
-    else:
+    facets = context.get("facets") if isinstance(context.get("facets"), list) else []
+    facet_list = [f for f in facets if isinstance(f, dict)]
+    if not facet_list:
         pdf.body("No response data for this question.")
+    else:
+        for facet in facet_list:
+            facet_label = facet.get("label") or facet.get("key") or "Signal"
+            role = facet.get("role")
+            role_bit = f" · {_safe(role)}" if role else ""
+            if len(facet_list) > 1 or role not in (None, "primary"):
+                pdf.muted(f"{_safe(facet_label)}{role_bit}")
+            _render_facet_distribution(pdf, facet, context=context)
+    _render_context_analysis(pdf, context)
 
 
 def _render_generic_context(pdf: _ReportPDF, context: dict[str, Any]) -> None:
@@ -444,30 +732,74 @@ def _render_generic_context(pdf: _ReportPDF, context: dict[str, Any]) -> None:
     if bits:
         pdf.muted(" · ".join(bits))
     facets = context.get("facets") if isinstance(context.get("facets"), list) else []
-    for facet in facets[:8]:
-        if not isinstance(facet, dict):
-            continue
+    facet_list = [f for f in facets if isinstance(f, dict)]
+    for facet in facet_list:
         facet_label = facet.get("label") or facet.get("key") or "Signal"
-        if len(facets) > 1:
+        if len(facet_list) > 1:
             pdf.muted(_safe(facet_label))
         _render_facet_distribution(pdf, facet, context=context)
-    summaries = context.get("summaries") if isinstance(context.get("summaries"), list) else []
-    for summary in summaries[:4]:
-        if not isinstance(summary, dict):
+    _render_context_analysis(pdf, context)
+
+
+def _render_persona_insights(pdf: _ReportPDF, contexts: list[Any]) -> None:
+    """Persona distributions + standalone facets from all contexts (Detailed tab)."""
+    cards: list[tuple[str, dict[str, Any]]] = []
+    standalones: list[tuple[str, dict[str, Any]]] = []
+    for context in contexts:
+        if not isinstance(context, dict):
             continue
-        title = summary.get("title") or summary.get("id") or "Summary"
-        pdf.muted(f"Summary · {_safe(title)}")
-        overall = summary.get("overall") if isinstance(summary.get("overall"), dict) else {}
-        if overall.get("summary"):
-            pdf.body(str(overall.get("summary")), size=9)
-        buckets = summary.get("buckets") if isinstance(summary.get("buckets"), list) else []
-        for bucket in buckets[:6]:
+        ctx_label = _safe(context.get("label") or context.get("key") or "Context", limit=80)
+        dists = context.get("personaDistributions")
+        if isinstance(dists, list):
+            for dist in dists:
+                if isinstance(dist, dict):
+                    cards.append((ctx_label, dist))
+        alone = context.get("personaStandaloneFacets")
+        if isinstance(alone, list):
+            for facet in alone:
+                if isinstance(facet, dict):
+                    standalones.append((ctx_label, facet))
+    if not cards and not standalones:
+        return
+
+    pdf.section("Persona insights")
+    for ctx_label, dist in cards:
+        pdf.card_start()
+        title = dist.get("facetLabel") or dist.get("facetKey") or "Distribution"
+        group = dist.get("groupByLabel") or dist.get("groupByPersonaDimension") or "persona"
+        pdf.h3(_safe(title, limit=160))
+        pdf.muted(f"{ctx_label} · by {_safe(group)} · n={_fmt_num(dist.get('total'))}")
+        buckets = dist.get("buckets") if isinstance(dist.get("buckets"), list) else []
+        kind = str(dist.get("kind") or "")
+        for bucket in buckets[:30]:
             if not isinstance(bucket, dict):
                 continue
-            pdf.bullet(
-                f"{_safe(bucket.get('bucket'))} (n={_fmt_num(bucket.get('count'))}): "
-                f"{_safe(bucket.get('summary') or '', limit=280)}"
-            )
+            name = _safe(bucket.get("bucket"))
+            count = int(bucket.get("count") or 0)
+            if kind == "numerical":
+                numerical = bucket.get("numerical") if isinstance(bucket.get("numerical"), dict) else {}
+                pdf.bullet(
+                    f"{name} (n={count}): avg {_fmt_num(numerical.get('avg'))} · "
+                    f"min {_fmt_num(numerical.get('min'))} · max {_fmt_num(numerical.get('max'))}"
+                )
+            elif kind == "categorical":
+                categorical = bucket.get("categorical") if isinstance(bucket.get("categorical"), dict) else {}
+                counts = categorical.get("counts") if isinstance(categorical.get("counts"), list) else []
+                bits = []
+                for item in counts[:8]:
+                    if isinstance(item, dict):
+                        bits.append(f"{_safe(item.get('value'))}={_fmt_num(item.get('count'))}")
+                pdf.bullet(f"{name} (n={count}): " + (", ".join(bits) if bits else "-"))
+            else:
+                pdf.bullet(f"{name} (n={count})")
+        if len(buckets) > 30:
+            pdf.muted(f"… ({len(buckets) - 30} more persona buckets truncated)")
+
+    for ctx_label, facet in standalones:
+        pdf.card_start()
+        pdf.h3(_safe(facet.get("label") or facet.get("key") or "Standalone", limit=160))
+        pdf.muted(ctx_label)
+        _render_facet_distribution(pdf, facet)
 
 
 def build_batch_report_pdf(
@@ -475,6 +807,7 @@ def build_batch_report_pdf(
     job_name: str,
     job: dict[str, Any] | None,
     aggregation: dict[str, Any],
+    task_detail: dict[str, Any] | None = None,
 ) -> bytes:
     job = job or {}
     coverage = aggregation.get("coverage") if isinstance(aggregation.get("coverage"), dict) else {}
@@ -515,13 +848,22 @@ def build_batch_report_pdf(
         if not (isinstance(ctx, dict) and ctx.get("contextType") == "trial_summary")
     ]
 
+    detail = task_detail if isinstance(task_detail, dict) else {}
+    cover_title = (
+        str(detail.get("title") or "").strip()
+        or str(job.get("taskTitle") or "").strip()
+        or job_name
+    )
+
     pdf = _ReportPDF()
     pdf.alias_nb_pages()
     pdf.cover(
-        eyebrow="Batch report" + (" · Survey" if is_survey else ""),
-        title=job_name,
-        meta_lines=_job_meta_lines(job, aggregation),
+        eyebrow="Persona-task batch report" + (" · Survey" if is_survey else ""),
+        title=cover_title,
+        meta_lines=[f"Job: {_safe(job_name, limit=120)}"] + _job_meta_lines(job, aggregation),
     )
+
+    _render_batch_front_matter(pdf, job=job, task_detail=detail or None)
 
     pdf.section("Overview")
     pdf.metric_strip(_coverage_metrics(coverage))
@@ -532,6 +874,19 @@ def build_batch_report_pdf(
             type_counts[qtype] = type_counts.get(qtype, 0) + 1
         mix = ", ".join(f"{count} {label}" for label, count in sorted(type_counts.items()))
         pdf.body(f"{len(questions)} questions · {mix}", size=9)
+        # Survey coverage extras when present on question facets.
+        answered = []
+        for ctx in questions:
+            facets = ctx.get("facets") if isinstance(ctx.get("facets"), list) else []
+            primary = next(
+                (f for f in facets if isinstance(f, dict) and f.get("role") == "primary"),
+                facets[0] if facets and isinstance(facets[0], dict) else None,
+            )
+            if primary and primary.get("presentCount") is not None:
+                answered.append(int(primary.get("presentCount") or 0))
+        if answered:
+            avg_ans = sum(answered) / len(answered)
+            pdf.muted(f"Answered avg {_fmt_num(round(avg_ans, 2))} across {len(answered)} questions")
 
     if questions:
         pdf.section("Per-question report")
@@ -555,6 +910,8 @@ def build_batch_report_pdf(
         for ctx in detail_contexts:
             _render_generic_context(pdf, ctx)
 
+    _render_persona_insights(pdf, contexts)
+
     if trial_summary and isinstance(trial_summary, dict):
         pdf.section("Run stats")
         facets = trial_summary.get("facets") if isinstance(trial_summary.get("facets"), list) else []
@@ -575,7 +932,16 @@ def build_batch_report_pdf(
                 )
             else:
                 rows.append((label, f"n={_fmt_num(facet.get('presentCount'))}"))
-        pdf.kv_block(rows)
+        if rows:
+            pdf.kv_block(rows)
+        for facet in facets:
+            if not isinstance(facet, dict):
+                continue
+            if isinstance(facet.get("numerical"), dict):
+                continue
+            pdf.muted(_safe(facet.get("label") or facet.get("key") or "Signal"))
+            _render_facet_distribution(pdf, facet, context=trial_summary)
+        _render_context_analysis(pdf, trial_summary)
 
     if trials:
         pdf.section("Trials")
