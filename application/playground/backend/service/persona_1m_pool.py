@@ -18,6 +18,8 @@ from typing import Any, Iterator
 
 import yaml
 
+from matraix.persona_display_name import assign_cohort_display_names, synthetic_display_name
+
 PRODUCTION_1M_POOL = "persona/datasets/matraix-persona-1m"
 PRODUCTION_1M_LABEL = "matraix-persona-1m"
 PRODUCTION_1M_KIND = "production"
@@ -688,6 +690,10 @@ def materialize_cohort(
     out_dir = repo_root / rel_pool
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    display_names = assign_cohort_display_names(
+        [(str(row["persona_id"]), dict(row.get("dimensions") or {})) for row in rows]
+    )
+
     manifest_personas: list[dict[str, Any]] = []
     source_counts: dict[str, int] = {}
     for row in rows:
@@ -703,6 +709,7 @@ def materialize_cohort(
             "persona_id": persona_id,
             "version": "1.0",
             "source": source,
+            "display_name": display_names.get(persona_id),
             "dimensions": dimensions,
         }
         (repo_root / rel_yaml).write_text(
@@ -717,6 +724,7 @@ def materialize_cohort(
         manifest_personas.append(
             {
                 "persona_id": persona_id,
+                "display_name": display_names.get(persona_id),
                 "path": rel_yaml,
                 "source": source,
                 "dimensions": card_dims,
@@ -746,7 +754,7 @@ def materialize_cohort(
     cards = [
         {
             "personaId": item["persona_id"],
-            "name": f"persona-{item['persona_id']}",
+            "name": item.get("display_name") or f"persona-{item['persona_id']}",
             "source": item.get("source"),
             "path": item.get("path"),
             "dimensions": dict(item.get("dimensions") or {}),
@@ -831,7 +839,7 @@ def preview_production_1m(
         }
         persona_id = str(row["persona_id"])
         source = str(row.get("source") or "")
-        name = f"persona-{persona_id}"
+        name = synthetic_display_name(persona_id, dims_full)
         search_parts = [persona_id, name, source]
         for key, value in dims_full.items():
             search_parts.append(str(key))
@@ -900,9 +908,12 @@ def _detail_payload_from_row(
         profile_markdown_lines.append(f"**Path:** `{path}`")
     if yaml_text.strip():
         profile_markdown_lines.extend(["", "```yaml", yaml_text.rstrip(), "```"])
+    display_name = str(row.get("display_name") or "").strip() or synthetic_display_name(
+        persona_id, dimensions
+    )
     return {
         "personaId": persona_id,
-        "name": f"persona-{persona_id}",
+        "name": display_name,
         "source": source,
         "path": path or None,
         "dimensions": dimensions,
@@ -1082,6 +1093,7 @@ def get_production_1m_persona_detail(
                 row={
                     "persona_id": str(payload.get("persona_id") or pid),
                     "source": payload.get("source") or "unknown",
+                    "display_name": payload.get("display_name") or "",
                     "dimensions": payload.get("dimensions") or {},
                 },
                 pool=f"{PRODUCTION_1M_POOL}/cohorts/{cohort_dir.name}",
