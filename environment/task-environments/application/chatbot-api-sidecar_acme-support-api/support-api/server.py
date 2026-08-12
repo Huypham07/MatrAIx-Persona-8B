@@ -1,14 +1,18 @@
-"""Acme customer support REST API with in-memory conversation state."""
+"""Acme customer support REST API with per-session conversation state."""
 
 from __future__ import annotations
 
 import re
+import threading
+import uuid
 
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-_messages: list[dict[str, str]] = []
+_sessions_lock = threading.Lock()
+# session_id → ordered chat turns for that trial / browser session
+_sessions: dict[str, list[dict[str, str]]] = {}
 
 _ORDER_ID = "4521"
 _ORDER_STATUS = (
@@ -57,6 +61,20 @@ def _bot_reply(customer_message: str) -> str:
     )
 
 
+def _resolve_session_id(raw: object) -> str:
+    text = str(raw or "").strip()
+    return text or str(uuid.uuid4())
+
+
+def _session_messages(session_id: str) -> list[dict[str, str]]:
+    with _sessions_lock:
+        bucket = _sessions.get(session_id)
+        if bucket is None:
+            bucket = []
+            _sessions[session_id] = bucket
+        return bucket
+
+
 @app.get("/health")
 @app.get("/v1/health")
 def health():
@@ -85,15 +103,38 @@ def post_message():
     if not customer_message:
         return jsonify({"error": "message must not be empty"}), 400
 
-    _messages.append({"role": "customer", "content": customer_message})
-    reply = _bot_reply(customer_message)
-    _messages.append({"role": "support", "content": reply})
-    return jsonify({"reply": reply})
+    session_id = _resolve_session_id(payload.get("sessionId"))
+    messages = _session_messages(session_id)
+    with _sessions_lock:
+        messages.append({"role": "customer", "content": customer_message})
+        reply = _bot_reply(customer_message)
+        messages.append({"role": "support", "content": reply})
+        snapshot = list(messages)
+
+    return jsonify({"sessionId": session_id, "reply": reply, "turn": len(snapshot) // 2})
 
 
 @app.get("/v1/conversation")
 def get_conversation():
-    return jsonify({"messages": _messages})
+    session_id = str(request.args.get("sessionId") or "").strip()
+    with _sessions_lock:
+        if session_id:
+            messages = list(_sessions.get(session_id, []))
+            return jsonify({"sessionId": session_id, "messages": messages})
+
+        if len(_sessions) > 1:
+            return jsonify(
+                {
+                    "error": "sessionId is required when multiple conversations exist",
+                    "sessionCount": len(_sessions),
+                }
+            ), 400
+
+        if len(_sessions) == 1:
+            only_id, only_messages = next(iter(_sessions.items()))
+            return jsonify({"sessionId": only_id, "messages": list(only_messages)})
+
+    return jsonify({"sessionId": "", "messages": []})
 
 
 if __name__ == "__main__":
