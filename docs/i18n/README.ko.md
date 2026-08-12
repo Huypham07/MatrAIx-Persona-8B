@@ -1,0 +1,216 @@
+<div align="center">
+  <h1>MatrAIx</h1>
+  <p><strong>Simulate before reality.</strong></p>
+  <p>
+    이질적인 시뮬레이션 사용자로 AI 시스템과 인터랙티브 제품을 평가하기 위한
+    인구 규모·페르소나 기반 인프라.
+  </p>
+  <p>
+    <a href="../../README.md">English</a> |
+    <strong>한국어</strong> |
+    <a href="README.zh-CN.md">简体中文</a> |
+    <a href="README.zh-TW.md">繁體中文</a> |
+    <a href="README.ja.md">日本語</a> |
+    <a href="README.pt-BR.md">Português</a> |
+    <a href="README.es.md">Español</a>
+  </p>
+  <p>
+    <a href="https://matraix.ai/"><img alt="Website" src="https://img.shields.io/badge/Website-matraix.ai-4f7cff?style=for-the-badge"></a>
+    <a href="https://discord.gg/knVyQQnRFa"><img alt="Discord" src="https://img.shields.io/badge/Discord-join%20MatrAIx-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
+    <a href="https://x.com/MatrAIx2026"><img alt="X" src="https://img.shields.io/badge/X-%40MatrAIx2026-000000?style=for-the-badge&logo=x&logoColor=white"></a>
+    <a href="https://www.linkedin.com/company/matraix"><img alt="LinkedIn" src="https://img.shields.io/badge/LinkedIn-MatrAIx-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white"></a>
+    <a href="https://forms.gle/hwEHng5HGWRqcJue9"><img alt="Google Form" src="https://img.shields.io/badge/Google%20Form-join%20MatrAIx-4285F4?style=for-the-badge&logo=googleforms&logoColor=white"></a>
+    <a href="../README.md"><img alt="Docs" src="https://img.shields.io/badge/Docs-Handbook-5b5b5b?style=for-the-badge"></a>
+    <a href="https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release"><img alt="Hugging Face" src="https://img.shields.io/badge/Hugging%20Face-Persona%201M-ffcc4d?style=for-the-badge"></a>
+    <a href="../../LICENSE"><img alt="License" src="https://img.shields.io/badge/License-MIT-c33b32?style=for-the-badge"></a>
+    <a href="../quickstart.md#10-playground--play-tasks-visually"><img alt="Playground" src="https://img.shields.io/badge/Playground-Visual%20Runner-56b879?style=for-the-badge"></a>
+  </p>
+</div>
+
+<div align="center">
+  <a href="https://www.youtube.com/watch?v=cNFkz9Wo1y4&t=15s">
+    <img src="https://img.youtube.com/vi/cNFkz9Wo1y4/maxresdefault.jpg" alt="YouTube에서 MatrAIx 데모 보기" width="900">
+  </a>
+  <p>
+    <a href="https://www.youtube.com/watch?v=cNFkz9Wo1y4&t=15s"><img alt="YouTube에서 MatrAIx 데모 보기" src="https://img.shields.io/badge/%E2%96%B6%20Watch%20the%20demo-on%20YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white"></a>
+  </p>
+</div>
+
+---
+
+**MatrAIx**는 이질적인 시뮬레이션 사용자로 AI 시스템과 인터랙티브 제품을 평가하기 위한
+인구 규모·페르소나 기반 인프라입니다. 범용적이거나 서로 대체 가능한 사용자를 상대로
+테스트하는 대신, 샘플링된 페르소나 레코드를 LLM 에이전트로 인스턴스화하고 네 가지 환경 —
+**Survey**, **AI Chatbot**, **Web**, **App**(macOS·iOS를 포함한 네이티브 데스크톱·모바일) —
+에서 재현 가능한 태스크로 실행합니다.
+
+기반은 배경·심리·역량·행동을 아우르는 **1,290개의 범주형 차원** 공유 스키마입니다.
+페르소나는 의존성을 고려한 합성 생성과 증거 기반의 인간 grounding을 결합합니다.
+결정적이며 품질 필터링된 **백만 페르소나** 코어셋이 연구용으로
+[Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release)
+에 공개되어 있습니다. 공유 텔레메트리, 태스크 소유 검증, 리포팅이 개별 응답·궤적을
+하위 집단 및 인구 수준의 발견으로 연결합니다.
+
+이름은 *The Matrix*를 가리킵니다. 탐색·스트레스 테스트·가설 생성에 유용한 시뮬레이션
+세계이며, **실제 사람으로부터의 증거를 대체하지 않습니다**.
+
+## 요구 사항
+
+- [Docker](https://docs.docker.com/get-docker/)
+- [uv](https://docs.astral.sh/uv/) 및 Python 3.12
+- Node.js 20+ (Playground / viewer 프론트엔드만)
+- 페르소나 에이전트 예제용 모델 API 키 — [agents.md](../environment/agents.md) 참고
+
+## 설치
+
+```bash
+git clone <repo-url> && cd MatrAIx
+uv venv --python 3.12
+uv pip install -e .
+uv pip install pytest pytest-asyncio httpx
+uv pip install -e packages/playground
+uv pip install -e packages/harbor-langsmith
+uv pip install -e packages/rewardkit
+```
+
+모든 Matraix Playground 명령은 **`uv run harbor …`** 형태로 실행합니다.
+
+GUI 또는 CLI 태스크 실행 전에 사용 중인 제공자에 맞는 모델 API 키를 설정하세요
+(smoke test에는 필요 없음):
+
+```bash
+export ANTHROPIC_API_KEY="sk-ant-..."   # anthropic/claude-* 모델
+# export OPENAI_API_KEY="sk-..."        # openai/gpt-* 모델
+```
+
+전체 키 매트릭스는 [agents.md](../environment/agents.md)를 참고하세요.
+Playground는 `application/playground/.env.local`에서도 키를 로드할 수 있습니다.
+
+### Persona 1M 가져오기 (선택)
+
+```bash
+huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
+  --repo-type dataset \
+  --local-dir persona/datasets/matraix-persona-1m/release
+```
+
+Playground: Dataset → **`matraix-persona-1m`**. CLI: `--dataset persona/datasets/matraix-persona-1m`.
+자세한 내용: [Handbook § Persona 1M](../README.md#3-persona-1m-optional).
+
+## 빠른 시작
+
+### Smoke test
+
+API 키 불필요. **Docker 필요**(smoke job은 `environment.type: docker` 사용):
+
+```bash
+uv run harbor run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
+```
+
+### GUI 태스크 실행
+
+Playground는 태스크를 고르고 페르소나를 샘플링한 뒤, CLI auto 모드와 동일한
+Matraix Playground job을 실행합니다.
+API + 프론트엔드 시작(터미널 두 개):
+
+```bash
+# 터미널 A — API
+VENV=.venv bash application/playground/backend/run_dev.sh
+
+# 터미널 B — 프론트엔드
+cd application/playground/frontend && npm ci && npm run dev
+```
+
+**http://localhost:5173** 열기 → Playground → 페르소나 cohort 선택 →
+Survey / Chat / Web / OS app 태스크 선택 → **Lock pipeline** → **Run eval**.
+자세한 내용: [Playground §10](../quickstart.md#10-playground--play-tasks-visually).
+
+### CLI 태스크 개발 / 실행
+
+**개발** — `application/tasks/` 아래 참고 태스크를 복사한 뒤
+`task.toml` / `instruction.md` / `input/` / verifier를 편집하고 Playground에 등록
+([task-guide.md](../application/task-guide.md)):
+
+```bash
+cp -R application/tasks/example-survey_product-feedback \
+  application/tasks/<your-task-name>
+```
+
+| 유형 | 참고 태스크 |
+|------|-------------|
+| Survey | `application/tasks/example-survey_product-feedback` |
+| Chat | `application/tasks/example-chat-api_support_chatbot` |
+| Web | `application/tasks/example-web-playwright_quote-choice` |
+| OS-app | `application/tasks/example-computer-use-linux_note-to-csv` |
+
+**실행** — Matraix Playground job을 생성(agent + model 고정)한 뒤 실행:
+
+```bash
+uv run python application/scripts/generate_application_job.py \
+  --task application/tasks/example-survey_product-feedback \
+  --execution-mode auto \
+  --persona-ids 0042 \
+  --model-name anthropic/claude-sonnet-4-6
+
+# 스크립트가 출력하는 export 줄과 recipe 경로를 사용, 예:
+uv run harbor run -c configs/jobs/application-task-job-recipe/example-survey-product-feedback-auto-n1.yaml
+```
+
+배치(`--sample-size N`), 필터, chat / web / os-app 예제:
+[docs/quickstart.md](../quickstart.md).
+
+## 문서
+
+**[MatrAIx Handbook](../README.md)** — 가이드 및 persona / application / environment 문서.
+
+<p align="center">
+  <img src="../assets/matraix-architecture.png" alt="MatrAIx 아키텍처" width="900">
+</p>
+
+## 저장소 구조
+
+```text
+MatrAIx/
+├── persona/                 스키마, 데이터셋, 합성/큐레이션/검증 파이프라인
+│   ├── schema/              1,290차원 페르소나 스키마
+│   ├── datasets/            개발 샘플 풀 및 페르소나 YAML
+│   ├── validation/          Grounding / 품질 검증 스위트
+│   └── scripts/             페르소나 job·파이프라인 헬퍼
+├── application/
+│   ├── tasks/               Survey · chat · web · os-app 태스크 스펙
+│   ├── task-spec/           공유 태스크 계약
+│   ├── playground/          비주얼 러너(백엔드 API + 프론트엔드)
+│   └── scripts/             generate_application_job.py 및 태스크 도구
+├── environment/
+│   ├── runtime/             Matraix Playground runtime
+│   ├── agents/              페르소나 조건 에이전트
+│   ├── task-environments/   Docker 이미지 / sidecar
+│   └── adapters/            외부 어댑터(예: SimpleQA)
+├── packages/                playground · rewardkit · harbor-langsmith
+├── apps/viewer/             `harbor view`와 짝을 이루는 프론트엔드
+├── configs/jobs/            큐레이션·생성된 Matraix Playground job recipe
+├── docs/                    Handbook — persona/ · application/ · environment/
+├── examples/                최소 예제 태스크
+├── src/matraix/             Python 패키지 엔트리포인트
+├── scripts/                 저장소 수준 헬퍼
+├── tests/                   유닛 / 환경 테스트
+└── jobs/                    로컬 Matraix Playground 실행 출력(gitignore)
+```
+
+대용량 생성 데이터셋은 git 밖에 둡니다(위 Hugging Face 릴리스 참고).
+
+## 커뮤니티 참여
+
+[![Discord](https://img.shields.io/badge/Discord-join%20MatrAIx-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/knVyQQnRFa)
+[![X](https://img.shields.io/badge/X-follow%20%40MatrAIx2026-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/MatrAIx2026)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-follow%20MatrAIx-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/company/matraix)
+[![Google Form](https://img.shields.io/badge/Google%20Form-join%20MatrAIx-4285F4?style=for-the-badge&logo=googleforms&logoColor=white)](https://forms.gle/hwEHng5HGWRqcJue9)
+
+1. Discord 가입 — 닉네임 **`Full Name - Affiliation`**. Google Form 작성
+   (배경, 관심사, 논문 저자 / 사사).
+2. 인사해 주세요! 공통 관심사나 경험으로 연결하고 싶습니다.
+3. MatrAIx 연구 커뮤니티에 참여해 협업하거나 기여하세요!
+
+## 라이선스
+
+MIT — [LICENSE](../../LICENSE) 참고.
