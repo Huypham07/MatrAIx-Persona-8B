@@ -172,6 +172,7 @@ export function OsAppEvalCockpit({
     batchJobName,
     batchTaskId,
     batchPersonaIds,
+    batchPersonaPool,
     setBatchJobName,
     clearBatch,
     cancelBatch,
@@ -186,7 +187,7 @@ export function OsAppEvalCockpit({
     expectedTrialCount,
     completedTrials: batchCompletedTrials,
     batchError,
-  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "os-app", selectedCount);
+  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "os-app", selectedCount, personaPool);
 
 
   const { setupLocked, visiblePersonaIds } = useCockpitSetupLock(
@@ -195,6 +196,7 @@ export function OsAppEvalCockpit({
     batchPersonaIds,
     selectedPersonaIds,
   );
+  const visiblePersonaPool = batchJobName ? batchPersonaPool ?? personaPool : personaPool;
   const activeTaskId = batchJobName && batchTaskId ? batchTaskId : taskId;
   const task = tasks.find((item) => item.id === activeTaskId) ?? null;
 
@@ -335,7 +337,7 @@ export function OsAppEvalCockpit({
       setLaunchError(null);
       try {
         const launched = await api.launchHarborJob(harborLaunchBody(task));
-        setBatchJobName(launched.jobName, { taskId: task.id });
+        setBatchJobName(launched.jobName, { taskId: task.id, personaPool });
       } catch (exc) {
         const message = exc instanceof ApiError ? exc.message : exc instanceof Error ? exc.message : String(exc);
         setLaunchError(message);
@@ -352,6 +354,7 @@ export function OsAppEvalCockpit({
     isBatchRun,
     harborLaunchBody,
     handleRun,
+    personaPool,
     setBatchJobName,
   ]);
 
@@ -502,7 +505,7 @@ export function OsAppEvalCockpit({
           useTaskDefaultStrategy={useTaskDefaultStrategy}
           onUseTaskDefaultStrategyChange={setUseTaskDefaultStrategy}
           onPersonaPoolChange={setPersonaPool}
-          personaPool={personaPool}
+          personaPool={visiblePersonaPool}
           disabled={setupLocked}
         />
       }

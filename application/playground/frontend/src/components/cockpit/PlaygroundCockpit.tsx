@@ -346,6 +346,7 @@ function ChatbotEvalCockpit({
     batchJobName,
     batchTaskId,
     batchPersonaIds,
+    batchPersonaPool,
     setBatchJobName,
     clearBatch,
     cancelBatch,
@@ -361,7 +362,7 @@ function ChatbotEvalCockpit({
     expectedTrialCount,
     personaById,
     batchError,
-  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "chatbot", selectedCount);
+  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "chatbot", selectedCount, personaPool);
   const [exportSnapshot, setExportSnapshot] = useState<ExportSnapshot | null>(null);
 
   // After navigating away/back, single-trial restore brings back the transcript
@@ -581,7 +582,7 @@ function ChatbotEvalCockpit({
           chatApplicationContext: launchChatApplicationContext,
           chatMaxTurns: maxTurns,
         });
-        setBatchJobName(launched.jobName, { taskId: selectedTask.id });
+        setBatchJobName(launched.jobName, { taskId: selectedTask.id, personaPool });
       } catch (exc) {
         const message = exc instanceof ApiError ? exc.message : exc instanceof Error ? exc.message : String(exc);
         setLaunchError(message);
@@ -770,6 +771,7 @@ function ChatbotEvalCockpit({
     batchPersonaIds,
     selectedPersonaIds,
   );
+  const visiblePersonaPool = batchJobName ? batchPersonaPool ?? personaPool : personaPool;
   const instructionView = useCockpitInstruction({
     taskPath: chatTaskPath,
     fallbackTitle: chatTaskLabel,
@@ -850,7 +852,7 @@ function ChatbotEvalCockpit({
           useTaskDefaultStrategy={useTaskDefaultStrategy}
           onUseTaskDefaultStrategyChange={setUseTaskDefaultStrategy}
           onPersonaPoolChange={setPersonaPool}
-          personaPool={personaPool}
+          personaPool={visiblePersonaPool}
           disabled={setupLocked}
         />
       }

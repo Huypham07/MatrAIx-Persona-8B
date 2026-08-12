@@ -193,6 +193,7 @@ export function WebEvalCockpit({
     batchJobName,
     batchTaskId,
     batchPersonaIds,
+    batchPersonaPool,
     setBatchJobName,
     clearBatch,
     cancelBatch,
@@ -207,7 +208,7 @@ export function WebEvalCockpit({
     expectedTrialCount,
     completedTrials: batchCompletedTrials,
     batchError,
-  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "web", selectedCount);
+  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "web", selectedCount, personaPool);
 
 
   const { setupLocked, visiblePersonaIds } = useCockpitSetupLock(
@@ -216,6 +217,7 @@ export function WebEvalCockpit({
     batchPersonaIds,
     selectedPersonaIds,
   );
+  const visiblePersonaPool = batchJobName ? batchPersonaPool ?? personaPool : personaPool;
   const activeTaskId = batchJobName && batchTaskId ? batchTaskId : taskId;
   const task = tasks.find((item) => item.id === activeTaskId) ?? null;
 
@@ -360,7 +362,7 @@ export function WebEvalCockpit({
           ...personaFields,
           mode: "auto",
         });
-        setBatchJobName(launched.jobName, { taskId: task.id });
+        setBatchJobName(launched.jobName, { taskId: task.id, personaPool });
       } catch (exc) {
         const message = exc instanceof ApiError ? exc.message : exc instanceof Error ? exc.message : String(exc);
         setLaunchError(message);
@@ -528,7 +530,7 @@ export function WebEvalCockpit({
           useTaskDefaultStrategy={useTaskDefaultStrategy}
           onUseTaskDefaultStrategyChange={setUseTaskDefaultStrategy}
           onPersonaPoolChange={setPersonaPool}
-          personaPool={personaPool}
+          personaPool={visiblePersonaPool}
           disabled={setupLocked}
         />
       }
