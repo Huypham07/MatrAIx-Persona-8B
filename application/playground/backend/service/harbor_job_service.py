@@ -1310,14 +1310,6 @@ class HarborJobService:
             str(self.repo_root / "environment" / "agents"),
             str(self.repo_root / "packages" / "playground" / "src"),
             str(self.repo_root / "application" / "playground"),
-            str(
-                self.repo_root
-                / "environment"
-                / "task-environments"
-                / "application"
-                / "chatbot-api-sidecar_recai"
-                / "recommender-api"
-            ),
         ]
         for path in reversed(required_paths):
             if path not in path_entries:

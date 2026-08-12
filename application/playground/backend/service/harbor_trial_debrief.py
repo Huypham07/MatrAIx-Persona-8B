@@ -835,8 +835,8 @@ def _map_chatbot_debrief(
     transcript = _read_json(output_dir / "transcript.json")
     domain = str(transcript.get("domain") or "movie")
     config = PlaygroundConfig(domain=domain, engine="gpt-4o-mini")
-    # The task declares which chat app is under test; never leave the
-    # PlaygroundConfig default ("recai") in the debrief when it is unknown.
+    # The task declares which chat app is under test; never leave a generic
+    # PlaygroundConfig default in the debrief when it is unknown.
     config.application_id = _chat_application_id_from_trial(repo_root, trial_dir)
     result = build_result_from_harbor_artifacts(
         output_dir=output_dir,

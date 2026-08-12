@@ -29,9 +29,10 @@ export interface EnvironmentPopoverProps {
  * the `environment` block when an app isn't mapped (never fabricated).
  */
 const APP_ENVIRONMENT: Record<ApplicationId, { selection: string; agent: string; resources: string }> = {
-  recai: { selection: "SASRec ranker", agent: "InteRecAgent", resources: "recai_resources" },
+  meal_planning_nutrition: { selection: "Nutrition constraints", agent: "Meal planning assistant", resources: "Nutrition facts and meal rules" },
   finance_openbb: { selection: "Finance tool selection", agent: "OpenBB research agent", resources: "OpenBB data providers" },
-  medical_assistant: { selection: "Clinical retrieval", agent: "Medical assistant agent", resources: "Medical knowledge base" },
+  acme_support_api: { selection: "Support policy lookup", agent: "ACME support API", resources: "Order and policy fixtures" },
+  acme_support_mcp: { selection: "Support tool calls", agent: "ACME support MCP", resources: "Order and policy tools" },
 };
 
 /**
@@ -40,7 +41,7 @@ const APP_ENVIRONMENT: Record<ApplicationId, { selection: string; agent: string;
  * Unknown values pass through untouched, so already-friendly labels stay as-is.
  */
 const FRIENDLY_ENV: Record<string, string> = {
-  recai_resources: "RecAI resource bundle",
+  recai_resources: "Application resource bundle",
   "self-report": "Self-report scorer",
 };
 const friendlyEnv = (value: string): string => FRIENDLY_ENV[value] ?? value;

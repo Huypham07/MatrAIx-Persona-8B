@@ -92,9 +92,9 @@ def test_result_to_dict_has_camelcase_sections():
 
 def test_config_to_dict_mirrors_application_context_when_domain_missing():
     cfg = PlaygroundConfig(
-        application_id="medical_assistant",
-        application_context="medical_consultation",
+        application_id="meal_planning_nutrition",
+        application_context="meal_planning",
     )
 
-    assert cfg.to_dict()["applicationContext"] == "medical_consultation"
-    assert cfg.to_dict()["domain"] == "medical_consultation"
+    assert cfg.to_dict()["applicationContext"] == "meal_planning"
+    assert cfg.to_dict()["domain"] == "meal_planning"

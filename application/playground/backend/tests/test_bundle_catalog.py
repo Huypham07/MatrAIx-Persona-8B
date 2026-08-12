@@ -1,10 +1,9 @@
 """Tests for the real-bundle catalog (:mod:`backend.service.bundle_catalog`).
 
-These exercise the *actual* ``all_resources`` bundle under
-``recai/InteRecAgent/resources/<domain>/`` (a domain's feather item table), so
-they require pandas and the installed bundle. Both are skipped gracefully when
-absent (a fresh clone / CI without the large resources) so the core suite still
-runs everywhere.
+These exercise an optional external ``INTERECAGENT_ROOT`` resource bundle
+(``resources/<domain>/`` feather item tables), so they require pandas and an
+installed bundle. Both are skipped gracefully when absent (a fresh clone / CI
+without the large resources) so the core suite still runs everywhere.
 """
 
 from __future__ import annotations

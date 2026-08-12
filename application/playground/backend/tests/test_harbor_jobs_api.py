@@ -201,18 +201,18 @@ def test_launch_harbor_job_with_persona_ids(client, fake_harbor_jobs):
     assert fake_harbor_jobs.launches[-1]["execution_mode"] == "auto"
 
 
-def test_launch_harbor_job_prefers_chat_application_context_for_recai(client, fake_harbor_jobs):
+def test_launch_harbor_job_prefers_chat_application_context(client, fake_harbor_jobs):
     resp = client.post(
         "/api/harbor/jobs",
         json={
-            "taskPath": "application/tasks/chat_recai",
-            "chatApplicationId": "recai",
-            "chatApplicationContext": "beauty_product",
+            "taskPath": "application/tasks/chat_meal-planning-nutrition",
+            "chatApplicationId": "meal_planning_nutrition",
+            "chatApplicationContext": "meal_planning",
         },
     )
     assert resp.status_code == 200
-    assert fake_harbor_jobs.launches[-1]["chat_application_context"] == "beauty_product"
-    assert fake_harbor_jobs.launches[-1]["chat_domain"] == "beauty_product"
+    assert fake_harbor_jobs.launches[-1]["chat_application_context"] == "meal_planning"
+    assert fake_harbor_jobs.launches[-1]["chat_domain"] is None
 
 
 def test_get_harbor_trial_debrief(client, fake_harbor_jobs):

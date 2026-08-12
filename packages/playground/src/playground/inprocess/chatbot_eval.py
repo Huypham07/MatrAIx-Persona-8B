@@ -24,9 +24,9 @@ from playground.types import PlaygroundConfig
 
 
 _SIDECAR_TASK_PATHS = {
-    "finance_openbb": "application/tasks/chat_openbb",
-    "medical_assistant": "application/tasks/chat_multi-agent-medical-assistant",
+    "finance_openbb": "application/tasks/chat_openbb-corporate-action-honesty",
     "meal_planning_nutrition": "application/tasks/chat_meal-planning-nutrition",
+    "acme_support_api": "application/tasks/example-chat-api_support_chatbot",
 }
 
 
@@ -94,16 +94,6 @@ def _application_for(application_id: str) -> Any:
                 "http://127.0.0.1:8901",
             ),
         )
-    if application_id == "medical_assistant":
-        return HTTPChatbotApplication(
-            application_id="medical_assistant",
-            default_context="medical_consultation",
-            base_url=_sidecar_base_url(
-                "CHATBOT_UPSTREAM_MEDICAL",
-                "MEDICAL_CHATBOT_URL",
-                "http://127.0.0.1:8902",
-            ),
-        )
     if application_id == "meal_planning_nutrition":
         return HTTPChatbotApplication(
             application_id="meal_planning_nutrition",
@@ -112,6 +102,16 @@ def _application_for(application_id: str) -> Any:
                 "CHATBOT_API_URL",
                 "",
                 "http://127.0.0.1:8905",
+            ),
+        )
+    if application_id == "acme_support_api":
+        return HTTPChatbotApplication(
+            application_id="acme_support_api",
+            default_context="customer_support",
+            base_url=_sidecar_base_url(
+                "CHATBOT_API_URL",
+                "",
+                "http://127.0.0.1:8904",
             ),
         )
     raise ValueError("unsupported direct application: {}".format(application_id))
@@ -181,8 +181,8 @@ class HTTPChatbotApplication:
         except (TimeoutError, urllib.error.URLError) as exc:
             upstream_hint = {
                 "finance_openbb": "CHATBOT_UPSTREAM_FINANCE",
-                "medical_assistant": "CHATBOT_UPSTREAM_MEDICAL",
                 "meal_planning_nutrition": "CHATBOT_API_URL",
+                "acme_support_api": "CHATBOT_API_URL",
             }.get(self.application_id, "CHATBOT_API_URL")
             raise HTTPException(
                 status_code=503,

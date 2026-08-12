@@ -50,7 +50,7 @@ export interface RunConfig {
   rankerMode?: string | null;
   resourceMode?: string | null;
   maxTurns?: number | null;
-  /** Which chatbot adapter was under test (`recai` / `finance_openbb` / …). */
+  /** Which chatbot adapter was under test (`meal_planning_nutrition` / `finance_openbb` / …). */
   applicationId?: string | null;
 }
 
@@ -281,9 +281,10 @@ export function RecChip({ item }: { item: RunRecItem }) {
 
 /** Friendly display name for the chatbot adapter that was under test. */
 const APP_DISPLAY_NAMES: Record<string, string> = {
-  recai: "RecAI",
+  meal_planning_nutrition: "Meal planning",
   finance_openbb: "OpenBB",
-  medical_assistant: "Medical assistant",
+  acme_support_api: "ACME support API",
+  acme_support_mcp: "ACME support MCP",
 };
 
 /** The app's real name for the transcript label + meta line. No hardcoded

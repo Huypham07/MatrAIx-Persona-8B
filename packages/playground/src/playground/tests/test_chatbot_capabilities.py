@@ -29,8 +29,8 @@ def test_chatbot_yaml_structured_exposure_auto_adds_matching_capability():
         {
             "transport": "sidecar_http",
             "capabilities": ["text_chat"],
-            "runtimeDefaults": {"applicationId": "recai"},
-            "connection": {"baseUrl": "http://rec-agent-api:8000"},
+            "runtimeDefaults": {"applicationId": "meal_planning_nutrition"},
+            "connection": {"baseUrl": "http://meal-plan-api:8000"},
             "protocol": {"sendMessage": {"path": "/v1/messages"}},
             "structuredExposure": {
                 "fields": [

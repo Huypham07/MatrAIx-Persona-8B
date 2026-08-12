@@ -12,17 +12,17 @@ from playground.inprocess import chatbot_shared_sidecar as shared
 def test_pick_primary_prefers_known_adapter_service() -> None:
     assert (
         shared.pick_primary_sidecar_service(
-            ["multi-agent-medical-assistant", "multi-agent-medical-assistant-api"]
+            ["openbb-mcp", "finance-chatbot"]
         )
-        == "multi-agent-medical-assistant-api"
+        == "finance-chatbot"
     )
 
 
-def test_shared_spec_for_medical() -> None:
-    spec = shared.shared_spec_for_service("multi-agent-medical-assistant-api")
+def test_shared_spec_for_meal_plan() -> None:
+    spec = shared.shared_spec_for_service("meal-plan-api")
     assert spec is not None
-    assert spec.application_id == "medical_assistant"
-    assert spec.host_port == 8902
+    assert spec.application_id == "meal_planning_nutrition"
+    assert spec.host_port == 8905
 
 
 def test_ensure_shared_returns_none_for_unknown_services(
@@ -55,10 +55,10 @@ def test_start_shared_reuses_ready_sidecar(
 
     monkeypatch.setattr(shared.subprocess, "run", fake_run)
     monkeypatch.setattr(shared, "probe_shared_sidecar", lambda spec, timeout=None: True)
-    spec = shared.shared_spec_for_service("multi-agent-medical-assistant-api")
+    spec = shared.shared_spec_for_service("meal-plan-api")
     assert spec is not None
     url = shared.start_shared_sidecar(compose_dir=tmp_path, spec=spec)
-    assert url == "http://127.0.0.1:8902"
+    assert url == "http://127.0.0.1:8905"
     assert calls == []
 
 

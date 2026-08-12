@@ -155,10 +155,13 @@ PLAYGROUND_TASK_INDEX: Dict[str, PlaygroundTaskEntry] = {
         submission_profile="book_choice",
     ),
     # Chatbot
-    "chat_recai": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_openbb": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_multi-agent-medical-assistant": PlaygroundTaskEntry(application_type="chatbot"),
     "chat_meal-planning-nutrition": PlaygroundTaskEntry(application_type="chatbot"),
+    "chat_openbb-corporate-action-honesty": PlaygroundTaskEntry(
+        application_type="chatbot"
+    ),
+    "example-chat-api_support_chatbot": PlaygroundTaskEntry(
+        application_type="chatbot"
+    ),
     "example-chat-mcp_support_chatbot": PlaygroundTaskEntry(
         application_type="chatbot"
     ),

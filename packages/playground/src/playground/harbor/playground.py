@@ -314,14 +314,12 @@ whether the system satisfied your need.{turn_limit}
 
 def _chatbot_system_label(*, application_id: str, application_context: str) -> str:
     context = application_context.replace("_", " ").strip() or "chatbot"
-    if application_id == "recai":
-        return "{} recommendation system".format(context)
     if application_id == "finance_openbb":
         return "financial research system"
-    if application_id == "medical_assistant":
-        return "medical assistant"
     if application_id == "meal_planning_nutrition":
         return "meal planning nutrition assistant"
+    if application_id in {"acme_support_api", "acme_support_mcp"}:
+        return "customer support system"
     return "{} system".format(context)
 
 
@@ -435,12 +433,12 @@ class HarborPlaygroundRunner:
         if config.application_id == "finance_openbb":
             env["COMPOSE_PROFILES"] = "finance"
             env.setdefault("FINANCE_AGENT_MODEL", config.engine)
-        elif config.application_id == "medical_assistant":
-            env["COMPOSE_PROFILES"] = "medical"
         elif config.application_id == "meal_planning_nutrition":
             env.pop("COMPOSE_PROFILES", None)
+        elif config.application_id in {"acme_support_api", "acme_support_mcp"}:
+            env.pop("COMPOSE_PROFILES", None)
         else:
-            env["COMPOSE_PROFILES"] = "recai"
+            env.pop("COMPOSE_PROFILES", None)
         project_env = Path("/tmp/matraix-harbor-project-venv")
         if project_env.exists():
             env.setdefault("UV_PROJECT_ENVIRONMENT", str(project_env))

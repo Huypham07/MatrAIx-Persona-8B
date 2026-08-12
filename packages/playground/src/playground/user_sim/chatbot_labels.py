@@ -2,9 +2,10 @@ from __future__ import annotations
 
 
 _CHATBOT_LABELS = {
-    "recai": "RecAI",
     "finance_openbb": "FinAI / OpenBB",
-    "medical_assistant": "Medical Assistant",
+    "meal_planning_nutrition": "Meal Planning Nutrition",
+    "acme_support_api": "ACME Support API",
+    "acme_support_mcp": "ACME Support MCP",
 }
 
 

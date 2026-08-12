@@ -56,7 +56,7 @@ class Persona:
 @dataclass
 class PlaygroundConfig:
     domain: str = ""
-    application_id: str = "recai"
+    application_id: str = "meal_planning_nutrition"
     application_context: str = ""
     engine: str = "gpt-4o-mini"
     persona_model: str = DEFAULT_PERSONA_MODEL

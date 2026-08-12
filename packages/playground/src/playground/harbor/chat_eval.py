@@ -123,12 +123,12 @@ def harbor_chat_config_from_env(
 
 
 def default_chat_api_url(application_id: str) -> str:
-    if application_id == "recai":
-        return "http://rec-agent-api:8000"
     if application_id == "finance_openbb":
         return "http://finance-chatbot:8000"
-    if application_id == "medical_assistant":
-        return "http://multi-agent-medical-assistant-api:8000"
+    if application_id == "meal_planning_nutrition":
+        return "http://meal-plan-api:8000"
+    if application_id == "acme_support_api":
+        return "http://support-api:8000"
     return "http://chatbot-api:8000"
 
 

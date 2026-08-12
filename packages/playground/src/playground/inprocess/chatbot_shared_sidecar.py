@@ -1,7 +1,7 @@
 """Shared Playground chatbot sidecars for Harbor host trials.
 
 Harbor host used to ``docker compose up`` a fresh stack per trial. Heavy
-products (medical / finance) then OOM under batch concurrency. Trials now
+products (finance) then OOM under batch concurrency. Trials now
 reuse the same fixed-port ``playground-<app>`` compose project that Cockpit
 "Service up" starts, so a cohort shares one sidecar.
 """
@@ -44,22 +44,13 @@ class SharedSidecarSpec:
 
 # Prefer these names when a compose file lists multiple non-main services.
 _PRIMARY_SERVICE_ORDER: tuple[str, ...] = (
-    "multi-agent-medical-assistant-api",
     "finance-chatbot",
-    "rec-agent-api",
     "support-api",
     "support-bot",
     "meal-plan-api",
 )
 
 _SHARED_BY_SERVICE: dict[str, SharedSidecarSpec] = {
-    "rec-agent-api": SharedSidecarSpec(
-        application_id="recai",
-        service_name="rec-agent-api",
-        build_context="recommender-api",
-        host_port=8000,
-        primary_env="CHATBOT_API_URL",
-    ),
     "finance-chatbot": SharedSidecarSpec(
         application_id="finance_openbb",
         service_name="finance-chatbot",
@@ -67,14 +58,6 @@ _SHARED_BY_SERVICE: dict[str, SharedSidecarSpec] = {
         host_port=8901,
         primary_env="CHATBOT_UPSTREAM_FINANCE",
         legacy_env="FINANCE_CHATBOT_URL",
-    ),
-    "multi-agent-medical-assistant-api": SharedSidecarSpec(
-        application_id="medical_assistant",
-        service_name="multi-agent-medical-assistant-api",
-        build_context="multi-agent-medical-assistant-api",
-        host_port=8902,
-        primary_env="CHATBOT_UPSTREAM_MEDICAL",
-        legacy_env="MEDICAL_CHATBOT_URL",
     ),
     "support-api": SharedSidecarSpec(
         application_id="acme_support_api",
@@ -121,7 +104,7 @@ def compose_project_name(application_id: str) -> str:
 
 def shared_base_url(spec: SharedSidecarSpec) -> str:
     default = "http://127.0.0.1:{}".format(spec.host_port)
-    if spec.application_id in {"recai", "acme_support_mcp", "acme_support_api"}:
+    if spec.application_id in {"acme_support_mcp", "acme_support_api"}:
         return os.environ.get(spec.primary_env, "").strip() or default
     return _sidecar_base_url(spec.primary_env, spec.legacy_env or "", default)
 
@@ -148,7 +131,7 @@ def sidecar_ready(base_url: str, *, timeout: float = 5.0) -> bool:
 def probe_shared_sidecar(spec: SharedSidecarSpec, *, timeout: float | None = None) -> bool:
     base = shared_base_url(spec)
     if timeout is None:
-        timeout = 10.0 if spec.application_id == "medical_assistant" else 5.0
+        timeout = 5.0
     if spec.probe == "tcp":
         return sidecar_port_reachable("127.0.0.1", spec.host_port, timeout=min(timeout, 2.0))
     return sidecar_ready(base, timeout=timeout)
@@ -224,7 +207,7 @@ def start_shared_sidecar(
             cwd=str(compose_dir),
             capture_output=True,
             text=True,
-            timeout=900 if spec.application_id in {"medical_assistant", "finance_openbb"} else 300,
+            timeout=900 if spec.application_id == "finance_openbb" else 300,
             check=False,
         )
         if result.returncode != 0:
@@ -236,7 +219,7 @@ def start_shared_sidecar(
                 )
             )
 
-        wait_sec = 180.0 if spec.application_id in {"medical_assistant", "finance_openbb"} else 60.0
+        wait_sec = 180.0 if spec.application_id == "finance_openbb" else 60.0
         if not _wait_until_ready(spec, timeout_sec=wait_sec):
             raise RuntimeError(
                 "shared chatbot sidecar {} started but is not ready at {}".format(

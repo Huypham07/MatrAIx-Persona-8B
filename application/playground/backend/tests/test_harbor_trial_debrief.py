@@ -170,14 +170,14 @@ def _write_example_survey_task(repo: Path) -> None:
 
 def test_map_trial_debrief_chatbot_enriches_prompts_from_events(tmp_path: Path) -> None:
     repo = tmp_path
-    task_dir = repo / "application" / "tasks" / "chat_recai"
+    task_dir = repo / "application" / "tasks" / "chat_meal-planning-nutrition"
     task_dir.mkdir(parents=True)
     (task_dir / "task.toml").write_text('[metadata]\ntype = "chat"\n', encoding="utf-8")
     (task_dir / "instruction.md").write_text("# Task instruction\nUse the chat API.\n", encoding="utf-8")
     _write_chat_trial(repo, "job-prompts", "trial-prompts")
     trial_dir = repo / "jobs" / "job-prompts" / "trial-prompts"
     (trial_dir / "config.json").write_text(
-        json.dumps({"task": {"path": "application/tasks/chat_recai"}}),
+        json.dumps({"task": {"path": "application/tasks/chat_meal-planning-nutrition"}}),
         encoding="utf-8",
     )
     prompts = {
@@ -261,7 +261,7 @@ def test_map_trial_debrief_chatbot(tmp_path: Path) -> None:
 def test_map_trial_debrief_attaches_task_self_report_schema(tmp_path: Path) -> None:
     repo = tmp_path
     _write_chat_trial(repo, "job-schema", "trial-schema")
-    task_dir = repo / "application" / "tasks" / "chat_recai"
+    task_dir = repo / "application" / "tasks" / "chat_meal-planning-nutrition"
     task_dir.mkdir(parents=True, exist_ok=True)
     (task_dir / "task.toml").write_text('[metadata]\ntype = "chat"\n', encoding="utf-8")
     input_dir = task_dir / "input"
@@ -290,7 +290,7 @@ def test_map_trial_debrief_attaches_task_self_report_schema(tmp_path: Path) -> N
     )
     trial_dir = repo / "jobs" / "job-schema" / "trial-schema"
     (trial_dir / "config.json").write_text(
-        json.dumps({"task": {"path": "application/tasks/chat_recai"}}),
+        json.dumps({"task": {"path": "application/tasks/chat_meal-planning-nutrition"}}),
         encoding="utf-8",
     )
     (trial_dir / "artifacts" / "app" / "output" / "user_feedback.json").write_text(
@@ -553,18 +553,21 @@ def test_map_trial_debrief_failed_without_output(tmp_path: Path) -> None:
 
 def test_map_trial_debrief_chatbot_from_events_when_artifacts_missing(tmp_path: Path) -> None:
     repo = tmp_path
-    task_dir = repo / "application" / "tasks" / "chat_recai"
+    task_dir = repo / "application" / "tasks" / "chat_meal-planning-nutrition"
     task_dir.mkdir(parents=True)
     (task_dir / "task.toml").write_text('[metadata]\ntype = "chat"\n', encoding="utf-8")
     trial_dir = repo / "jobs" / "job-events" / "trial-0"
     output = trial_dir / "artifacts" / "app" / "output"
     output.mkdir(parents=True)
     (trial_dir / "config.json").write_text(
-        json.dumps({"task": {"path": "application/tasks/chat_recai"}}),
+        json.dumps({"task": {"path": "application/tasks/chat_meal-planning-nutrition"}}),
         encoding="utf-8",
     )
     done_result = {
-        "config": {"domain": "movie", "applicationId": "recai"},
+        "config": {
+            "domain": "meal_planning",
+            "applicationId": "meal_planning_nutrition",
+        },
         "transcript": [
             {
                 "turnIndex": 1,

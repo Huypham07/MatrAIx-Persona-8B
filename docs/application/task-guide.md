@@ -140,7 +140,7 @@ See [Ensuring pool coverage](../../application/task-spec/docs/authoring-bundle.m
 | survey | `application/tasks/example-survey_product-feedback/` |
 | chat (REST) | `application/tasks/example-chat-api_support_chatbot/` |
 | chat (MCP) | `application/tasks/example-chat-mcp_support_chatbot/` |
-| chat (recommender / real SUT samples) | `application/tasks/chat_recai/` (also `chat_openbb`, `chat_multi-agent-medical-assistant`) |
+| chat (real SUT samples) | `application/tasks/chat_meal-planning-nutrition/` and `application/tasks/chat_openbb-corporate-action-honesty/` |
 | web (Playwright) | `application/tasks/example-web-playwright_quote-choice/` |
 | web (browser-use) | `application/tasks/example-web-browser-use_laptop-choice/` |
 | web (Cocoa) | `application/tasks/example-web-cocoa_plan-choice/` |
@@ -157,9 +157,8 @@ Web stack details — [web-interaction.md](../environment/web-interaction.md).
 | survey | `application/tasks/example-survey_product-feedback/` | `persona-json-survey` (host) |
 | chat (API) | `application/tasks/example-chat-api_support_chatbot/` | `persona-user-sim` (host) |
 | chat (MCP) | `application/tasks/example-chat-mcp_support_chatbot/` | `persona-user-sim` (host) |
-| chat (recommender) | `application/tasks/chat_recai/` | `persona-user-sim` (host) |
-| chat (OpenBB / HTTP over MCP data) | `application/tasks/chat_openbb/` | `persona-user-sim` (host) |
-| chat (medical) | `application/tasks/chat_multi-agent-medical-assistant/` | `persona-user-sim` (host) |
+| chat (meal planning) | `application/tasks/chat_meal-planning-nutrition/` | `persona-user-sim` (host) |
+| chat (OpenBB / HTTP over MCP data) | `application/tasks/chat_openbb-corporate-action-honesty/` | `persona-user-sim` (host) |
 | web (Playwright) | `application/tasks/example-web-playwright_quote-choice/` | `persona-openhands-sdk` |
 | web (browser-use) | `application/tasks/example-web-browser-use_laptop-choice/` | `persona-browser-use` |
 | web (Cocoa) | `application/tasks/example-web-cocoa_plan-choice/` | `persona-cocoa` |

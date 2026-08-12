@@ -12,9 +12,8 @@ from backend.service import chatbot_sidecar_service as svc
 def test_resolve_health_url_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("CHATBOT_API_URL", raising=False)
     monkeypatch.delenv("CHATBOT_MCP_URL", raising=False)
-    assert svc.resolve_health_url("recai") == "http://127.0.0.1:8000"
     assert svc.resolve_health_url("finance_openbb") == "http://127.0.0.1:8901"
-    assert svc.resolve_health_url("medical_assistant") == "http://127.0.0.1:8902"
+    assert svc.resolve_health_url("acme_support_api") == "http://127.0.0.1:8904"
     assert svc.resolve_health_url("acme_support_mcp") == "http://127.0.0.1:8903"
     assert svc.resolve_health_url("meal_planning_nutrition") == "http://127.0.0.1:8905"
 
@@ -33,18 +32,14 @@ def test_list_sidecar_statuses(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(svc, "_sidecar_probe_ok", lambda _spec, _url, timeout=1.5: True)
     statuses = svc.list_sidecar_statuses()
     assert {item["applicationId"] for item in statuses} == {
-        "recai",
         "finance_openbb",
-        "medical_assistant",
         "acme_support_api",
         "acme_support_mcp",
         "meal_planning_nutrition",
     }
     assert all(item["ok"] for item in statuses)
     by_id = {item["applicationId"]: item for item in statuses}
-    assert by_id["recai"]["canStart"] is True
     assert by_id["finance_openbb"]["canStart"] is True
-    assert by_id["medical_assistant"]["canStart"] is True
     assert by_id["acme_support_api"]["canStart"] is True
     assert by_id["acme_support_mcp"]["canStart"] is True
     assert by_id["meal_planning_nutrition"]["canStart"] is True
@@ -56,19 +51,19 @@ def test_start_sidecar_runs_compose_for_sidecar_only(
     compose_dir = tmp_path / "compose"
     compose_dir.mkdir()
     (compose_dir / "docker-compose.yaml").write_text(
-        "services:\n  main:\n    depends_on: [rec-agent-api]\n  rec-agent-api:\n    build: .\n",
+        "services:\n  main:\n    depends_on: [meal-plan-api]\n  meal-plan-api:\n    build: .\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(
         svc,
         "_SIDECAR_SPECS",
         {
-            "recai": svc.SidecarSpec(
-                application_id="recai",
+            "meal_planning_nutrition": svc.SidecarSpec(
+                application_id="meal_planning_nutrition",
                 compose_dir=str(compose_dir.relative_to(tmp_path)),
-                service_name="rec-agent-api",
-                build_context="recommender-api",
-                host_port=8000,
+                service_name="meal-plan-api",
+                build_context="meal-plan-api",
+                host_port=8905,
                 primary_env="CHATBOT_API_URL",
             )
         },
@@ -88,9 +83,9 @@ def test_start_sidecar_runs_compose_for_sidecar_only(
         return Result()
 
     monkeypatch.setattr(svc.subprocess, "run", fake_run)
-    result = svc.start_sidecar("recai", repo_root=tmp_path)
+    result = svc.start_sidecar("meal_planning_nutrition", repo_root=tmp_path)
     assert result["ok"] is True
-    assert captured["command"][-1] == "rec-agent-api"
+    assert captured["command"][-1] == "meal-plan-api"
     assert "main" not in captured["command"]
 
 

@@ -322,7 +322,7 @@ uv run harbor run \
   -a persona-user-sim \
   -m anthropic/claude-sonnet-4-6 \
   --ak persona_path=persona/datasets/matraix-persona-dev-sample/persona_0042.yaml \
-  -p application/tasks/chat_recai
+  -p application/tasks/chat_meal-planning-nutrition
 ```
 
 ### Force Docker CLI survey (optional)

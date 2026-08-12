@@ -54,7 +54,7 @@ function stripTrailingTypeSuffix(parts: string[]): string[] {
 }
 
 /**
- * Turn `pg-chat-recai-81497418` into a title + short id.
+ * Turn `pg-chat-meal-planning-nutrition-81497418` into a title + short id.
  * Falls back to the full job name when the slug cannot be inferred.
  */
 export function jobDisplayIdentity(

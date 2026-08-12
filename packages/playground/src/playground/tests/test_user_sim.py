@@ -133,10 +133,10 @@ def test_run_playground_tool_loop(monkeypatch):
     result = run_playground(
         session,
         _persona(),
-        "Movie recommender",
-        PlaygroundConfig(domain="movie", max_turns=5),
+        "Meal planning assistant",
+        PlaygroundConfig(domain="meal_planning", max_turns=5),
         created_at="2026-06-30T00:00:00Z",
-        task_path="application/tasks/chat_recai",
+        task_path="application/tasks/chat_meal-planning-nutrition",
         repo_root=repo,
     )
     assert len(result.transcript) == 2
@@ -151,10 +151,10 @@ def test_run_playground_tool_loop(monkeypatch):
     assert len(client.calls) >= 3
     second_step = client.calls[1]
     assert second_step[-1]["role"] == "user"
-    assert 'RecAI Answer:\n"""What genre?"""' in second_step[-1]["content"]
+    assert 'Meal Planning Nutrition Answer:\n"""What genre?"""' in second_step[-1]["content"]
     third_step = client.calls[2]
     assert "Visible structured details" in third_step[-1]["content"]
-    assert "Recommended items: Past Lives (movie-1)" in third_step[-1]["content"]
+    assert "Meal plans or suggestions: Past Lives (movie-1)" in third_step[-1]["content"]
 
 
 def test_prompt_bundle_separates_persona_and_task():
@@ -241,11 +241,11 @@ def test_public_runner_delegates_to_user_sim(monkeypatch):
         "desc",
         config,
         created_at="t",
-        task_path="application/tasks/chat_recai",
+        task_path="application/tasks/chat_meal-planning-nutrition",
         persona_yaml_path="persona.yaml",
         repo_root=Path("/tmp/demo-repo"),
     )
     assert result is sentinel
     assert captured["session"] is session
     assert captured["config"] is config
-    assert captured["task_path"] == "application/tasks/chat_recai"
+    assert captured["task_path"] == "application/tasks/chat_meal-planning-nutrition"

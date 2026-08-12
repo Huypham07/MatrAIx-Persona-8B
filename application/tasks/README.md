@@ -15,7 +15,7 @@ Generated job recipes land under `configs/jobs/` (see [quickstart.md](../../docs
   **`example-chat-api_*`** / **`example-chat-mcp_*`**.
 - **`survey_*`** — application survey tasks.
 - **`chat_*`** — application chatbot tasks, named after the SUT chatbot
-  (e.g. `chat_recai`, `chat_openbb`, `chat_multi-agent-medical-assistant`).
+  (e.g. `chat_meal-planning-nutrition`, `chat_openbb-corporate-action-honesty`).
   Match `[environment].local_compose` sidecars `chatbot-*-sidecar_<sut>` when present.
 - **`example-web-*`** — reference web tasks for Playwright, browser-use, Cocoa,
   and CUA style browsing flows.
@@ -45,7 +45,8 @@ the scenario, task metadata, and verifier.
    - persona talks MCP chat tools → `chatbot-mcp-sidecar_<sut>` + `transport: mcp`
    Reference the folder with `[environment].local_compose`, or point at an external
    URL in `input/chatbot.yaml`. Example of HTTP adapter wrapping an MCP data
-   layer: `chat_openbb` → `chatbot-api-sidecar_openbb` (`finance-chatbot` + `openbb-mcp`).
+   layer: `chat_openbb-corporate-action-honesty` → `chatbot-api-sidecar_openbb`
+   (`finance-chatbot` + `openbb-mcp`).
    For browser tasks, prefer an existing `shared-web-*` runtime.
    Only create a task-specific environment when the agent image or browser stack is
    genuinely new.
@@ -244,7 +245,7 @@ Keep **persona-side** vs **SUT-side** folders distinct:
 
 **System under test** (`*-sidecar_<sut-name>` → `[environment].local_compose`):
 
-- chatbot API hosts: `chatbot-api-sidecar_<sut>` (e.g. `chatbot-api-sidecar_recai`,
+- chatbot API hosts: `chatbot-api-sidecar_<sut>` (e.g. `chatbot-api-sidecar_meal-plan-api`,
   `chatbot-api-sidecar_openbb`) — used when the persona-facing surface is HTTP
   `/v1/messages` (even if a product data layer underneath is MCP)
 - chatbot MCP hosts: `chatbot-mcp-sidecar_<sut>` (e.g. `chatbot-mcp-sidecar_acme-support`) —

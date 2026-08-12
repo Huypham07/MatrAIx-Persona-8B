@@ -11,17 +11,15 @@ Pick the sidecar **by the persona-facing protocol** (`input/chatbot.yaml`
 
 | Directory | Task | Persona-facing protocol |
 |-----------|------|-------------------------|
-| `chatbot-api-sidecar_recai/` | `chat_recai` | HTTP |
-| `chatbot-api-sidecar_openbb/` | `chat_openbb` / `chat_openbb-corporate-action-honesty` | HTTP adapter (`finance-chatbot`) over OpenBB MCP (`openbb-mcp`) |
+| `chatbot-api-sidecar_openbb/` | `chat_openbb-corporate-action-honesty` | HTTP adapter (`finance-chatbot`) over OpenBB MCP (`openbb-mcp`) |
 | `chatbot-api-sidecar_acme-support-api/` | `example-chat-api_support_chatbot` | HTTP |
 | `chatbot-mcp-sidecar_acme-support/` | `example-chat-mcp_support_chatbot` | MCP |
-| `chatbot-api-sidecar_multi-agent-medical-assistant/` | `chat_multi-agent-medical-assistant` | HTTP adapter over product upstream |
 | `chatbot-api-sidecar_meal-plan-api/` | `chat_meal-planning-nutrition` | HTTP |
 
 ```toml
 [environment]
 definition = "application/shared-chat-persona"
-local_compose = "application/chatbot-api-sidecar_recai"  # omit for external URLs
+local_compose = "application/chatbot-api-sidecar_meal-plan-api"  # omit for external URLs
 ```
 
 `chatbot-api-sidecar_openbb` is an API sidecar because the eval talks

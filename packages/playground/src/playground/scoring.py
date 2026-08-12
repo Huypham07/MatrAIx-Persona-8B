@@ -78,7 +78,10 @@ def _config_from_dict(value: Dict[str, Any]) -> PlaygroundConfig:
     return PlaygroundConfig(
         domain=str(value.get("domain") or "movie"),
         application_id=str(
-            value.get("applicationId", value.get("application_id", "recai"))
+            value.get(
+                "applicationId",
+                value.get("application_id", "meal_planning_nutrition"),
+            )
         ),
         application_context=str(
             value.get(
