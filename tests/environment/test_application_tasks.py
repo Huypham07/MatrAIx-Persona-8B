@@ -156,6 +156,18 @@ def test_example_chat_sidecar_contract() -> None:
     assert '@app.post("/v1/messages")' in server_source
     assert '@app.get("/v1/conversation")' in server_source
     assert "def _bot_reply" in server_source
+    # Shared-sidecar batches must scope transcript state by session (#37).
+    assert "_sessions" in server_source
+    assert "sessionId" in server_source
+
+    chatbot_yaml = (EXAMPLE_CHAT / "input" / "chatbot.yaml").read_text(encoding="utf-8")
+    assert "sessionIdField: sessionId" in chatbot_yaml
+
+    test_sh = (EXAMPLE_CHAT / "tests" / "test.sh").read_text(encoding="utf-8")
+    # Production verifier must invoke main() so structured_output.json is written.
+    assert 'python3 "${TESTS_DIR}/test_state.py"' in test_sh
+    assert "pytest --ctrf" not in test_sh
+    assert "uvx" not in test_sh
 
 
 def test_application_task_spec_manifest_uses_clean_task_paths() -> None:

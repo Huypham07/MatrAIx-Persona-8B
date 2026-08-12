@@ -12,13 +12,13 @@ protocol:
   sendMessage:
     method: POST
     path: /v1/messages
-    sessionIdField: ""
+    sessionIdField: sessionId
     messageField: message
     titleField: ""
     botTypeField: ""
     staticBody: {}
   response:
-    sessionIdField: ""
+    sessionIdField: sessionId
     replyField: reply
 artifacts:
   transcript: transcript.json
