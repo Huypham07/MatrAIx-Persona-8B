@@ -86,7 +86,6 @@ def _load_instrument() -> dict:
             data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
             if isinstance(data, dict) and data.get("questions"):
                 return data
-    #if PyYAML missing
     return {
         "id": "product_feedback_v1",
         "title": "Survey Product Feedback",
