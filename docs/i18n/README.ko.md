@@ -54,6 +54,14 @@
 이름은 *The Matrix*를 가리킵니다. 탐색·스트레스 테스트·가설 생성에 유용한 시뮬레이션
 세계이며, **실제 사람으로부터의 증거를 대체하지 않습니다**.
 
+## 소식
+
+- **[2026-08-10]** [X Trending Story](https://x.com/i/trending/2086626337561911419)에 선정: *Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*. 테크 미디어에서도 다뤄졌으며, [AI Era](https://www.36kr.com/p/3932853833759876), [Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html), [Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/), [AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824), [CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/), [Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) 등이 포함됩니다.
+- **[2026-08-04]** arXiv 기술 보고서: [MatrAIx: Simulating the World with 8.3 Billion Persona Agents](https://arxiv.org/abs/2608.04205) (`2608.04205`).
+- **[2026-08-01]** Hugging Face에 [Persona 1M](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release) 공개(약 100만 품질 필터 페르소나).
+- **[2026-07-31]** Playground와 태스크 라이브러리 오픈소스: [MatrAIx-Persona-8B](https://github.com/MatrAIx-ai/MatrAIx-Persona-8B).
+- **[2026-07-29]** 입장문: [From Personas to Simulated Users](https://matraix.ai/research/survey-from-personas-to-simulated-users.html).
+
 ## 요구 사항
 
 - [Docker](https://docs.docker.com/get-docker/)
@@ -210,6 +218,28 @@ MatrAIx/
    (배경, 관심사, 논문 저자 / 사사).
 2. 인사해 주세요! 공통 관심사나 경험으로 연결하고 싶습니다.
 3. MatrAIx 연구 커뮤니티에 참여해 협업하거나 기여하세요!
+
+## 인용
+
+MatrAIx, Persona 1M 데이터셋, 또는 이 저장소의 결과를 사용할 경우 다음을 인용해 주세요.
+
+```bibtex
+@article{li2026matraix,
+  title         = {MatrAIx: Simulating the World with 8.3 Billion Persona Agents},
+  author        = {Li, Xiaomin and Hao, Yuexing and Hou, Jianheng and Huang, Jintao
+                   and Wen, Qianfeng and Huang, Shirley and Liu, Yifan and Liu, Xiaoyi
+                   and Fan, Yilan and Wang, Yijun and others},
+  year          = {2026},
+  eprint        = {2608.04205},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.AI},
+  url           = {https://arxiv.org/abs/2608.04205}
+}
+```
+
+논문: [arXiv:2608.04205](https://arxiv.org/abs/2608.04205) ·
+전체 저자 목록: GitHub **Cite this repository** (`CITATION.cff`) ·
+데이터셋: [Persona 1M on Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release).
 
 ## 라이선스
 

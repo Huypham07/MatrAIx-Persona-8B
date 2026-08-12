@@ -45,6 +45,14 @@
 
 名稱致敬 *The Matrix*：這是一個便於探索、壓力測試與假設生成的模擬世界，**不能取代來自真實人群的證據**。
 
+## 動態
+
+- **[2026-08-10]** 登上 [X Trending Story](https://x.com/i/trending/2086626337561911419)：*Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*。科技媒體亦有報導，包括 [AI Era](https://www.36kr.com/p/3932853833759876)、[Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html)、[Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/)、[AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824)、[CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/)、[Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) 等。
+- **[2026-08-04]** 技術報告發布於 arXiv：[MatrAIx: Simulating the World with 8.3 Billion Persona Agents](https://arxiv.org/abs/2608.04205)（`2608.04205`）。
+- **[2026-08-01]** 在 Hugging Face 發布 [Persona 1M](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release)（約 100 萬條品質過濾人格）。
+- **[2026-07-31]** 開源 Playground 與任務庫：[MatrAIx-Persona-8B](https://github.com/MatrAIx-ai/MatrAIx-Persona-8B)。
+- **[2026-07-29]** 立場短文：[From Personas to Simulated Users](https://matraix.ai/research/survey-from-personas-to-simulated-users.html)。
+
 ## 環境需求
 
 - [Docker](https://docs.docker.com/get-docker/)
@@ -199,6 +207,28 @@ MatrAIx/
    （背景、興趣、論文署名 / 致謝意向）。
 2. 來打個招呼！我們很樂意按共同興趣或經歷幫你對接。
 3. 參與 MatrAIx 研究社群，一起協作或貢獻！
+
+## 引用
+
+若你使用 MatrAIx、Persona 1M 資料集或本倉庫中的結果，請引用：
+
+```bibtex
+@article{li2026matraix,
+  title         = {MatrAIx: Simulating the World with 8.3 Billion Persona Agents},
+  author        = {Li, Xiaomin and Hao, Yuexing and Hou, Jianheng and Huang, Jintao
+                   and Wen, Qianfeng and Huang, Shirley and Liu, Yifan and Liu, Xiaoyi
+                   and Fan, Yilan and Wang, Yijun and others},
+  year          = {2026},
+  eprint        = {2608.04205},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.AI},
+  url           = {https://arxiv.org/abs/2608.04205}
+}
+```
+
+論文：[arXiv:2608.04205](https://arxiv.org/abs/2608.04205) ·
+完整作者名單：GitHub **Cite this repository**（`CITATION.cff`） ·
+資料集：[Persona 1M on Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release)。
 
 ## 授權條款
 
