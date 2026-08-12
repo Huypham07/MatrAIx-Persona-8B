@@ -241,6 +241,7 @@ export function SurveyEvalCockpit({
     batchJobName,
     batchTaskId,
     batchPersonaIds,
+    batchPersonaPool,
     setBatchJobName,
     clearBatch,
     cancelBatch,
@@ -255,9 +256,12 @@ export function SurveyEvalCockpit({
     expectedTrialCount,
     completedTrials: batchCompletedTrials,
     batchError,
-  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "survey", selectedCount);
+  } = useCockpitBatchJob(selectedPersonaIds, parallelTrials, "survey", selectedCount, personaPool);
   const setupLocked = phase !== "idle" || Boolean(batchJobName);
   const visiblePersonaIds = setupLocked && batchPersonaIds.length > 0 ? batchPersonaIds : selectedPersonaIds;
+  // Locked batches must read cards from the launch-time pool (cohort path);
+  // the live setup pool may have reverted to the raw dataset on reload.
+  const visiblePersonaPool = batchJobName ? batchPersonaPool ?? personaPool : personaPool;
   const activeTaskId = batchJobName && batchTaskId ? batchTaskId : selectedTaskId;
   const selectedCard =
     taskCards.find((item) => item.id === activeTaskId) ?? null;
@@ -403,7 +407,7 @@ export function SurveyEvalCockpit({
           ...personaFields,
           mode: "auto",
         });
-        setBatchJobName(launched.jobName, { taskId: selectedCard.id });
+        setBatchJobName(launched.jobName, { taskId: selectedCard.id, personaPool });
       } catch (exc) {
         const message = exc instanceof ApiError ? exc.message : exc instanceof Error ? exc.message : String(exc);
         setLaunchError(message);
@@ -585,7 +589,7 @@ export function SurveyEvalCockpit({
           useTaskDefaultStrategy={useTaskDefaultStrategy}
           onUseTaskDefaultStrategyChange={setUseTaskDefaultStrategy}
           onPersonaPoolChange={setPersonaPool}
-          personaPool={personaPool}
+          personaPool={visiblePersonaPool}
           disabled={setupLocked}
         />
       }

@@ -56,7 +56,7 @@ _REGION_POOLS: dict[str, list[tuple[str, str]]] = {
         ("Noah", "Williams"),
         ("Ava", "Martinez"),
     ],
-    "LATAM": [
+    "Latin America": [
         ("Camila", "Rojas"),
         ("Diego", "Fernandez"),
         ("Lucia", "Santos"),
@@ -110,12 +110,37 @@ def _hash_index(seed: str, modulo: int) -> int:
 def synthetic_display_name(
     persona_id: str,
     dimensions: dict[str, Any] | None = None,
+    *,
+    salt: str = "",
 ) -> str:
-    """Return a stable human-readable name for a bench persona."""
+    """Return a stable human-readable name for a bench persona.
+
+    First and last names are drawn independently (cross-product of the region
+    pool) so cohorts of 10+ personas rarely collide; `salt` lets callers probe
+    for an unused name deterministically.
+    """
     pid = str(persona_id or "").strip()
     dims = dimensions if isinstance(dimensions, dict) else {}
     region = str(dims.get("region") or "").strip()
     pool = _REGION_POOLS.get(region) or _DEFAULT_POOL
-    idx = _hash_index(f"{pid}:{region}", len(pool))
-    first, last = pool[idx]
+    seed = f"{pid}:{region}" if not salt else f"{pid}:{region}:{salt}"
+    first = pool[_hash_index(f"{seed}:f", len(pool))][0]
+    last = pool[_hash_index(f"{seed}:l", len(pool))][1]
     return f"{first} {last}"
+
+
+def assign_cohort_display_names(
+    entries: list[tuple[str, dict[str, Any] | None]],
+) -> dict[str, str]:
+    """Deterministic display names, unique within one cohort."""
+    used: set[str] = set()
+    named: dict[str, str] = {}
+    for persona_id, dimensions in entries:
+        name = synthetic_display_name(persona_id, dimensions)
+        probe = 0
+        while name in used and probe < 64:
+            probe += 1
+            name = synthetic_display_name(persona_id, dimensions, salt=str(probe))
+        used.add(name)
+        named[str(persona_id)] = name
+    return named

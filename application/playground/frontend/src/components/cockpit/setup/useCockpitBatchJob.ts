@@ -23,6 +23,7 @@ function initialBatchState(taskKind?: HarborCockpitTaskKind) {
       personaIds: [] as string[],
       selectedCount: 0,
       taskId: null as string | null,
+      personaPool: null as string | null,
     };
   }
   const saved = readCockpitBatch(taskKind);
@@ -31,6 +32,7 @@ function initialBatchState(taskKind?: HarborCockpitTaskKind) {
     personaIds: saved?.personaIds ?? [],
     selectedCount: saved?.selectedCount ?? saved?.personaIds.length ?? 0,
     taskId: saved?.taskId ?? null,
+    personaPool: saved?.personaPool ?? null,
   };
 }
 
@@ -39,6 +41,7 @@ export function useCockpitBatchJob(
   parallelTrials = 1,
   taskKind?: HarborCockpitTaskKind,
   selectedCount = 0,
+  personaPool: string | null = null,
 ) {
   const { state: urlState, setState: setUrlState } = useUrlState();
   const [initial] = useState(() => initialBatchState(taskKind));
@@ -46,6 +49,9 @@ export function useCockpitBatchJob(
   const [restoredPersonaIds, setRestoredPersonaIds] = useState<string[]>(initial.personaIds);
   const [restoredSelectedCount, setRestoredSelectedCount] = useState(initial.selectedCount);
   const [restoredTaskId, setRestoredTaskId] = useState<string | null>(initial.taskId);
+  const [restoredPersonaPool, setRestoredPersonaPool] = useState<string | null>(
+    initial.personaPool,
+  );
 
   // Freeze the cohort to the batch launch snapshot until the user resets.
   const effectivePersonaIds = batchJobName
@@ -63,7 +69,7 @@ export function useCockpitBatchJob(
   const statusFeed = useHarborBatchStatus(batchJobName, aggregate);
 
   const setBatchJobName = useCallback(
-    (jobName: string | null, meta?: { taskId?: string }) => {
+    (jobName: string | null, meta?: { taskId?: string; personaPool?: string }) => {
       setBatchJobNameInternal(jobName);
       if (!taskKind) return;
 
@@ -75,11 +81,14 @@ export function useCockpitBatchJob(
           restoredSelectedCount,
         );
         const taskId = meta?.taskId ?? restoredTaskId ?? undefined;
+        const launchPool =
+          meta?.personaPool?.trim() || personaPool?.trim() || restoredPersonaPool || undefined;
         writeCockpitBatch(taskKind, {
           jobName,
           personaIds,
           selectedCount: cohortSize,
           taskId,
+          personaPool: launchPool,
         });
         if (selectedPersonaIds.length > 0) {
           setRestoredPersonaIds(selectedPersonaIds);
@@ -88,6 +97,7 @@ export function useCockpitBatchJob(
         if (taskId) {
           setRestoredTaskId(taskId);
         }
+        setRestoredPersonaPool(launchPool ?? null);
         if (urlState.pgTask === taskKind) {
           setUrlState({
             cockpitBatch: jobName,
@@ -101,13 +111,16 @@ export function useCockpitBatchJob(
         setRestoredPersonaIds([]);
         setRestoredSelectedCount(0);
         setRestoredTaskId(null);
+        setRestoredPersonaPool(null);
         if (urlState.pgTask === taskKind) {
           setUrlState({ cockpitBatch: null });
         }
       }
     },
     [
+      personaPool,
       restoredPersonaIds,
+      restoredPersonaPool,
       restoredSelectedCount,
       restoredTaskId,
       selectedCount,
@@ -153,10 +166,39 @@ export function useCockpitBatchJob(
     [effectivePersonaIds],
   );
 
+  // Launches that predate pool persistence: recover the resolved pool from the
+  // job config's persona_path (…/cohorts/cohort-x/persona_y.yaml → cohort dir).
+  const jobPoolQuery = useQuery({
+    queryKey: ["batch-job-persona-pool", batchJobName],
+    queryFn: () => api.getHarborJob(batchJobName as string),
+    enabled: Boolean(batchJobName) && !restoredPersonaPool,
+    staleTime: Infinity,
+  });
+  const derivedJobPool = useMemo(() => {
+    const agents = (jobPoolQuery.data?.config as { agents?: unknown } | null | undefined)?.agents;
+    if (!Array.isArray(agents)) return null;
+    for (const agent of agents) {
+      const path = (agent as { kwargs?: { persona_path?: unknown } } | null)?.kwargs
+        ?.persona_path;
+      if (typeof path === "string" && path.includes("/")) {
+        return path.slice(0, path.lastIndexOf("/"));
+      }
+    }
+    return null;
+  }, [jobPoolQuery.data?.config]);
+
+  const batchPersonaPool = restoredPersonaPool ?? derivedJobPool;
+
+  // While a batch is locked, the launch-time pool wins: after a reload the
+  // setup store may have reverted to the raw dataset (e.g. matraix-persona-1m),
+  // which rejects id lookups — only the resolved cohort path serves cards.
+  const cardsPool = (batchJobName ? batchPersonaPool ?? personaPool : personaPool) ?? undefined;
+
   const personaCardsQuery = useQuery({
-    queryKey: ["batch-cohort-personas", previewPersonaIds.join(",")],
+    queryKey: ["batch-cohort-personas", cardsPool ?? "", previewPersonaIds.join(",")],
     queryFn: () =>
       api.getPersonaPoolCards({
+        pool: cardsPool,
         personaIds: previewPersonaIds,
         limit: previewPersonaIds.length,
       }),
@@ -236,6 +278,7 @@ export function useCockpitBatchJob(
     batchJobName,
     batchTaskId: restoredTaskId,
     batchPersonaIds: effectivePersonaIds,
+    batchPersonaPool,
     setBatchJobName,
     batchLive,
     clearBatch,
