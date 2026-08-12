@@ -5,7 +5,7 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/verifier_env.sh"
 export VERIFIER_DIR
 
-python3 <<'PY'
+if python3 <<'PY'
 from __future__ import annotations
 
 import json
@@ -610,8 +610,7 @@ if feedback is not None:
     encoding="utf-8",
 )
 PY
-
-if [ $? -eq 0 ]; then
+then
   printf '1\n' > "${VERIFIER_DIR}/reward.txt"
 else
   printf '0\n' > "${VERIFIER_DIR}/reward.txt"
