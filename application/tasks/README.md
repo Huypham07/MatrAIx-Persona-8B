@@ -82,15 +82,24 @@ the scenario, task metadata, and verifier.
 10. Use `persona/datasets/matraix-persona-dev-sample/persona_0042.yaml` for lightweight
    smoke examples; use `matraix-persona-1m` for production-scale cohorts.
 
-For survey tasks, create a canonical task-local bundle under:
+For survey tasks, the **full task package** (not only `input/`) should include:
 
-`application/tasks/<your-task-name>/input/`
+**Task root (required for Playground / batch):**
 
-with:
-
+- `task.toml`
 - `instruction.md`
+- `tests/`
+- `reporting.json` — batch reporting policy
+- `persona_strategy.json` — target cohort + sampling defaults
+
+**`input/` (agent-facing materials mounted into the trial):**
+
 - `context.md`
 - `questionnaire.yaml` (include `askRationale` / `askConfidence` as needed)
+
+`persona_strategy.json` and `reporting.json` stay at the **task root**, not under
+`input/` — they configure Playground sampling and job aggregation, and are not
+persona-readable trial inputs.
 
 Do **not** add `output_schema.md` for surveys — the platform derives the answer
 envelope from `questionnaire.yaml` and writes `survey_result.json`.

@@ -3,15 +3,17 @@
 MatrAIx **survey** reference task: read product context and a structured
 questionnaire, then submit persona-aligned answers as JSON.
 
-Canonical task-owned content lives in:
+Canonical task package:
 
-- `application/tasks/example-survey_product-feedback/instruction.md`
-- `application/tasks/example-survey_product-feedback/input/context.md`
-- `application/tasks/example-survey_product-feedback/input/questionnaire.yaml`
+- `instruction.md` — scenario for the agent
+- `input/context.md`, `input/questionnaire.yaml` — agent-facing materials
+- `persona_strategy.json` — Playground cohort / sampling defaults (task root)
+- `reporting.json` — batch reporting policy (task root)
+- `task.toml`, `tests/` — runtime + verifier
 
-This task now reuses the shared `application/shared-survey-form` runtime
-environment. The platform derives runtime prompts and task-detail UI from the
-task-local `input/` bundle.
+This task reuses the shared `application/shared-survey-form` runtime. The
+platform mounts `input/` into the trial; `persona_strategy.json` /
+`reporting.json` stay at the task root for Playground / job aggregation.
 
 See [Application Tasks](../README.md).
 
