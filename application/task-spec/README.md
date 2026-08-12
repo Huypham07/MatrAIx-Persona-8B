@@ -151,7 +151,8 @@ Machine-readable registry of types and drivers: [`manifest.json`](manifest.json)
 ### Step 2 — Author the scenario bundle
 
 Every runnable task includes **`instruction.md`**, **`task.toml`**, **`tests/`**,
-and **`reporting.json`**. Supplementary files depend on type:
+**`reporting.json`**, and **`persona_strategy.json`**. Supplementary files depend
+on type:
 
 | Concern | Survey | Chatbot | Web / OS-app |
 |---|---|---|---|

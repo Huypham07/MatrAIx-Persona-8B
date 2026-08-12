@@ -47,7 +47,9 @@ uv run harbor run \
   --ek platform=ios
 ```
 
-Oracle check (writes the submission file directly; no LLM):
+## Smoke
+
+Oracle (writes a valid `decision.json`):
 
 ```bash
 uv run harbor run \
@@ -56,6 +58,8 @@ uv run harbor run \
   -e use-computer \
   --ek platform=ios
 ```
+
+Persona agent (News UI): use the Suggested setup command above.
 
 ## Output path
 

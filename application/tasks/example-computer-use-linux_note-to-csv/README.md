@@ -15,11 +15,15 @@ uv run harbor run \
   -p application/tasks/example-computer-use-linux_note-to-csv
 ```
 
+## Smoke
+
 Oracle:
 
 ```bash
 uv run harbor run -p application/tasks/example-computer-use-linux_note-to-csv -a oracle
 ```
+
+Persona agent (`persona-computer-1`): see command above.
 
 ## Output
 

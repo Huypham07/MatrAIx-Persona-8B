@@ -34,11 +34,15 @@ uv run harbor run \
 The curated local job recipe is
 `configs/jobs/example-job-recipe/appSim-example-computer-use-macos-local.yaml`.
 
-Oracle check (no LLM; writes the artifact files directly):
+## Smoke
+
+Oracle (writes `handoff.txt` / `plan.json`):
 
 ```bash
 uv run harbor run -p application/tasks/example-computer-use-macos_calendar-reminder-handoff -a oracle -e use-computer
 ```
+
+Persona agent (desktop UI): use the Suggested setup command above.
 
 ## Output path
 

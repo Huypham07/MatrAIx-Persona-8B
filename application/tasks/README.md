@@ -7,6 +7,14 @@ This import contains application task folders, tests, and reference solutions.
 Runtime build contexts live under `environment/task-environments/application/`.
 Generated job recipes land under `configs/jobs/` (see [quickstart.md](../../docs/quickstart.md)).
 
+## Oracle
+
+Optional `solution/solve.sh` runs with `harbor run -a oracle`. Use it to check
+the task harness (runtime, mounts, sidecar/browser when applicable, verifier)
+without a persona model. Persona evaluation still needs a normal agent run.
+
+Details: [task-guide.md](../../docs/application/task-guide.md#oracle).
+
 ## Naming
 
 - **`example-*`** — reference tasks in the repo (copy from these). For surveys, only
@@ -67,15 +75,23 @@ the scenario, task metadata, and verifier.
 10. Use `persona/datasets/matraix-persona-dev-sample/persona_0042.yaml` for lightweight
    smoke examples; use `matraix-persona-1m` for production-scale cohorts.
 
-For survey tasks, create a canonical task-local bundle under:
+A complete task includes these at the **task root** (required):
 
-`application/tasks/<your-task-name>/input/`
-
-with:
-
+- `task.toml`
 - `instruction.md`
+- `tests/`
+- `reporting.json` — batch reporting policy
+- `persona_strategy.json` — target cohort and sampling defaults
+
+Agent-facing materials go under **`input/`** (mounted into the trial), for
+surveys typically:
+
 - `context.md`
 - `questionnaire.yaml` (include `askRationale` / `askConfidence` as needed)
+
+`persona_strategy.json` and `reporting.json` are part of the task definition.
+They live at the task root (not under `input/`) because they configure Playground
+sampling and job aggregation rather than persona-readable trial inputs.
 
 Do **not** add `output_schema.md` for surveys — the platform derives the answer
 envelope from `questionnaire.yaml` and writes `survey_result.json`.

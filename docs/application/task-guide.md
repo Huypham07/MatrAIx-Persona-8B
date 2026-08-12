@@ -20,7 +20,7 @@ application/tasks/example-survey_product-feedback/
 │   └── test_*.py       # optional helpers
 ├── reporting.json      # Batch reporting policy (contextRules, judge directives)
 ├── persona_strategy.json  # target cohort + Playground sampling defaults
-├── solution/           # optional — reference solution for CI smoke
+├── solution/           # optional — `harbor run -a oracle`
 └── README.md           # optional notes (smoke commands, suggested agent)
 ```
 
@@ -39,6 +39,20 @@ task-specific environment only when the agent image itself is genuinely new.
 Do **not** create `application/tasks/<your-task>/environment/` for surveys.
 Matraix Playground treats a task-local `environment/` as the full runtime, which shadows the
 shared survey runtime instead of extending it.
+
+`reporting.json` and `persona_strategy.json` are required parts of the task
+(alongside `task.toml`, `instruction.md`, and `tests/`). They sit at the task
+root; `input/` holds materials mounted into the trial for the agent.
+
+## Oracle
+
+`solution/solve.sh` is the optional oracle for `harbor run -a oracle`. It checks
+that the task harness can produce a scorable result without a persona model.
+Use a normal persona agent run to exercise the full evaluation path.
+
+Survey oracles must write `/app/output/survey_result.json` (`answers` +
+`trajectory`). iOS/macOS oracles may write valid artifacts only; use
+`persona-computer-1` when you need the simulator UI path.
 
 ## The files
 
