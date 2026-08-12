@@ -220,9 +220,6 @@ Large generated datasets stay outside git (see the Hugging Face release above).
 If you use MatrAIx, the Persona 1M dataset, or results from this repository,
 please cite:
 
-> Xiaomin Li, Yuexing Hao, Jianheng Hou, Jintao Huang, Qianfeng Wen, Shirley Huang, Yifan Liu, Xiaoyi Liu, Yilan Fan, Yijun Wang, et al. *MatrAIx: Simulating the World with 8.3 Billion Persona Agents*. arXiv:2608.04205, 2026.  
-> https://arxiv.org/abs/2608.04205
-
 ```bibtex
 @article{li2026matraix,
   title         = {MatrAIx: Simulating the World with 8.3 Billion Persona Agents},
@@ -237,7 +234,8 @@ please cite:
 }
 ```
 
-Full author list: GitHub **Cite this repository** (`CITATION.cff`) or the [arXiv abstract](https://arxiv.org/abs/2608.04205).  
+Paper: [arXiv:2608.04205](https://arxiv.org/abs/2608.04205) ·
+Full authors: GitHub **Cite this repository** (`CITATION.cff`) ·
 Dataset: [Persona 1M on Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release).
 
 ## License
