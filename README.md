@@ -6,6 +6,15 @@
     and interactive products with heterogeneous simulated users.
   </p>
   <p>
+    <strong>English</strong> |
+    <a href="docs/i18n/README.ko.md">한국어</a> |
+    <a href="docs/i18n/README.zh-CN.md">简体中文</a> |
+    <a href="docs/i18n/README.zh-TW.md">繁體中文</a> |
+    <a href="docs/i18n/README.ja.md">日本語</a> |
+    <a href="docs/i18n/README.pt-BR.md">Português</a> |
+    <a href="docs/i18n/README.es.md">Español</a>
+  </p>
+  <p>
     <a href="https://matraix.ai/"><img alt="Website" src="https://img.shields.io/badge/Website-matraix.ai-4f7cff?style=for-the-badge"></a>
     <a href="https://discord.gg/knVyQQnRFa"><img alt="Discord" src="https://img.shields.io/badge/Discord-join%20MatrAIx-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
     <a href="https://x.com/MatrAIx2026"><img alt="X" src="https://img.shields.io/badge/X-%40MatrAIx2026-000000?style=for-the-badge&logo=x&logoColor=white"></a>
