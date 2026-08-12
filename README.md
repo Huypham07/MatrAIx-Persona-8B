@@ -220,45 +220,23 @@ Large generated datasets stay outside git (see the Hugging Face release above).
 If you use MatrAIx, the Persona 1M dataset, or results from this repository,
 please cite:
 
+> Xiaomin Li et al. *MatrAIx: Simulating the World with 8.3 Billion Persona Agents*. arXiv:2608.04205, 2026.  
+> https://arxiv.org/abs/2608.04205
+
 ```bibtex
 @article{li2026matraix,
-  title   = {MatrAIx: Simulating the World with 8.3 Billion Persona Agents},
-  author  = {Li, Xiaomin and Hao, Yuexing and Hou, Jianheng and Huang, Jintao
-             and Wen, Qianfeng and Huang, Shirley and Liu, Yifan and Liu, Xiaoyi
-             and Fan, Yilan and Wang, Yijun and Wu, Koutian and Gao, Ruoqi
-             and Mohsin, Muhammad Ahmed and Tang, Jing and Joshi, Brihi
-             and Liu, Heming and Deng, Zheyuan and Di, Zonglin and Jajee, Sankalp
-             and Lu, Jiuyao and Zhang, Zhiwei and Kapoor, Saksham and Gupta, Ishan
-             and Zhao, Yunhan and Park, Chanwoo and Lu, Yucheng and Hu, Bing
-             and Xiao, Weihang and Mohan, Aravind and Xing, Hanwen and Zhang, Runyu
-             and Kulshreshtha, Mihir and Xu, Yuanda and Zhu, Qianyu and Wang, Dianzhuo
-             and Xiao, Yuxin and Jiang, Bowen and Su, Yongye and Chai, Wenhao
-             and Liu, Zuxin and Chen, Lawrence Yunliang and Zhao, Xuandong
-             and Ye, Ethan and Patel, Shivam and Xie, Jason
-             and Richmond, Alex Martin and Ding, Weixiang and Okcular, Emre
-             and Mathew, Diya and Wang, Ziheng and Khan, Rana M. Shahroz
-             and Peng, Zhejian and Wu, Fang and Nie, Fan and Han, Xinyang
-             and Kim, Yubin and Zhang, Jiawei and Qi, Zhenting and Su, Huangyuan
-             and Pan, Xu and Gourabathina, Abinitha and Jeong, Hyewon
-             and Ramesh, Hemanth Neelgund and Alhamoud, Kumail and Hamidieh, Kimia
-             and Xiong, Zidi and Schmidgall, Samuel and Han, Pengrui
-             and Huang, Yepeng and Wang, Yongheng and Yang, Bowen and Gu, Alex
-             and Wang, Yuchu and Paruchuri, Akshay and Li, Brenna and Cui, Hejie
-             and Ding, Jiayuan and Dong, Chaosheng and Wang, Jiahao and He, Yixuan
-             and Wang, Chi and Bhattacharya, Pamela and Peng, Tianyi
-             and Liang, Paul Pu and Gordon, Mitchell and Du, Yilun
-             and Zitnik, Marinka and Zou, James and Tambe, Prasanna
-             and Torr, Philip and Fox, Emily and Ozdaglar, Asu and Song, Dawn},
-  year    = {2026},
-  eprint  = {2608.04205},
+  title         = {MatrAIx: Simulating the World with 8.3 Billion Persona Agents},
+  author        = {Li, Xiaomin and others},
+  year          = {2026},
+  eprint        = {2608.04205},
   archivePrefix = {arXiv},
   primaryClass  = {cs.AI},
-  url     = {https://arxiv.org/abs/2608.04205}
+  url           = {https://arxiv.org/abs/2608.04205}
 }
 ```
 
-Paper: [arXiv:2608.04205](https://arxiv.org/abs/2608.04205) ·
-Dataset: [Persona 1M on Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release)
+Full author list: GitHub **Cite this repository** (`CITATION.cff`) or the [arXiv abstract](https://arxiv.org/abs/2608.04205).  
+Dataset: [Persona 1M on Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release).
 
 ## License
 
