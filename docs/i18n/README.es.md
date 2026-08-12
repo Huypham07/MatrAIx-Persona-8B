@@ -59,6 +59,14 @@ El nombre alude a *The Matrix*: un mundo simulado útil para exploración,
 pruebas de estrés y generación de hipótesis — **no un sustituto de la evidencia
 de personas reales**.
 
+## Novedades
+
+- **[2026-08-10]** Destacado como [X Trending Story](https://x.com/i/trending/2086626337561911419): *Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*. También cubierto en medios tecnológicos, incluidos [AI Era](https://www.36kr.com/p/3932853833759876), [Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html), [Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/), [AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824), [CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/) y [Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/), entre otros.
+- **[2026-08-04]** Informe técnico en arXiv: [MatrAIx: Simulating the World with 8.3 Billion Persona Agents](https://arxiv.org/abs/2608.04205) (`2608.04205`).
+- **[2026-08-01]** Publicado [Persona 1M](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release) en Hugging Face (~1M personas filtradas por calidad).
+- **[2026-07-31]** Código abierto del Playground y la biblioteca de tareas: [MatrAIx-Persona-8B](https://github.com/MatrAIx-ai/MatrAIx-Persona-8B).
+- **[2026-07-29]** Nota de posición: [From Personas to Simulated Users](https://matraix.ai/research/survey-from-personas-to-simulated-users.html).
+
 ## Requisitos
 
 - [Docker](https://docs.docker.com/get-docker/)
@@ -216,6 +224,29 @@ Los datasets grandes generados quedan fuera de git (ver el release de Hugging Fa
    (trasfondo, intereses, autoría / agradecimientos en papers).
 2. ¡Saluda! Nos gusta conectar a quienes comparten intereses o experiencia.
 3. Participa en la comunidad de investigación MatrAIx para colaborar o contribuir.
+
+## Cita
+
+Si usas MatrAIx, el dataset Persona 1M o resultados de este repositorio,
+cita:
+
+```bibtex
+@article{li2026matraix,
+  title         = {MatrAIx: Simulating the World with 8.3 Billion Persona Agents},
+  author        = {Li, Xiaomin and Hao, Yuexing and Hou, Jianheng and Huang, Jintao
+                   and Wen, Qianfeng and Huang, Shirley and Liu, Yifan and Liu, Xiaoyi
+                   and Fan, Yilan and Wang, Yijun and others},
+  year          = {2026},
+  eprint        = {2608.04205},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.AI},
+  url           = {https://arxiv.org/abs/2608.04205}
+}
+```
+
+Artículo: [arXiv:2608.04205](https://arxiv.org/abs/2608.04205) ·
+Autores completos: GitHub **Cite this repository** (`CITATION.cff`) ·
+Dataset: [Persona 1M on Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release).
 
 ## Licencia
 

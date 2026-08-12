@@ -54,6 +54,14 @@
 名前は *The Matrix* に由来します。探索・ストレステスト・仮説生成に有用なシミュレート世界であり、
 **実在の人々からの証拠の代替ではありません**。
 
+## ニュース
+
+- **[2026-08-10]** [X Trending Story](https://x.com/i/trending/2086626337561911419) に掲載: *Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*。テックメディアでも取り上げられ、[AI Era](https://www.36kr.com/p/3932853833759876)、[Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html)、[Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/)、[AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824)、[CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/)、[Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) などが含まれます。
+- **[2026-08-04]** arXiv 技術レポート: [MatrAIx: Simulating the World with 8.3 Billion Persona Agents](https://arxiv.org/abs/2608.04205) (`2608.04205`)。
+- **[2026-08-01]** Hugging Face で [Persona 1M](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release) を公開（約 100 万件の品質フィルタ済みペルソナ）。
+- **[2026-07-31]** Playground とタスクライブラリをオープンソース化: [MatrAIx-Persona-8B](https://github.com/MatrAIx-ai/MatrAIx-Persona-8B)。
+- **[2026-07-29]** ポジションノート: [From Personas to Simulated Users](https://matraix.ai/research/survey-from-personas-to-simulated-users.html)。
+
 ## 要件
 
 - [Docker](https://docs.docker.com/get-docker/)
@@ -210,6 +218,28 @@ MatrAIx/
    （背景、興味、論文の著者 / 謝辞）。
 2. あいさつしてください！共通の関心や経験でつなぎたいです。
 3. MatrAIx 研究コミュニティに参加して、コラボや貢献を！
+
+## 引用
+
+MatrAIx、Persona 1M データセット、または本リポジトリの結果を利用する場合は、次を引用してください。
+
+```bibtex
+@article{li2026matraix,
+  title         = {MatrAIx: Simulating the World with 8.3 Billion Persona Agents},
+  author        = {Li, Xiaomin and Hao, Yuexing and Hou, Jianheng and Huang, Jintao
+                   and Wen, Qianfeng and Huang, Shirley and Liu, Yifan and Liu, Xiaoyi
+                   and Fan, Yilan and Wang, Yijun and others},
+  year          = {2026},
+  eprint        = {2608.04205},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.AI},
+  url           = {https://arxiv.org/abs/2608.04205}
+}
+```
+
+論文: [arXiv:2608.04205](https://arxiv.org/abs/2608.04205) ·
+全著者リスト: GitHub **Cite this repository** (`CITATION.cff`) ·
+データセット: [Persona 1M on Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release)。
 
 ## ライセンス
 
