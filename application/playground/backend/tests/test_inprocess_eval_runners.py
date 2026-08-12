@@ -184,7 +184,7 @@ def test_direct_finance_session_uses_http_sidecar(monkeypatch):
     assert isinstance(turn.get("structuredExposure"), list)
 
 
-def test_direct_medical_session_uses_http_sidecar(monkeypatch):
+def test_direct_meal_planning_session_uses_http_sidecar(monkeypatch):
     calls = []
 
     def fake_urlopen(request, timeout):
@@ -192,28 +192,28 @@ def test_direct_medical_session_uses_http_sidecar(monkeypatch):
         return FakeHTTPResponse(
             {
                 "sessionId": "med_ses_1",
-                "reply": "I can explain symptoms and suggest when to seek care.",
+                "reply": "I can help plan meals around your nutrition goals.",
                 "turn": {
                     "turnId": "med_turn_1",
                     "conversationId": "med_ses_1",
-                    "backend": "medical_assistant",
-                    "assistantMessage": "I can explain symptoms and suggest when to seek care.",
+                    "backend": "meal_planning_nutrition",
+                    "assistantMessage": "I can help plan meals around your nutrition goals.",
                     "recommendedItems": [],
                 },
             }
         )
 
-    monkeypatch.setenv("CHATBOT_UPSTREAM_MEDICAL", "http://medical.local")
+    monkeypatch.setenv("CHATBOT_API_URL", "http://meal.local")
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
 
     session = DirectApplicationSession(
         PlaygroundConfig(
-            application_id="medical_assistant",
-            application_context="medical_consultation",
+            application_id="meal_planning_nutrition",
+            application_context="meal_planning",
         )
     )
-    turn = session.run_turn_sync("I have a sore throat. What should I consider?")
+    turn = session.run_turn_sync("Can you suggest a high-protein dinner?")
 
-    assert calls[0]["applicationId"] == "medical_assistant"
-    assert calls[0]["applicationContext"] == "medical_consultation"
-    assert turn["assistantMessage"].startswith("I can explain symptoms")
+    assert calls[0]["applicationId"] == "meal_planning_nutrition"
+    assert calls[0]["applicationContext"] == "meal_planning"
+    assert turn["assistantMessage"].startswith("I can help plan meals")

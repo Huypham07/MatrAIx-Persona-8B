@@ -158,26 +158,26 @@ async def test_host_start_sidecars_reuses_shared_playground_stack(
             [
                 "services:",
                 "  main:",
-                "    depends_on: [multi-agent-medical-assistant-api]",
-                "  multi-agent-medical-assistant-api:",
-                "    build: {context: ./multi-agent-medical-assistant-api}",
-                "  multi-agent-medical-assistant:",
-                "    build: {context: ./multi-agent-medical-assistant}",
+                "    depends_on: [finance-chatbot]",
+                "  finance-chatbot:",
+                "    build: {context: ./finance-chatbot}",
+                "  openbb-mcp:",
+                "    build: {context: ./openbb-mcp}",
                 "",
             ]
         ),
         encoding="utf-8",
     )
-    env = _host_env(tmp_path, session_id="chat_medical__shared", tests_dir=tests_dir)
+    env = _host_env(tmp_path, session_id="chat_openbb__shared", tests_dir=tests_dir)
     env.environment_dir = env_dir
 
     def fake_ensure(*, compose_dir, service_names, force_build=False):  # noqa: ANN001
         from playground.inprocess.chatbot_shared_sidecar import shared_spec_for_service
 
-        assert "multi-agent-medical-assistant-api" in service_names
-        spec = shared_spec_for_service("multi-agent-medical-assistant-api")
+        assert "finance-chatbot" in service_names
+        spec = shared_spec_for_service("finance-chatbot")
         assert spec is not None
-        return ("http://127.0.0.1:8902", spec)
+        return ("http://127.0.0.1:8901", spec)
 
     monkeypatch.setattr(
         "playground.inprocess.chatbot_shared_sidecar.ensure_shared_sidecar_for_services",
@@ -187,7 +187,7 @@ async def test_host_start_sidecars_reuses_shared_playground_stack(
     assert env._uses_shared_sidecar is True
     assert env._sidecar_services == []
     marker = env.trial_paths.trial_dir / ".sidecar_api_url"
-    assert marker.read_text(encoding="utf-8").strip() == "http://127.0.0.1:8902"
+    assert marker.read_text(encoding="utf-8").strip() == "http://127.0.0.1:8901"
 
     await env.stop(delete=True)
     assert not marker.exists()
@@ -201,7 +201,7 @@ async def test_host_download_dir_noops_when_source_equals_destination(tmp_path: 
     (output_dir / "transcript.json").write_text('{"domain":"movie","turns":[]}', encoding="utf-8")
     tests_dir = tmp_path / "task" / "tests"
     tests_dir.mkdir(parents=True)
-    env = _host_env(tmp_path, session_id="chat_recai__noop", tests_dir=tests_dir)
+    env = _host_env(tmp_path, session_id="chat_meal_planning__noop", tests_dir=tests_dir)
     await env.download_dir("/app/output", output_dir)
     assert (output_dir / "transcript.json").is_file()
 

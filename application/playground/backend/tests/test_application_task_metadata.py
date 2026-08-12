@@ -16,15 +16,20 @@ def test_title_from_harbor_task_name():
         title_from_harbor_task_name("application/survey-product-feedback")
         == "Product Feedback"
     )
-    assert title_from_harbor_task_name("application/chat-recai") == "RecAI"
     assert (
-        title_from_harbor_task_name("application/chat-multi-agent-medical-assistant")
-        == "Multi Agent Medical Assistant"
+        title_from_harbor_task_name("application/chat-meal-planning-nutrition")
+        == "Meal Planning Nutrition"
     )
-    assert title_from_harbor_task_name("application/chat-openbb") == "OpenBB"
+    assert (
+        title_from_harbor_task_name("application/chat-openbb-corporate-action-honesty")
+        == "OpenBB Corporate Action Honesty"
+    )
     assert (
         title_from_harbor_task_name("application/os-app-macos-stocks-mu-sentiment")
         == "Stocks MU Sentiment"
     )
     # Legacy Harbor names still parse.
-    assert title_from_harbor_task_name("matraix/application-chat-recai") == "RecAI"
+    assert (
+        title_from_harbor_task_name("matraix/application-chat-api-support-chatbot")
+        == "API Support Chatbot"
+    )

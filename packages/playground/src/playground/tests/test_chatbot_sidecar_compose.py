@@ -18,19 +18,19 @@ def test_write_standalone_includes_companion_services_from_source(tmp_path: Path
                 "services:",
                 "  main:",
                 "    depends_on:",
-                "      multi-agent-medical-assistant-api:",
+                "      finance-chatbot:",
                 "        condition: service_healthy",
-                "  multi-agent-medical-assistant-api:",
+                "  finance-chatbot:",
                 "    build:",
-                "      context: ./multi-agent-medical-assistant-api",
+                "      context: ./finance-chatbot",
                 "    depends_on:",
-                "      multi-agent-medical-assistant:",
+                "      openbb-mcp:",
                 "        condition: service_healthy",
-                "  multi-agent-medical-assistant:",
+                "  openbb-mcp:",
                 "    build:",
-                "      context: ./multi-agent-medical-assistant",
+                "      context: ./openbb-mcp",
                 "volumes:",
-                "  multi-agent-medical-assistant-cache:",
+                "  openbb-cache:",
             ]
         ),
         encoding="utf-8",
@@ -38,15 +38,15 @@ def test_write_standalone_includes_companion_services_from_source(tmp_path: Path
 
     path = write_standalone_sidecar_compose(
         compose_dir=compose_dir,
-        service_name="multi-agent-medical-assistant-api",
-        build_context="multi-agent-medical-assistant-api",
-        host_port=8902,
+        service_name="finance-chatbot",
+        build_context="finance-chatbot",
+        host_port=8901,
     )
     payload = yaml.safe_load(path.read_text(encoding="utf-8"))
     assert "main" not in payload["services"]
-    assert "multi-agent-medical-assistant-api" in payload["services"]
-    assert "multi-agent-medical-assistant" in payload["services"]
-    assert payload["services"]["multi-agent-medical-assistant-api"]["ports"] == [
-        "127.0.0.1:8902:8000"
+    assert "finance-chatbot" in payload["services"]
+    assert "openbb-mcp" in payload["services"]
+    assert payload["services"]["finance-chatbot"]["ports"] == [
+        "127.0.0.1:8901:8000"
     ]
     assert "volumes" in payload

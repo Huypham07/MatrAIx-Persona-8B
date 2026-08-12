@@ -9,9 +9,9 @@ def test_list_chatbot_eval_tasks_discovers_registered_chatbot_tasks():
     tasks = list_chatbot_eval_tasks()
     ids = {task.id for task in tasks}
 
-    assert "chat-recai" in ids
-    assert "chat-openbb" in ids
-    assert "chat-multi-agent-medical-assistant" in ids
+    assert "chat-meal-planning-nutrition" in ids
+    assert "chat-openbb-corporate-action-honesty" in ids
+    assert "chat-api-support-chatbot" in ids
     assert "chat-mcp-support-chatbot" in ids
     assert len(tasks) >= 4
 
@@ -21,7 +21,7 @@ def test_list_chatbot_eval_tasks_discovers_registered_chatbot_tasks():
 
 
 def test_get_chatbot_eval_task_reads_runtime_defaults_from_chatbot_yaml():
-    task = get_chatbot_eval_task("chat-openbb")
+    task = get_chatbot_eval_task("chat-openbb-corporate-action-honesty")
 
     assert task.transport == "sidecar_http"
     assert task.application_id == "finance_openbb"
@@ -41,20 +41,20 @@ def test_get_chatbot_eval_task_preserves_mcp_transport():
     assert task.available in (True, False)
 
 
-def test_get_chatbot_eval_task_reads_recai_sidecar_defaults():
-    task = get_chatbot_eval_task("chat-recai")
+def test_get_chatbot_eval_task_reads_meal_planning_sidecar_defaults():
+    task = get_chatbot_eval_task("chat-meal-planning-nutrition")
 
     assert task.transport == "sidecar_http"
-    assert task.application_id == "recai"
-    assert task.application_context == "movie"
-    assert task.default_domain == "movie"
+    assert task.application_id == "meal_planning_nutrition"
+    assert task.application_context == "meal_planning"
+    assert task.default_domain == "meal_planning"
 
 
-def test_get_chatbot_eval_task_reads_medical_sidecar_defaults():
-    task = get_chatbot_eval_task("chat-multi-agent-medical-assistant")
+def test_get_chatbot_eval_task_reads_support_api_sidecar_defaults():
+    task = get_chatbot_eval_task("chat-api-support-chatbot")
 
     assert task.transport == "sidecar_http"
-    assert task.application_id == "medical_assistant"
-    assert task.application_context == "medical_consultation"
+    assert task.application_id == "acme_support_api"
+    assert task.application_context == "customer_support"
     assert task.can_start is True
-    assert task.health_url == "http://127.0.0.1:8902"
+    assert task.health_url == "http://127.0.0.1:8904"

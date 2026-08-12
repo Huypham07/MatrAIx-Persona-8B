@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pathlib
+import subprocess
 import tomllib
 
 
@@ -50,16 +51,25 @@ def test_harbor_console_scripts_are_registered() -> None:
 
 
 def test_runtime_import_excludes_raw_snapshot_directories() -> None:
+    """These paths must not be *tracked* as vendored snapshots.
+
+    ``jobs/`` is created by normal ``harbor run`` workflows and is fully
+    gitignored. Assert via ``git ls-files`` so a developer who has run a local
+    job is not failed by directory existence.
+    """
     forbidden_paths = [
         "adapters",
         "jobs",
         "src/harbor",
         "src/matraix/agents",
-        "src/matraix/agents",
     ]
 
-    for relative_path in forbidden_paths:
-        assert not (ROOT / relative_path).exists(), relative_path
+    tracked = subprocess.check_output(
+        ["git", "ls-files", "--", *forbidden_paths],
+        cwd=ROOT,
+        text=True,
+    ).splitlines()
+    assert tracked == [], tracked
 
     apps_dir = ROOT / "apps"
     if apps_dir.exists():

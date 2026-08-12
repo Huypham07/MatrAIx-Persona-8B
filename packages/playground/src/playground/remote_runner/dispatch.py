@@ -47,14 +47,6 @@ def build_harbor_env(*, repo_root: Path, payload: dict[str, Any]) -> dict[str, s
         str(repo_root / "environment" / "agents"),
         str(repo_root / "packages" / "playground" / "src"),
         str(repo_root / "application" / "playground"),
-        str(
-            repo_root
-            / "environment"
-            / "task-environments"
-            / "application"
-            / "chatbot-api-sidecar_recai"
-            / "recommender-api"
-        ),
     ]
     for path in reversed(required_paths):
         if path not in path_entries:

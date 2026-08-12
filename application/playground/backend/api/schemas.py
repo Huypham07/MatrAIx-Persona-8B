@@ -82,32 +82,28 @@ __all__ = [
 #: game) so a bad domain is rejected here with a clean 422.
 SUPPORTED_DOMAINS = ("movie", "beauty_product", "game")
 SUPPORTED_APPLICATION_IDS = (
-    "recai",
     "finance_openbb",
-    "medical_assistant",
     "acme_support_api",
     "acme_support_mcp",
     "meal_planning_nutrition",
-    "deeptutor",
-    "prescreening_assistant",
 )
 DEFAULT_APPLICATION_CONTEXTS = {
     "finance_openbb": "financial_research",
-    "medical_assistant": "medical_consultation",
+    "acme_support_api": "customer_support",
+    "acme_support_mcp": "customer_support",
     "meal_planning_nutrition": "meal_planning",
-    "deeptutor": "education_tutoring",
-    "prescreening_assistant": "clinical_trial_prescreening",
 }
 
 SUPPORTED_PERSONA_MODELS = tuple(PERSONA_MODEL_OPTIONS)
 
 
-def _resolved_recai_context(
+def _resolved_chat_context(
     *,
     domain: Optional[str],
     application_context: Optional[str],
+    default_context: Optional[str],
 ) -> str:
-    return str(application_context or domain or "movie").strip()
+    return str(application_context or default_context or domain or "").strip()
 
 
 # --------------------------------------------------------------------------- #
@@ -787,26 +783,15 @@ class HarborJobLaunchRequest(BaseModel):
     def _normalize_chat_application_context(self) -> "HarborJobLaunchRequest":
         if not self.chatApplicationId:
             return self
-        if self.chatApplicationId == "recai":
-            resolved_context = _resolved_recai_context(
-                domain=self.chatDomain,
-                application_context=self.chatApplicationContext,
-            )
-            if resolved_context not in SUPPORTED_DOMAINS:
-                raise ValueError(
-                    "chatApplicationContext/chatDomain must be one of {}".format(
-                        list(SUPPORTED_DOMAINS)
-                    )
-                )
-            self.chatApplicationContext = resolved_context
-            self.chatDomain = resolved_context
-            return self
-
         default_context = DEFAULT_APPLICATION_CONTEXTS.get(self.chatApplicationId)
-        self.chatApplicationContext = self.chatApplicationContext or default_context
+        resolved_context = _resolved_chat_context(
+            domain=self.chatDomain,
+            application_context=self.chatApplicationContext,
+            default_context=default_context,
+        )
+        self.chatApplicationContext = resolved_context
         if not self.chatApplicationContext:
             raise ValueError("chatApplicationContext is required")
-        self.chatDomain = None
         return self
 
 

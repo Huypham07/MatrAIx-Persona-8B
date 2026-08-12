@@ -221,8 +221,8 @@ report time non-LLM. Guard the call so a missing key / network / parse error
 returns nothing — the trial must still pass on its deterministic facts. Wire keys
 via `task.toml [verifier.env]` (`OPENAI_API_KEY = "${OPENAI_API_KEY}"`); the
 verifier phase has network egress by default. Reference pattern:
-[`chat_multi-agent-medical-assistant`](../../application/tasks/chat_multi-agent-medical-assistant),
-[`chat_openbb`](../../application/tasks/chat_openbb),
+[`chat_meal-planning-nutrition`](../../application/tasks/chat_meal-planning-nutrition),
+[`chat_openbb-corporate-action-honesty`](../../application/tasks/chat_openbb-corporate-action-honesty),
 [`os-app-ios_news-subscription-decision`](../../application/tasks/os-app-ios_news-subscription-decision).
 
 The platform still accepts a report-time `signalScans` directive (it routes to

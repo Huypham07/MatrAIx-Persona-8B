@@ -29,15 +29,6 @@ class SidecarSpec:
 
 
 _SIDECAR_SPECS: dict[str, SidecarSpec] = {
-    "recai": SidecarSpec(
-        application_id="recai",
-        compose_dir="environment/task-environments/application/chatbot-api-sidecar_recai",
-        service_name="rec-agent-api",
-        build_context="recommender-api",
-        host_port=8000,
-        primary_env="CHATBOT_API_URL",
-        legacy_env=None,
-    ),
     "finance_openbb": SidecarSpec(
         application_id="finance_openbb",
         compose_dir=(
@@ -49,18 +40,6 @@ _SIDECAR_SPECS: dict[str, SidecarSpec] = {
         primary_env="CHATBOT_UPSTREAM_FINANCE",
         legacy_env="FINANCE_CHATBOT_URL",
     ),
-    "medical_assistant": SidecarSpec(
-        application_id="medical_assistant",
-        compose_dir=(
-            "environment/task-environments/application/"
-            "chatbot-api-sidecar_multi-agent-medical-assistant"
-        ),
-        service_name="multi-agent-medical-assistant-api",
-        build_context="multi-agent-medical-assistant-api",
-        host_port=8902,
-        primary_env="CHATBOT_UPSTREAM_MEDICAL",
-        legacy_env="MEDICAL_CHATBOT_URL",
-    ),
     "acme_support_api": SidecarSpec(
         application_id="acme_support_api",
         compose_dir=(
@@ -71,17 +50,6 @@ _SIDECAR_SPECS: dict[str, SidecarSpec] = {
         host_port=8904,
         primary_env="CHATBOT_API_URL",
         legacy_env=None,
-    ),
-    "prescreening_assistant": SidecarSpec(
-        application_id="prescreening_assistant",
-        compose_dir=(
-            "environment/task-environments/application/chatbot-api-sidecar_prescreening"
-        ),
-        service_name="prescreening-chatbot",
-        build_context="prescreening-chatbot",
-        host_port=8906,
-        primary_env="CHATBOT_UPSTREAM_PRESCREENING",
-        legacy_env="PRESCREENING_CHATBOT_URL",
     ),
     "acme_support_mcp": SidecarSpec(
         application_id="acme_support_mcp",
@@ -106,17 +74,6 @@ _SIDECAR_SPECS: dict[str, SidecarSpec] = {
         primary_env="CHATBOT_API_URL",
         legacy_env=None,
     ),
-    "deeptutor": SidecarSpec(
-        application_id="deeptutor",
-        compose_dir=(
-            "environment/task-environments/application/chatbot-api-sidecar_deeptutor"
-        ),
-        service_name="tutor-adapter",
-        build_context="tutor-adapter",
-        host_port=8906,
-        primary_env="CHATBOT_UPSTREAM_DEEPTUTOR",
-        legacy_env=None,
-    ),
 }
 
 
@@ -128,22 +85,9 @@ def resolve_health_url(application_id: str) -> str:
     spec = _SIDECAR_SPECS.get(application_id)
     if spec is None:
         raise ValueError("unknown chatbot application: {}".format(application_id))
-    if spec.application_id == "recai":
-        return (
-            os.environ.get(spec.primary_env, "").strip() or _default_health_url(spec)
-        )
     if spec.application_id == "acme_support_mcp":
         return (
             os.environ.get(spec.primary_env, "").strip() or _default_health_url(spec)
-        )
-    if spec.application_id == "prescreening_assistant":
-        # Scoped envs only - never the generic CHATBOT_API_URL fallback, which
-        # belongs to recai and would silently point the probe at a different
-        # sidecar when both are configured.
-        return (
-            os.environ.get(spec.primary_env, "").strip()
-            or os.environ.get(spec.legacy_env or "", "").strip()
-            or _default_health_url(spec)
         )
     return _sidecar_base_url(
         spec.primary_env,
@@ -173,10 +117,8 @@ def _wait_for_sidecar_probe(
     timeout_sec: float = 30.0,
 ) -> bool:
     deadline = time.monotonic() + timeout_sec
-    # Medical /ready may cold-import heavy RAG deps on first call.
-    probe_timeout = 10.0 if spec.application_id == "medical_assistant" else 5.0
     while time.monotonic() < deadline:
-        if _sidecar_probe_ok(spec, health_url, timeout=probe_timeout):
+        if _sidecar_probe_ok(spec, health_url, timeout=5.0):
             return True
         time.sleep(0.5)
     return False
@@ -226,8 +168,7 @@ def sidecar_status(application_id: str, *, repo_root: Path | None = None) -> dic
     if spec is None:
         raise ValueError("unknown chatbot application: {}".format(application_id))
     health_url = resolve_health_url(application_id)
-    probe_timeout = 10.0 if application_id == "medical_assistant" else 5.0
-    ok = _sidecar_probe_ok(spec, health_url, timeout=probe_timeout)
+    ok = _sidecar_probe_ok(spec, health_url, timeout=5.0)
     can_start = bool(spec.compose_dir and spec.service_name and spec.build_context)
     service_label = "MCP server" if spec.probe == "tcp" else "Chat API"
     return {
@@ -285,7 +226,7 @@ def start_sidecar(application_id: str, *, repo_root: Path | None = None) -> dict
         "--build",
         spec.service_name,
     ]
-    compose_timeout = 900 if application_id in {"medical_assistant", "finance_openbb"} else 300
+    compose_timeout = 900 if application_id == "finance_openbb" else 300
     result = subprocess.run(
         command,
         cwd=root,
@@ -301,7 +242,7 @@ def start_sidecar(application_id: str, *, repo_root: Path | None = None) -> dict
         )
 
     health_url = resolve_health_url(application_id)
-    wait_sec = 120.0 if application_id in {"medical_assistant", "finance_openbb"} else 30.0
+    wait_sec = 120.0 if application_id == "finance_openbb" else 30.0
     ok = _wait_for_sidecar_probe(spec, health_url, timeout_sec=wait_sec)
     status = sidecar_status(application_id, repo_root=root)
     status["started"] = True

@@ -1,9 +1,8 @@
-"""Real-bundle catalog: the searchable item table behind each domain.
+"""Optional bundle catalog: the searchable item table behind each domain.
 
-The recommender ranks over the native ``all_resources`` bundle installed under
-``recai/InteRecAgent/resources/<domain>/``. Each domain ships its item table as
-a feather file (``movies.ftr`` / ``games.ftr`` / ``products.ftr``, named by
-``settings.json:GAME_INFO_FILE``) with columns described in ``columns.json``.
+When ``INTERECAGENT_ROOT`` points at an external resource checkout, this module
+can still load ``resources/<domain>/`` feather tables. Without that optional
+checkout, callers get an empty catalog rather than a missing-sidecar error.
 
 This module loads that table (lazily, with pandas) and adapts each row into the
 normalized item dict the Studio's :class:`~backend.service.catalog_index.CatalogIndex`
@@ -35,17 +34,14 @@ _cache: Dict[str, CatalogIndex] = {}
 def _resources_root() -> str:
     """Absolute path to ``<root>/resources`` (the parent of the domain dirs).
 
-    Honors ``INTERECAGENT_ROOT`` (the bridge reads the same override); otherwise
-    the task-environment ``recai/InteRecAgent`` checkout (installed on demand via
-    ``scripts/setup_recai_resources.py``), resolved from this file's
-    location rather than via ``recbot.paths`` so a faked ``recbot`` in tests does
-    not perturb it.
+    Honors ``INTERECAGENT_ROOT``. The deleted RecAI sidecar is intentionally not
+    a fallback source.
     """
     override = os.environ.get("INTERECAGENT_ROOT")
     if override:
         root = os.path.abspath(override)
     else:
-        root = os.path.join(_chatbot_api_root(), "recai", "InteRecAgent")
+        root = os.path.join(_repo_root(), ".missing-interecagent")
     return os.path.join(root, "resources")
 
 
@@ -55,22 +51,9 @@ def _repo_root() -> str:
 
 
 def _chatbot_api_root() -> str:
-    """Absolute path to the RecAI / recommender-api source root."""
-    from backend.service.task_environment import resolve_chat_endpoint_host_dir
-
-    task_dir = Path(_repo_root()) / "application" / "tasks" / "chat_recai"
-    host_dir = resolve_chat_endpoint_host_dir(task_dir)
-    if host_dir is None:
-        return str(
-            Path(_repo_root())
-            / "environment"
-            / "task-environments"
-            / "application"
-            / "chatbot-api-sidecar_recai"
-            / "recommender-api"
-        )
-    recommender_api = host_dir / "recommender-api"
-    return str(recommender_api if recommender_api.is_dir() else host_dir)
+    """Return the optional external catalog root, if configured."""
+    override = os.environ.get("INTERECAGENT_ROOT")
+    return os.path.abspath(override) if override else str(Path(_repo_root()) / ".missing-interecagent")
 
 
 def _catalogs_dir() -> str:
@@ -95,7 +78,7 @@ def load_bundle_catalog(domain: str) -> CatalogIndex:
     """Load ``domain``'s item table into a fresh :class:`CatalogIndex`.
 
     Source preference: the committed parquet catalog (``data/catalogs/<domain>.parquet``,
-    present on a fresh clone — no big download), else the installed RecAI bundle's
+    present on a fresh clone — no big download), else the installed optional bundle's
     feather table (after ``scripts/setup_resources.py``). Any failure (no source,
     no pandas, unreadable) degrades to an empty index.
     """
@@ -120,7 +103,7 @@ def _load_domain_frame(domain: str):
         except Exception:
             pass
 
-    # 2) Installed RecAI bundle feather table (settings.json names the file).
+    # 2) Installed optional bundle feather table (settings.json names the file).
     domain_dir = os.path.join(_resources_root(), domain)
     settings_path = os.path.join(domain_dir, "settings.json")
     if os.path.isfile(settings_path):

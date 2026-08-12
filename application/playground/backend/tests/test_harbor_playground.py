@@ -438,8 +438,8 @@ def test_build_result_from_harbor_artifacts_maps_turns_to_result(tmp_path):
         json.dumps(
             {
                 "sessionId": "ses_123",
-                "applicationId": "recai",
-                "applicationContext": "movie",
+                "applicationId": "meal_planning_nutrition",
+                "applicationContext": "meal_planning",
                 "domain": "movie",
                 "messages": [
                     {"role": "user", "content": "I want a movie."},
@@ -461,8 +461,8 @@ def test_build_result_from_harbor_artifacts_maps_turns_to_result(tmp_path):
         json.dumps(
             {
                 "sessionId": "ses_123",
-                "applicationId": "recai",
-                "applicationContext": "movie",
+                "applicationId": "meal_planning_nutrition",
+                "applicationContext": "meal_planning",
                 "domain": "movie",
                 "recommendedItems": [{"itemId": "42", "title": "Movie A"}],
                 "turnsToResult": 1,
@@ -475,8 +475,8 @@ def test_build_result_from_harbor_artifacts_maps_turns_to_result(tmp_path):
         output_dir=output_dir,
         config=PlaygroundConfig(
             domain="movie",
-            application_id="recai",
-            application_context="movie",
+            application_id="meal_planning_nutrition",
+            application_context="meal_planning",
             engine="gpt-4o-mini",
             max_turns=3,
         ),
@@ -651,25 +651,24 @@ def test_build_chatbot_simulation_prompt_uses_generic_application_contract():
     assert "Finish within 7 user turns." in prompt
 
 
-def test_build_chatbot_simulation_prompt_labels_medical_assistant():
+def test_build_chatbot_simulation_prompt_labels_meal_planning():
     prompt = build_chatbot_simulation_prompt(
-        application_id="medical_assistant",
-        application_context="medical_consultation",
+        application_id="meal_planning_nutrition",
+        application_context="meal_planning",
         max_turns=7,
-        sut_description="A medical assistant chatbot exposed through a chat API.",
+        sut_description="A meal-planning chatbot exposed through a chat API.",
     )
 
-    assert prompt.startswith("You are a user of a medical assistant")
-    assert "medical_assistant" not in prompt
-    assert "medical_consultation" not in prompt
+    assert prompt.startswith("You are a user of a meal planning nutrition assistant")
+    assert "meal_planning_nutrition" not in prompt
     assert "Do not reveal everything at once" in prompt
     assert "Keep messages short and conversational (1-3 sentences)" in prompt
 
 
 def test_build_chatbot_simulation_prompt_omits_turn_limit_when_unset():
     prompt = build_chatbot_simulation_prompt(
-        application_id="recai",
-        application_context="movie",
+        application_id="meal_planning_nutrition",
+        application_context="meal_planning",
         max_turns=None,
         sut_description="A movie recommender exposed through a chat API.",
     )
@@ -743,19 +742,19 @@ def test_harbor_runner_writes_run_inputs_invokes_harbor_and_maps_artifacts(
         assert config["environment"]["delete"] is False
         assert config["agents"][0]["kwargs"]["persona_path"].endswith("persona.yaml")
         assert config["tasks"][0]["path"].endswith(
-            "application/tasks/chat_recai"
+            "application/tasks/chat_meal-planning-nutrition"
         )
         prompt_path = config["extra_instruction_paths"][0]
         assert prompt_path.endswith("task_prompt.md")
         assert (
-            "You are a user of a movie recommendation system"
+            "You are a user of a meal planning nutrition assistant"
             in open(prompt_path, encoding="utf-8").read()
         )
         assert env["INTERECAGENT_ENGINE"] == "gpt-4o"
-        assert env["MATRIX_CHATBOT_APPLICATION_ID"] == "recai"
-        assert env["MATRIX_CHATBOT_APPLICATION_CONTEXT"] == "movie"
-        assert env["MATRIX_CHATBOT_TASK_PATH"] == "application/tasks/chat_recai"
-        assert env["COMPOSE_PROFILES"] == "recai"
+        assert env["MATRIX_CHATBOT_APPLICATION_ID"] == "meal_planning_nutrition"
+        assert env["MATRIX_CHATBOT_APPLICATION_CONTEXT"] == "meal_planning"
+        assert env["MATRIX_CHATBOT_TASK_PATH"] == "application/tasks/chat_meal-planning-nutrition"
+        assert "COMPOSE_PROFILES" not in env
         assert env["OPENAI_API_KEY"] == "sk-test-openai"
         assert env["ANTHROPIC_API_KEY"] == "sk-test-anthropic"
         mounts = config["environment"]["mounts"]
@@ -782,9 +781,9 @@ def test_harbor_runner_writes_run_inputs_invokes_harbor_and_maps_artifacts(
             for index, value in enumerate(command)
             if value == "--agent-env"
         }
-        assert agent_env["MATRIX_CHATBOT_APPLICATION_ID"] == "recai"
-        assert agent_env["MATRIX_CHATBOT_APPLICATION_CONTEXT"] == "movie"
-        assert agent_env["MATRIX_CHATBOT_TASK_PATH"] == "application/tasks/chat_recai"
+        assert agent_env["MATRIX_CHATBOT_APPLICATION_ID"] == "meal_planning_nutrition"
+        assert agent_env["MATRIX_CHATBOT_APPLICATION_CONTEXT"] == "meal_planning"
+        assert agent_env["MATRIX_CHATBOT_TASK_PATH"] == "application/tasks/chat_meal-planning-nutrition"
         assert agent_env["MATRIX_CHATBOT_MAX_TURNS"] == "5"
         assert agent_env["MATRIX_CHATBOT_MIN_TURNS"] == "3"
         assert agent_env["MATRIX_CHATBOT_TASK_PROMPT_PATH"] == "/app/input/task_prompt.md"
@@ -795,7 +794,7 @@ def test_harbor_runner_writes_run_inputs_invokes_harbor_and_maps_artifacts(
             tmp_path
             / "runs"
             / config["job_name"]
-            / "chat_recai__fake"
+            / "chat_meal_planning__fake"
             / "artifacts"
             / "app"
             / "output"
@@ -855,7 +854,7 @@ def test_harbor_runner_writes_run_inputs_invokes_harbor_and_maps_artifacts(
         runs_root=tmp_path / "runs",
         command_runner=fake_command,
         harbor_command=("uv", "run", "--frozen", "harbor", "run"),
-        chat_task_path="application/tasks/chat_recai",
+        chat_task_path="application/tasks/chat_meal-planning-nutrition",
     )
     session = Session()
     events = []
@@ -864,7 +863,13 @@ def test_harbor_runner_writes_run_inputs_invokes_harbor_and_maps_artifacts(
         session,
         Persona(id="p1", name="Persona One", context="A careful viewer."),
         "Movie recommender.",
-        PlaygroundConfig(domain="movie", engine="gpt-4o", max_turns=5),
+        PlaygroundConfig(
+            domain="meal_planning",
+            application_id="meal_planning_nutrition",
+            application_context="meal_planning",
+            engine="gpt-4o",
+            max_turns=5,
+        ),
         object(),
         created_at="2026-06-23T00:00:00Z",
         on_event=events.append,
@@ -879,14 +884,14 @@ def test_harbor_runner_writes_run_inputs_invokes_harbor_and_maps_artifacts(
     assert payload["questionnaire"]["overallRating"] == 9
     assert payload["prompts"]["harborPrompt"] == "A careful viewer."
     assert (
-        "You are a user of a movie recommendation system"
+        "You are a user of a meal planning nutrition assistant"
         in payload["prompts"]["taskPrompt"]
     )
     assert {"type": "phase", "phase": "harbor_starting"} in events
     assert any(
         event.get("type") == "prompts"
         and event["prompts"]["harborPrompt"] == "A careful viewer."
-        and "You are a user of a movie recommendation system"
+        and "You are a user of a meal planning nutrition assistant"
         in event["prompts"]["taskPrompt"]
         for event in events
     )
@@ -985,7 +990,7 @@ def test_harbor_runner_uses_finance_compose_profile(tmp_path):
         runs_root=tmp_path / "runs",
         command_runner=fake_command,
         harbor_command=("uv", "run", "--frozen", "harbor", "run"),
-        chat_task_path="application/tasks/chat_openbb",
+        chat_task_path="application/tasks/chat_openbb-corporate-action-honesty",
     )
     result = runner(
         Session(),
@@ -1005,12 +1010,12 @@ def test_harbor_runner_uses_finance_compose_profile(tmp_path):
     assert env["COMPOSE_PROFILES"] == "finance"
     assert env["MATRIX_CHATBOT_APPLICATION_ID"] == "finance_openbb"
     assert env["MATRIX_CHATBOT_APPLICATION_CONTEXT"] == "financial_research"
-    assert env["MATRIX_CHATBOT_TASK_PATH"] == "application/tasks/chat_openbb"
+    assert env["MATRIX_CHATBOT_TASK_PATH"] == "application/tasks/chat_openbb-corporate-action-honesty"
     assert env["FINANCE_AGENT_MODEL"] == "gpt-4o-mini"
     assert result.to_dict()["metricScores"]["numTurns"] == 1
 
 
-def test_harbor_runner_uses_medical_compose_profile(tmp_path):
+def test_harbor_runner_uses_support_api_without_compose_profile(tmp_path):
     calls = []
 
     def fake_command(command, *, cwd, env):
@@ -1019,7 +1024,7 @@ def test_harbor_runner_uses_medical_compose_profile(tmp_path):
             open(command[command.index("-c") + 1], encoding="utf-8")
         )
         prompt_path = config["extra_instruction_paths"][0]
-        assert "You are a user of a medical assistant" in open(
+        assert "You are a user of a customer support system" in open(
             prompt_path,
             encoding="utf-8",
         ).read()
@@ -1036,23 +1041,23 @@ def test_harbor_runner_uses_medical_compose_profile(tmp_path):
         (output_dir / "transcript.json").write_text(
             json.dumps(
                 {
-                    "sessionId": "med_ses_1",
-                    "applicationId": "medical_assistant",
-                    "applicationContext": "medical_consultation",
-                    "domain": "medical_consultation",
+                    "sessionId": "support_ses_1",
+                    "applicationId": "acme_support_api",
+                    "applicationContext": "customer_support",
+                    "domain": "customer_support",
                     "messages": [
-                        {"role": "user", "content": "I have a mild fever."},
+                        {"role": "user", "content": "Where is my order?"},
                         {
                             "role": "assistant",
-                            "content": "I can share general guidance and red flags.",
+                            "content": "I can help check the order status.",
                         },
                     ],
                     "turns": [
                         {
-                            "turnId": "med_turn_1",
-                            "userMessage": "I have a mild fever.",
+                            "turnId": "support_turn_1",
+                            "userMessage": "Where is my order?",
                             "assistantMessage": (
-                                "I can share general guidance and red flags."
+                                "I can help check the order status."
                             ),
                             "structuredExposure": [],
                         }
@@ -1064,9 +1069,9 @@ def test_harbor_runner_uses_medical_compose_profile(tmp_path):
         (output_dir / "application_result.json").write_text(
             json.dumps(
                 {
-                    "sessionId": "med_ses_1",
-                    "applicationId": "medical_assistant",
-                    "applicationContext": "medical_consultation",
+                    "sessionId": "support_ses_1",
+                    "applicationId": "acme_support_api",
+                    "applicationContext": "customer_support",
                     "recommendedItems": [],
                     "turnsToResult": 1,
                 }
@@ -1077,7 +1082,7 @@ def test_harbor_runner_uses_medical_compose_profile(tmp_path):
             json.dumps(
                 {
                     "overallExperienceRating": 8,
-                    "reason": "Clear medical-information guidance.",
+                    "reason": "Clear support guidance.",
                     "needConstraintSatisfaction": "partially",
                     "personalPreferenceSatisfaction": 4,
                     "askedUsefulClarificationQuestions": True,
@@ -1095,15 +1100,15 @@ def test_harbor_runner_uses_medical_compose_profile(tmp_path):
         runs_root=tmp_path / "runs",
         command_runner=fake_command,
         harbor_command=("uv", "run", "--frozen", "harbor", "run"),
-        chat_task_path="application/tasks/chat_multi-agent-medical-assistant",
+        chat_task_path="application/tasks/example-chat-api_support_chatbot",
     )
     result = runner(
         Session(),
-        Persona(id="p1", name="Persona One", context="A careful patient."),
-        "Medical assistant chatbot.",
+        Persona(id="p1", name="Persona One", context="A careful shopper."),
+        "Support chatbot.",
         PlaygroundConfig(
-            application_id="medical_assistant",
-            application_context="medical_consultation",
+            application_id="acme_support_api",
+            application_context="customer_support",
             engine="gpt-4o-mini",
             max_turns=3,
         ),
@@ -1117,13 +1122,13 @@ def test_harbor_runner_uses_medical_compose_profile(tmp_path):
         for index, value in enumerate(command)
         if value == "--agent-env"
     }
-    assert env["COMPOSE_PROFILES"] == "medical"
-    assert env["MATRIX_CHATBOT_APPLICATION_ID"] == "medical_assistant"
-    assert env["MATRIX_CHATBOT_APPLICATION_CONTEXT"] == "medical_consultation"
+    assert "COMPOSE_PROFILES" not in env
+    assert env["MATRIX_CHATBOT_APPLICATION_ID"] == "acme_support_api"
+    assert env["MATRIX_CHATBOT_APPLICATION_CONTEXT"] == "customer_support"
     assert "FINANCE_AGENT_MODEL" not in env
-    assert agent_env["MATRIX_CHATBOT_APPLICATION_ID"] == "medical_assistant"
-    assert agent_env["MATRIX_CHATBOT_APPLICATION_CONTEXT"] == "medical_consultation"
-    assert agent_env["MATRIX_CHATBOT_TASK_PATH"] == "application/tasks/chat_multi-agent-medical-assistant"
+    assert agent_env["MATRIX_CHATBOT_APPLICATION_ID"] == "acme_support_api"
+    assert agent_env["MATRIX_CHATBOT_APPLICATION_CONTEXT"] == "customer_support"
+    assert agent_env["MATRIX_CHATBOT_TASK_PATH"] == "application/tasks/example-chat-api_support_chatbot"
     assert result.to_dict()["metricScores"]["numTurns"] == 1
 
 
@@ -1136,7 +1141,7 @@ def test_harbor_runner_reads_feedback_written_by_application_scorer_artifact(tmp
             tmp_path
             / "runs"
             / config["job_name"]
-            / "chat_recai__fake"
+            / "chat_meal_planning__fake"
             / "artifacts"
             / "app"
             / "output"
@@ -1196,7 +1201,7 @@ def test_harbor_runner_reads_feedback_written_by_application_scorer_artifact(tmp
         repo_root=tmp_path,
         runs_root=tmp_path / "runs",
         command_runner=fake_command,
-        chat_task_path="application/tasks/chat_recai",
+        chat_task_path="application/tasks/chat_meal-planning-nutrition",
     )
     result = runner(
         Session(),
@@ -1223,7 +1228,7 @@ def test_harbor_runner_persona_model_can_be_overridden(tmp_path, monkeypatch):
             tmp_path
             / "runs"
             / config["job_name"]
-            / "chat_recai__fake"
+            / "chat_meal_planning__fake"
             / "artifacts"
             / "app"
             / "output"
@@ -1270,7 +1275,7 @@ def test_harbor_runner_persona_model_can_be_overridden(tmp_path, monkeypatch):
         repo_root=tmp_path,
         runs_root=tmp_path / "runs",
         command_runner=fake_command,
-        chat_task_path="application/tasks/chat_recai",
+        chat_task_path="application/tasks/chat_meal-planning-nutrition",
     )
     runner(
         Session(),
@@ -1300,7 +1305,7 @@ def test_harbor_runner_cache_flags_can_be_overridden(tmp_path, monkeypatch):
             tmp_path
             / "runs"
             / config["job_name"]
-            / "chat_recai__fake"
+            / "chat_meal_planning__fake"
             / "artifacts"
             / "app"
             / "output"
@@ -1347,7 +1352,7 @@ def test_harbor_runner_cache_flags_can_be_overridden(tmp_path, monkeypatch):
         repo_root=tmp_path,
         runs_root=tmp_path / "runs",
         command_runner=fake_command,
-        chat_task_path="application/tasks/chat_recai",
+        chat_task_path="application/tasks/chat_meal-planning-nutrition",
     )
     runner(
         Session(),
@@ -1377,7 +1382,7 @@ def test_harbor_runner_default_command_uses_configured_harbor_command(
             tmp_path
             / "runs"
             / config["job_name"]
-            / "chat_recai__fake"
+            / "chat_meal_planning__fake"
             / "artifacts"
             / "app"
             / "output"
@@ -1424,7 +1429,7 @@ def test_harbor_runner_default_command_uses_configured_harbor_command(
         repo_root=tmp_path,
         runs_root=tmp_path / "runs",
         command_runner=fake_command,
-        chat_task_path="application/tasks/chat_recai",
+        chat_task_path="application/tasks/chat_meal-planning-nutrition",
     )
     runner(
         Session(),
@@ -1480,7 +1485,7 @@ def test_harbor_runner_surfaces_trial_errors_when_artifacts_are_missing(tmp_path
                         "evals": {
                             "persona-claude-code__claude-sonnet-4-6__adhoc": {
                                 "exception_stats": {
-                                    "RuntimeError": ["chat_recai__fake"]
+                                    "RuntimeError": ["chat_meal_planning__fake"]
                                 }
                             }
                         },
@@ -1489,7 +1494,7 @@ def test_harbor_runner_surfaces_trial_errors_when_artifacts_are_missing(tmp_path
             ),
             encoding="utf-8",
         )
-        trial_dir = job_dir / "chat_recai__fake"
+        trial_dir = job_dir / "chat_meal_planning__fake"
         trial_dir.mkdir()
         (trial_dir / "exception.txt").write_text(
             "Docker build failed: No space left on device",
@@ -1504,7 +1509,7 @@ def test_harbor_runner_surfaces_trial_errors_when_artifacts_are_missing(tmp_path
         repo_root=tmp_path,
         runs_root=tmp_path / "runs",
         command_runner=fake_command,
-        chat_task_path="application/tasks/chat_recai",
+        chat_task_path="application/tasks/chat_meal-planning-nutrition",
     )
 
     with pytest.raises(RuntimeError, match="No space left on device"):
@@ -1524,7 +1529,7 @@ def test_harbor_runner_surfaces_agent_error_when_output_dir_is_empty(tmp_path):
             open(command[command.index("-c") + 1], encoding="utf-8")
         )
         job_dir = tmp_path / "runs" / config["job_name"]
-        trial_dir = job_dir / "chat_recai__fake"
+        trial_dir = job_dir / "chat_meal_planning__fake"
         output_dir = trial_dir / "artifacts" / "app" / "output"
         output_dir.mkdir(parents=True)
         (job_dir / "result.json").write_text(
@@ -1536,7 +1541,7 @@ def test_harbor_runner_surfaces_agent_error_when_output_dir_is_empty(tmp_path):
                             "persona-claude-code__claude-sonnet-4-6__adhoc": {
                                 "exception_stats": {
                                     "NonZeroAgentExitCodeError": [
-                                        "chat_recai__fake"
+                                        "chat_meal_planning__fake"
                                     ]
                                 }
                             }
@@ -1587,7 +1592,7 @@ def test_harbor_runner_surfaces_agent_error_when_output_dir_is_empty(tmp_path):
         repo_root=tmp_path,
         runs_root=tmp_path / "runs",
         command_runner=fake_command,
-        chat_task_path="application/tasks/chat_recai",
+        chat_task_path="application/tasks/chat_meal-planning-nutrition",
     )
 
     with pytest.raises(RuntimeError, match="Credit balance is too low"):

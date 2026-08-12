@@ -1,5 +1,10 @@
 export type Domain = "movie" | "beauty_product" | "game" | string;
-export type ApplicationId = "recai" | "finance_openbb" | "medical_assistant" | string;
+export type ApplicationId =
+  | "meal_planning_nutrition"
+  | "finance_openbb"
+  | "acme_support_api"
+  | "acme_support_mcp"
+  | string;
 export type Engine = string;
 export type PersonaModel = string;
 
@@ -542,7 +547,7 @@ export interface HarborJobSummary {
   applicationType?: string | null;
   /** Display title derived from ``task.toml`` ``[task].name``. */
   taskTitle?: string | null;
-  /** Full Harbor task name, e.g. ``application/recai``. */
+  /** Full Harbor task name, e.g. ``application/chat-meal-planning-nutrition``. */
   taskName?: string | null;
   domain?: string | null;
   difficulty?: string | null;
@@ -1130,7 +1135,7 @@ export interface PersonaCohortDetail extends PersonaCohortSummary {
 
 /** Default Harbor task paths for cockpit launch (one trial per persona). */
 export const HARBOR_TASK_PATHS = {
-  chatbot: "application/tasks/chat_recai",
+  chatbot: "application/tasks/chat_meal-planning-nutrition",
   survey: "application/tasks/example-survey_product-feedback",
   web: "application/tasks/example-web-playwright_quote-choice",
   cuaLinux: "application/tasks/example-computer-use-linux_note-to-csv",
@@ -1138,7 +1143,8 @@ export const HARBOR_TASK_PATHS = {
 } as const;
 
 export const HARBOR_CHAT_TASKS: Record<string, string> = {
-  recai: HARBOR_TASK_PATHS.chatbot,
-  finance_openbb: "application/tasks/chat_openbb",
-  medical_assistant: "application/tasks/chat_multi-agent-medical-assistant",
+  meal_planning_nutrition: HARBOR_TASK_PATHS.chatbot,
+  finance_openbb: "application/tasks/chat_openbb-corporate-action-honesty",
+  acme_support_api: "application/tasks/example-chat-api_support_chatbot",
+  acme_support_mcp: "application/tasks/example-chat-mcp_support_chatbot",
 };

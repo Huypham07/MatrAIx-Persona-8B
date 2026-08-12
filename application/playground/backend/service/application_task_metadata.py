@@ -121,7 +121,6 @@ _TITLE_WORD_OVERRIDES = {
     "csv": "CSV",
     "ios": "iOS",
     "macos": "macOS",
-    "recai": "RecAI",
     "openbb": "OpenBB",
     "cfpb": "CFPB",
     "fdic": "FDIC",

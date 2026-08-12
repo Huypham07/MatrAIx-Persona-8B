@@ -61,7 +61,7 @@ function chatbotStatus(phase: PlaygroundRunPhase, jobPhase: string, turnCount: n
   if (phase === "building") return { status: "Warming up", tone: "active" };
   if (phase === "running") {
     const active =
-      jobPhase.includes("recommend") || jobPhase.includes("recai") || jobPhase.includes("agent") || jobPhase.includes("turn");
+      jobPhase.includes("recommend") || jobPhase.includes("agent") || jobPhase.includes("turn");
     if (active) return { status: "Replying", tone: "active" };
     return turnCount > 0 ? { status: "Chatting", tone: "done" } : { status: "Waiting", tone: "idle" };
   }

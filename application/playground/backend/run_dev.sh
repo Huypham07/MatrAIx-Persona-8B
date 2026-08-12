@@ -8,15 +8,12 @@
 # What it does:
 #   - Resolves the backend root and the eval package root regardless of the
 #     directory you call it from.
-#   - Puts the repo root, `environment/runtime`, `application/playground`,
-#     and the chatbot task API source on PYTHONPATH so that `import
-#     environment...`, `import harbor...`, `import backend...`, and
-#     `import recbot...` resolve
-#     in-process. The service layer also injects the chatbot API path at startup,
-#     but exporting it here keeps the env explicit.
-#   - Runs a SINGLE uvicorn worker (the cached RecAI agent and the in-memory job
-#     registry assume one process). `--reload` is opt-in via RELOAD=1 because a
-#     reload spawns a child process and breaks the in-process agent cache.
+#   - Puts the repo root, `environment/runtime`, `environment/agents`,
+#     `packages/playground/src`, and `application/playground` on PYTHONPATH so
+#     that `import harbor...`, `import matraix...`, `import playground...`, and
+#     `import backend...` resolve in-process.
+#   - Runs a SINGLE uvicorn worker. `--reload` is opt-in via RELOAD=1 because a
+#     reload spawns a child process and breaks in-memory job state.
 #
 # Usage:
 #   bash application/playground/backend/run_dev.sh
@@ -24,10 +21,8 @@
 #
 # Requirements: deps from requirements.txt installed in the canonical project
 # .venv (the uv-managed Python 3.9 env — see ../README.md). This script
-# execs uvicorn from that interpreter so the lazy `run_turn` import resolves.
-# For REAL recommendations you also need OPENAI_API_KEY and the catalog — see
-# README.md. The server boots and serves /api/health, /api/preflight and the
-# catalog even without those, surfacing what is missing via /api/preflight.
+# execs uvicorn from that interpreter. The server boots and serves /api/health
+# and /api/preflight, surfacing missing optional credentials via /api/preflight.
 
 set -euo pipefail
 
@@ -38,11 +33,9 @@ REPO_ROOT="$(cd "${EVAL_DIR}/../.." && pwd)"
 PLAYGROUND_CORE_DIR="${REPO_ROOT}/packages/playground/src"
 MATRAIX_SRC_DIR="${REPO_ROOT}/src"
 MATRIX_AGENTS_DIR="${REPO_ROOT}/environment/agents"
-CHATBOT_API_DIR="${REPO_ROOT}/environment/task-environments/application/chatbot-api-sidecar_recai/recommender-api"
 
 # --- interpreter: $VENV/bin/python if VENV is set, else `python` on PATH -------
-# (Python 3.9 + RecAI native — see ../README.md. Activate your venv, or
-# pass VENV=/path/to/venv.)
+# (Activate your venv, or pass VENV=/path/to/venv.)
 VENV_PY="${VENV:+${VENV}/bin/}python"
 if ! command -v "${VENV_PY}" >/dev/null 2>&1; then
   echo "[run_dev] ERROR: python interpreter '${VENV_PY}' not found." >&2
@@ -51,7 +44,7 @@ if ! command -v "${VENV_PY}" >/dev/null 2>&1; then
 fi
 
 # --- load local secrets/env (gitignored) -------------------------------------
-# Put OPENAI_API_KEY (and, to stay in the scripted demo, RECBOT_STUDIO_DEMO=1)
+# Put OPENAI_API_KEY and sidecar-specific settings
 # in .env.local next to run_demo.sh (copy it from .env.local.example). It is
 # gitignored and auto-loaded here so secrets never live on the command line.
 ENV_LOCAL="${EVAL_DIR}/.env.local"
@@ -65,24 +58,20 @@ PORT="${PORT:-8765}"
 HOST="${HOST:-127.0.0.1}"
 APP="backend.api.app:app"
 
-# Make `backend`, `playground`, and task-owned `recbot` importable.
-export PYTHONPATH="${REPO_ROOT}:${MATRAIX_SRC_DIR}:${REPO_ROOT}/environment/runtime:${MATRIX_AGENTS_DIR}:${PLAYGROUND_CORE_DIR}:${EVAL_DIR}:${CHATBOT_API_DIR}${PYTHONPATH:+:${PYTHONPATH}}"
+# Make `backend`, `playground`, `harbor`, and `matraix` importable.
+export PYTHONPATH="${REPO_ROOT}:${MATRAIX_SRC_DIR}:${REPO_ROOT}/environment/runtime:${MATRIX_AGENTS_DIR}:${PLAYGROUND_CORE_DIR}:${EVAL_DIR}${PYTHONPATH:+:${PYTHONPATH}}"
 export MATRIX_HARBOR_COMMAND="${MATRIX_HARBOR_COMMAND:-uv run python -m harbor.cli.main run}"
-
-# The catalog is served from the real per-domain bundle under
-# recai/InteRecAgent/resources/<domain>/ (see backend.service.bundle_catalog).
-# Set INTERECAGENT_CATALOG_PATH only to pin a specific JSONL catalog instead.
 
 RELOAD_FLAG=""
 if [[ "${RELOAD:-0}" == "1" ]]; then
   RELOAD_FLAG="--reload"
   echo "[run_dev] WARNING: --reload uses a worker subprocess; the in-process" >&2
-  echo "[run_dev]          RecAI agent cache will cold-start on every change." >&2
+  echo "[run_dev]          in-memory job state will reset on every change." >&2
 fi
 
 echo "[run_dev] python      : ${VENV_PY}"
 echo "[run_dev] backend dir : ${BACKEND_DIR}"
-echo "[run_dev] PYTHONPATH  : ${REPO_ROOT}:${MATRAIX_SRC_DIR}:${REPO_ROOT}/environment/runtime:${MATRIX_AGENTS_DIR}:${PLAYGROUND_CORE_DIR}:${EVAL_DIR}:${CHATBOT_API_DIR}"
+echo "[run_dev] PYTHONPATH  : ${REPO_ROOT}:${MATRAIX_SRC_DIR}:${REPO_ROOT}/environment/runtime:${MATRIX_AGENTS_DIR}:${PLAYGROUND_CORE_DIR}:${EVAL_DIR}"
 echo "[run_dev] catalog     : ${INTERECAGENT_CATALOG_PATH:-(bundle default)}"
 echo "[run_dev] serving     : http://${HOST}:${PORT}  (app ${APP})"
 echo "[run_dev] harbor cmd  : ${MATRIX_HARBOR_COMMAND}"

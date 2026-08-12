@@ -14,11 +14,17 @@ def test_domain_allows_all_three(config_manager):
 
 def test_application_id_allows_generic_chatbot_applications(config_manager):
     assert config_manager.ALLOWED["applicationId"] == [
-        "recai",
+        "meal_planning_nutrition",
         "finance_openbb",
-        "medical_assistant",
+        "acme_support_api",
+        "acme_support_mcp",
     ]
-    for application_id in ("recai", "finance_openbb", "medical_assistant"):
+    for application_id in (
+        "meal_planning_nutrition",
+        "finance_openbb",
+        "acme_support_api",
+        "acme_support_mcp",
+    ):
         config_manager.validate({"applicationId": application_id})
 
 
@@ -100,7 +106,7 @@ def test_options_defaults_are_full_config(config_manager):
         "domain",
         "botType",
     }
-    assert defaults["applicationId"] == "recai"
+    assert defaults["applicationId"] == "meal_planning_nutrition"
     assert defaults["engine"] == "gpt-4o-mini"
     assert defaults["domain"] == "movie"
 

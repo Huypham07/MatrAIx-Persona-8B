@@ -10,7 +10,7 @@ from playground.harbor.chat_eval import (
 
 
 def test_load_chatbot_task_config_from_input_dir(tmp_path, monkeypatch) -> None:
-    task_dir = tmp_path / "application" / "tasks" / "chat_openbb" / "input"
+    task_dir = tmp_path / "application" / "tasks" / "chat_openbb-corporate-action-honesty" / "input"
     task_dir.mkdir(parents=True)
     (task_dir / "chatbot.yaml").write_text(
         "\n".join(
@@ -46,7 +46,7 @@ def test_load_chatbot_task_config_from_input_dir(tmp_path, monkeypatch) -> None:
         encoding="utf-8",
     )
     config = load_chatbot_task_config_for_task_path(
-        "application/tasks/chat_openbb",
+        "application/tasks/chat_openbb-corporate-action-honesty",
         repo_root=tmp_path,
     )
     assert config is not None
@@ -62,35 +62,35 @@ def test_load_chatbot_task_config_from_input_dir(tmp_path, monkeypatch) -> None:
 
 
 def test_harbor_chat_task_config_from_env_uses_task_path(tmp_path, monkeypatch) -> None:
-    task_dir = tmp_path / "application" / "tasks" / "chat_multi-agent-medical-assistant" / "input"
+    task_dir = tmp_path / "application" / "tasks" / "example-chat-api_support_chatbot" / "input"
     task_dir.mkdir(parents=True)
     (task_dir / "chatbot.yaml").write_text(
         "\n".join(
             [
                 "transport: external_http",
                 "runtimeDefaults:",
-                "  applicationId: medical_assistant",
-                "  applicationContext: medical_consultation",
-                "  domain: medical_consultation",
+                "  applicationId: acme_support_api",
+                "  applicationContext: customer_support",
+                "  domain: customer_support",
                 "connection:",
-                "  baseUrlEnv: CHATBOT_UPSTREAM_MEDICAL",
-                "  baseUrl: http://multi-agent-medical-assistant-api:8000",
+                "  baseUrlEnv: CHATBOT_API_URL",
+                "  baseUrl: http://support-api:8000",
                 "protocol:",
                 "  sendMessage:",
                 "    path: /v1/messages",
                 "    staticBody:",
-                "      applicationId: medical_assistant",
-                "      applicationContext: medical_consultation",
+                "      applicationId: acme_support_api",
+                "      applicationContext: customer_support",
             ]
         ),
         encoding="utf-8",
     )
     monkeypatch.setenv(
         "MATRIX_CHATBOT_TASK_PATH",
-        "application/tasks/chat_multi-agent-medical-assistant",
+        "application/tasks/example-chat-api_support_chatbot",
     )
     config = harbor_chat_task_config_from_env(repo_root=tmp_path)
     assert config is not None
-    assert config.connection.base_url == "http://multi-agent-medical-assistant-api:8000"
-    assert config.runtime_defaults.application_id == "medical_assistant"
-    assert config.protocol.static_body["applicationContext"] == "medical_consultation"
+    assert config.connection.base_url == "http://support-api:8000"
+    assert config.runtime_defaults.application_id == "acme_support_api"
+    assert config.protocol.static_body["applicationContext"] == "customer_support"

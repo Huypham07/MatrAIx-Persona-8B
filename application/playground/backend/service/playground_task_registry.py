@@ -155,21 +155,13 @@ PLAYGROUND_TASK_INDEX: Dict[str, PlaygroundTaskEntry] = {
         submission_profile="book_choice",
     ),
     # Chatbot
-    "chat_recai": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_deeptutor-learning-goal": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_openbb": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_multi-agent-medical-assistant": PlaygroundTaskEntry(application_type="chatbot"),
     "chat_meal-planning-nutrition": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_prescreening-01-diabetes": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_prescreening-02-hypertension": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_prescreening-03-migraine": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_prescreening-04-sleep-apnea": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_prescreening-05-knee-oa": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_prescreening-06-smoking": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_prescreening-07-insomnia": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_prescreening-08-cardiac-rehab": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_prescreening-09-afib": PlaygroundTaskEntry(application_type="chatbot"),
-    "chat_prescreening-10-asthma": PlaygroundTaskEntry(application_type="chatbot"),
+    "chat_openbb-corporate-action-honesty": PlaygroundTaskEntry(
+        application_type="chatbot"
+    ),
+    "example-chat-api_support_chatbot": PlaygroundTaskEntry(
+        application_type="chatbot"
+    ),
     "example-chat-mcp_support_chatbot": PlaygroundTaskEntry(
         application_type="chatbot"
     ),

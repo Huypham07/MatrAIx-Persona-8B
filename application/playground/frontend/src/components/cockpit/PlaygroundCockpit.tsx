@@ -75,13 +75,21 @@ import { mergeChatbotTaskAvailability } from "@/lib/chatbotTaskAvailability";
 
 /** Per-app display name + icon (presentational; the data layer is app-agnostic). */
 const APP_NAME: Record<string, string> = {
-  recai: "RecAI",
+  meal_planning_nutrition: "Meal Planning",
   finance_openbb: "OpenBB",
-  medical_assistant: "Medical Assistant",
+  acme_support_api: "ACME Support API",
+  acme_support_mcp: "ACME Support MCP",
 };
 
-function isKnownChatApplicationId(value: string): value is "recai" | "finance_openbb" | "medical_assistant" {
-  return value === "recai" || value === "finance_openbb" || value === "medical_assistant";
+function isKnownChatApplicationId(
+  value: string,
+): value is "meal_planning_nutrition" | "finance_openbb" | "acme_support_api" | "acme_support_mcp" {
+  return (
+    value === "meal_planning_nutrition"
+    || value === "finance_openbb"
+    || value === "acme_support_api"
+    || value === "acme_support_mcp"
+  );
 }
 
 function transportForChatTask(
@@ -108,7 +116,7 @@ function liveStatusLine(
   const raw = (harborPhase ?? job?.phase ?? "").toLowerCase();
   if (raw.includes("harbor") || raw.includes("trial")) return "Running trial…";
   if (raw.includes("persona") || raw.includes("user") || raw.includes("simulat")) return "The simulated user is typing…";
-  if (raw.includes("chatbot") || raw.includes("application") || raw.includes("agent") || raw.includes("recai") || raw.includes("turn"))
+  if (raw.includes("chatbot") || raw.includes("application") || raw.includes("agent") || raw.includes("turn"))
     return "The app is thinking…";
   if (raw.includes("eval")) return "Scoring how it went…";
   if (job?.phase) return `${job.phase.replace(/^harbor_/, "").replace(/_/g, " ")}…`;
@@ -1007,7 +1015,8 @@ function ChatbotEvalCockpit({
 }
 function contextForApplication(applicationId: ApplicationId, domain: Domain): string {
   if (applicationId === "finance_openbb") return "financial_research";
-  if (applicationId === "medical_assistant") return "medical_consultation";
+  if (applicationId === "meal_planning_nutrition") return "meal_planning";
+  if (applicationId === "acme_support_api" || applicationId === "acme_support_mcp") return "customer_support";
   return domain;
 }
 

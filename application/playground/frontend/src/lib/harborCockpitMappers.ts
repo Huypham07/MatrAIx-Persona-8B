@@ -389,7 +389,7 @@ export function mapChatbotLiveToJobView(
   return {
     jobId: `${ctx.jobName}/${ctx.trialName}`,
     domain: fallback.domain ?? "movie",
-    applicationId: fallback.applicationId ?? "recai",
+    applicationId: fallback.applicationId ?? "meal_planning_nutrition",
     applicationContext: fallback.domain ?? null,
     personaId: fallback.personaId,
     personaName: fallback.personaName,
@@ -449,7 +449,7 @@ export function mapChatbotDebriefToJobView(
   return {
     jobId: `${ctx.jobName}/${ctx.trialName}`,
     domain: String(config.domain ?? fallback.domain ?? "movie"),
-    applicationId: (config.applicationId as string | undefined) ?? fallback.applicationId ?? "recai",
+    applicationId: (config.applicationId as string | undefined) ?? fallback.applicationId ?? "meal_planning_nutrition",
     applicationContext: (config.applicationContext as string | undefined) ?? null,
     personaId: String(persona.id ?? fallback.personaId),
     personaName: String(persona.name ?? fallback.personaName),

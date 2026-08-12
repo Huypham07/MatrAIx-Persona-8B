@@ -36,7 +36,12 @@ def test_harbor_output_artifacts_from_result_maps_chat_contract(monkeypatch):
 
     persona = Persona(id="0042", name="Test", context="A movie fan.")
     result = PlaygroundResult(
-        config=PlaygroundConfig(domain="movie", max_turns=5),
+        config=PlaygroundConfig(
+            domain="meal_planning",
+            application_id="meal_planning_nutrition",
+            application_context="meal_planning",
+            max_turns=5,
+        ),
         persona=persona,
         sut_description="Movie recommender.",
         transcript=[
@@ -80,8 +85,8 @@ def test_harbor_output_artifacts_from_result_maps_chat_contract(monkeypatch):
         session_id="sess-1",
         transcript_payload={
             "sessionId": "sess-1",
-            "applicationId": "recai",
-            "applicationContext": "movie",
+            "applicationId": "meal_planning_nutrition",
+            "applicationContext": "meal_planning",
             "domain": "movie",
             "messages": [
                 {"role": "user", "content": "Hi"},
@@ -120,8 +125,8 @@ def test_harbor_output_artifacts_from_result_maps_chat_contract(monkeypatch):
     application_result = artifacts["application_result.json"]
     assert application_result == {
         "sessionId": "sess-1",
-        "applicationId": "recai",
-        "applicationContext": "movie",
+        "applicationId": "meal_planning_nutrition",
+        "applicationContext": "meal_planning",
         "turnCount": 2,
     }
     feedback = artifacts["user_feedback.json"]
@@ -144,7 +149,7 @@ def test_harbor_chat_config_from_env_defaults_to_unlimited_turns(tmp_path, monke
         tmp_path
         / "application"
         / "tasks"
-        / "chat_multi-agent-medical-assistant"
+        / "chat_meal-planning-nutrition"
         / "input"
     )
     input_dir.mkdir(parents=True)
@@ -153,18 +158,18 @@ def test_harbor_chat_config_from_env_defaults_to_unlimited_turns(tmp_path, monke
             [
                 "transport: external_http",
                 "runtimeDefaults:",
-                "  applicationId: medical_assistant",
-                "  applicationContext: medical_consultation",
+                "  applicationId: meal_planning_nutrition",
+                "  applicationContext: meal_planning",
                 "  maxTurns: 11",
                 "connection:",
-                "  baseUrl: http://multi-agent-medical-assistant-api:8000",
+                "  baseUrl: http://meal-plan-api:8000",
             ]
         ),
         encoding="utf-8",
     )
     monkeypatch.setenv(
         "MATRIX_CHATBOT_TASK_PATH",
-        "application/tasks/chat_multi-agent-medical-assistant",
+        "application/tasks/chat_meal-planning-nutrition",
     )
     monkeypatch.delenv("MATRIX_CHATBOT_APPLICATION_ID", raising=False)
     monkeypatch.delenv("MATRIX_CHATBOT_APPLICATION_CONTEXT", raising=False)
@@ -172,8 +177,8 @@ def test_harbor_chat_config_from_env_defaults_to_unlimited_turns(tmp_path, monke
     monkeypatch.delenv("MATRIX_CHATBOT_MAX_TURNS", raising=False)
 
     config = harbor_chat_config_from_env(repo_root=tmp_path)
-    assert config.application_id == "medical_assistant"
-    assert config.application_context == "medical_consultation"
+    assert config.application_id == "meal_planning_nutrition"
+    assert config.application_context == "meal_planning"
     assert config.domain == ""
     assert config.max_turns is None
 
@@ -306,8 +311,8 @@ async def test_run_harbor_chat_eval_for_persona_writes_output_artifacts(
         "harbor_chat_config_from_env",
         lambda **_kwargs: PlaygroundConfig(
             domain="movie",
-            application_id="recai",
-            application_context="movie",
+            application_id="meal_planning_nutrition",
+            application_context="meal_planning",
             engine="gpt-4o-mini",
         ),
     )

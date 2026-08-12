@@ -78,7 +78,7 @@ class _FakePlaygroundService:
         now,
         engine: Optional[str] = None,
         persona_model: Optional[str] = None,
-        application_id: str = "recai",
+        application_id: str = "meal_planning_nutrition",
         application_context: Optional[str] = None,
     ) -> str:
         self.started.append((domain, persona_id, max_turns, goal_context_id))
@@ -303,7 +303,7 @@ def test_start_playground_forwards_application_selection(client, fake_playground
     }
 
 
-def test_start_finance_playground_does_not_require_recai_domain(client, fake_playground):
+def test_start_finance_playground_does_not_require_domain(client, fake_playground):
     resp = client.post(
         "/api/playground",
         json={
@@ -323,22 +323,22 @@ def test_start_finance_playground_does_not_require_recai_domain(client, fake_pla
     }
 
 
-def test_start_medical_playground_does_not_require_recai_domain(client, fake_playground):
+def test_start_support_playground_does_not_require_domain(client, fake_playground):
     resp = client.post(
         "/api/playground",
         json={
-            "applicationId": "medical_assistant",
+            "applicationId": "acme_support_api",
             "personaId": "game-lapsed-coop",
         },
     )
 
     assert resp.status_code == 200, resp.text
     assert fake_playground.started == [
-        ("medical_consultation", "game-lapsed-coop", 8, "scenario_default")
+        ("customer_support", "game-lapsed-coop", 8, "scenario_default")
     ]
     assert fake_playground.started_application == {
-        "applicationId": "medical_assistant",
-        "applicationContext": "medical_consultation",
+        "applicationId": "acme_support_api",
+        "applicationContext": "customer_support",
     }
 
 

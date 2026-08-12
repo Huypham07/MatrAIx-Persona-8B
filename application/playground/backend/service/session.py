@@ -40,12 +40,17 @@ __all__ = ["ChatTurn", "RecBotSession", "SessionManager"]
 
 _AGENT_ERROR_PREFIX = "Something went wrong, please retry."
 _TURN_ATTEMPTS = 2
-# Chat applications that route to an HTTP sidecar (the same finance/medical
-# adapters the Playground uses) instead of the in-process RecAI engine.
-_SIDECAR_APPLICATION_IDS = ("finance_openbb", "medical_assistant")
+# Chat applications that route to HTTP sidecars instead of the removed
+# in-process RecAI engine.
+_SIDECAR_APPLICATION_IDS = (
+    "finance_openbb",
+    "meal_planning_nutrition",
+    "acme_support_api",
+)
 _SIDECAR_APPLICATION_CONTEXT = {
     "finance_openbb": "financial_research",
-    "medical_assistant": "medical_consultation",
+    "meal_planning_nutrition": "meal_planning",
+    "acme_support_api": "customer_support",
 }
 _TRUNCATION_TAIL_WORDS = {
     "a",
@@ -315,9 +320,10 @@ class RecBotSession:
         start). The caller is responsible for running it off the event loop and
         for serializing turns per session.
         """
-        # 0) Route finance/medical chats to their HTTP sidecar. Only RecAI runs
-        #    the in-process engine; other applications never reach the bridge.
-        application_id = str(self.config.get("applicationId") or "recai")
+        # 0) Route kept chat applications to their HTTP sidecar.
+        application_id = str(
+            self.config.get("applicationId") or "meal_planning_nutrition"
+        )
         if application_id in _SIDECAR_APPLICATION_IDS:
             return self._run_sidecar_turn(application_id, user_message)
 

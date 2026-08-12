@@ -55,7 +55,7 @@ class PlaygroundProgress:
     persona_id: str
     persona_name: str
     sut_description: str
-    application_id: str = "recai"
+    application_id: str = "meal_planning_nutrition"
     application_context: Optional[str] = None
     goal_context_id: str = "scenario_default"
     status: str = "building"  # building | running | done | error
@@ -118,7 +118,7 @@ class PlaygroundService:
         now: Callable[[], str],
         engine: Optional[str] = None,
         persona_model: Optional[str] = None,
-        application_id: str = "recai",
+        application_id: str = "meal_planning_nutrition",
         application_context: Optional[str] = None,
     ) -> str:
         # Persona is domain-free: any persona may run against any domain.
@@ -129,7 +129,7 @@ class PlaygroundService:
         run_engine = engine or self._engine
         run_persona_model = persona_model or DEFAULT_PERSONA_MODEL
         resolved_application_context = application_context or domain
-        sut_key = domain if application_id == "recai" else resolved_application_context
+        sut_key = resolved_application_context or domain
         job_id = _new_playground_id()
         progress = PlaygroundProgress(
             job_id=job_id,

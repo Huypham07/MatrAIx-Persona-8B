@@ -205,7 +205,12 @@ class ConfigManager:
     #: Allowed values for each config key. Order is meaningful: the first entry
     #: of each list is the canonical default surfaced in :attr:`DEFAULTS`.
     ALLOWED: Dict[str, List[str]] = {
-        "applicationId": ["recai", "finance_openbb", "medical_assistant"],
+        "applicationId": [
+            "meal_planning_nutrition",
+            "finance_openbb",
+            "acme_support_api",
+            "acme_support_mcp",
+        ],
         "engine": ["gpt-4o-mini", "gpt-4o"],
         "rankerMode": ["native"],
         "resourceMode": ["recai_resources"],
@@ -215,7 +220,7 @@ class ConfigManager:
 
     #: Default config used for brand-new sessions.
     DEFAULTS: Dict[str, str] = {
-        "applicationId": "recai",
+        "applicationId": "meal_planning_nutrition",
         "engine": "gpt-4o-mini",
         "rankerMode": "native",
         "resourceMode": "recai_resources",
@@ -256,17 +261,21 @@ class ConfigManager:
             "label": "Chatbot application",
             "description": "The application-under-test adapter used by the local runner.",
             "values": {
-                "recai": {
-                    "label": "RecAI / InteRecAgent",
-                    "description": "Conversational product recommendation adapter.",
+                "meal_planning_nutrition": {
+                    "label": "Meal Planning Nutrition",
+                    "description": "Nutrition and meal-planning chatbot adapter.",
                 },
                 "finance_openbb": {
                     "label": "FinAI / OpenBB",
                     "description": "Financial research chatbot adapter backed by OpenBB MCP.",
                 },
-                "medical_assistant": {
-                    "label": "Medical Assistant",
-                    "description": "Medical-information chatbot adapter backed by the health assistant service.",
+                "acme_support_api": {
+                    "label": "ACME Support API",
+                    "description": "HTTP support chatbot adapter for the ACME support task.",
+                },
+                "acme_support_mcp": {
+                    "label": "ACME Support MCP",
+                    "description": "MCP support chatbot adapter for the ACME support task.",
                 },
             },
         },
@@ -292,8 +301,8 @@ class ConfigManager:
         },
         "domain": {
             "label": "Domain",
-            "description": "Application-specific context. For RecAI, this selects "
-            "the catalog. Changing it rebuilds the application adapter.",
+            "description": "Application-specific context. Changing it rebuilds "
+            "the application adapter.",
             "values": {
                 "movie": {
                     "label": "Movies",

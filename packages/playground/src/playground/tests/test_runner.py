@@ -44,7 +44,7 @@ def test_runner_delegates_to_canonical_user_sim(monkeypatch):
         config,
         created_at="t",
         on_event=None,
-        task_path="application/tasks/chat_recai",
+        task_path="application/tasks/chat_meal-planning-nutrition",
         persona_yaml_path="persona.yaml",
         repo_root=Path("/tmp/demo-repo"),
     )
@@ -56,7 +56,7 @@ def test_runner_delegates_to_canonical_user_sim(monkeypatch):
         "sut_description": "desc",
         "config": config,
         "created_at": "t",
-        "task_path": "application/tasks/chat_recai",
+        "task_path": "application/tasks/chat_meal-planning-nutrition",
         "persona_yaml_path": "persona.yaml",
         "repo_root": Path("/tmp/demo-repo"),
     }
