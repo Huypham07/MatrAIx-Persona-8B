@@ -3,32 +3,26 @@
 MatrAIx **survey** reference task: read product context and a structured
 questionnaire, then submit persona-aligned answers as JSON.
 
-Canonical task package:
+Task contents:
 
-- `instruction.md` — scenario for the agent
-- `input/context.md`, `input/questionnaire.yaml` — agent-facing materials
-- `persona_strategy.json` — Playground cohort / sampling defaults (task root)
-- `reporting.json` — batch reporting policy (task root)
-- `task.toml`, `tests/` — runtime + verifier
+- `instruction.md`, `task.toml`, `tests/`
+- `input/context.md`, `input/questionnaire.yaml`
+- `persona_strategy.json`, `reporting.json` (task root; part of the task)
 
-This task reuses the shared `application/shared-survey-form` runtime. The
-platform mounts `input/` into the trial; `persona_strategy.json` /
-`reporting.json` stay at the task root for Playground / job aggregation.
+This task reuses `application/shared-survey-form`. Playground mounts `input/` into
+the trial; sampling and reporting stay at the task root.
 
 See [Application Tasks](../README.md).
 
 ## Smoke run
 
-**Oracle (no API key)** — harness smoke for the survey artifact contract:
+Oracle (no persona model):
 
 ```bash
 uv run harbor run -p application/tasks/example-survey_product-feedback -a oracle
 ```
 
-Writes `/app/output/survey_result.json` (platform schema) so the verifier can
-score `reward=1`. Does **not** exercise the LLM persona path.
-
-**One-persona** — smoke the full survey harness + persona agent:
+Persona agent:
 
 ```bash
 uv run python application/scripts/generate_application_job.py \

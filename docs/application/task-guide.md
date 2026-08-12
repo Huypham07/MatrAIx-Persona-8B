@@ -20,7 +20,7 @@ application/tasks/example-survey_product-feedback/
 │   └── test_*.py       # optional helpers
 ├── reporting.json      # Batch reporting policy (contextRules, judge directives)
 ├── persona_strategy.json  # target cohort + Playground sampling defaults
-├── solution/           # optional — oracle harness smoke (`harbor run -a oracle`)
+├── solution/           # optional — `harbor run -a oracle`
 └── README.md           # optional notes (smoke commands, suggested agent)
 ```
 
@@ -40,23 +40,19 @@ Do **not** create `application/tasks/<your-task>/environment/` for surveys.
 Matraix Playground treats a task-local `environment/` as the full runtime, which shadows the
 shared survey runtime instead of extending it.
 
-## Oracle vs persona smoke
+`reporting.json` and `persona_strategy.json` are required parts of the task
+(alongside `task.toml`, `instruction.md`, and `tests/`). They sit at the task
+root; `input/` holds materials mounted into the trial for the agent.
 
-`solution/solve.sh` is the **oracle** agent target (`harbor run -a oracle`).
-It is **harness smoke**, not a quality baseline for the product under test:
+## Oracle
 
-| Smoke | What it proves | Needs |
-|-------|----------------|-------|
-| **Oracle** | Environment/mounts, sidecar or browser when the script calls them, artifact path + verifier → `reward.txt` | Usually no LLM key |
-| **One-persona** | Everything above **plus** the persona agent / tool loop | Model API key (and often Docker / use.computer) |
+`solution/solve.sh` is the optional oracle for `harbor run -a oracle`. It checks
+that the task harness can produce a scorable result without a persona model.
+Use a normal persona agent run to exercise the full evaluation path.
 
-Prefer a strong oracle for `example-*` chat and real-browser web tasks (call the
-real sidecar/browser). For iOS/macOS os-app tasks, oracle is often
-**artifact-contract only** (write a valid JSON); use a one-persona run to smoke
-the simulator UI. Survey oracle must write platform `survey_result.json`
-(`answers` + `trajectory`), not a private filename.
-
-Recommended order before a large cohort: oracle (if present) → one persona → batch.
+Survey oracles must write `/app/output/survey_result.json` (`answers` +
+`trajectory`). iOS/macOS oracles may write valid artifacts only; use
+`persona-computer-1` when you need the simulator UI path.
 
 ## The files
 

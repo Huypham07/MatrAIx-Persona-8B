@@ -1,12 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Oracle = harness smoke (no LLM / no GUI).
-# Minimal path for this Linux task: read the mounted context note, transform it
-# into the CSV + submission.json contract the verifier checks. This proves
-# input→output mounts and scoring; it does not exercise the desktop UI agent.
-# For UI harness smoke, run one persona with persona-computer-1.
-
 OUTPUT_DIR="${PLAYGROUND_OUTPUT_DIR:-${MATRIX_OUTPUT_DIR:-/app/output}}"
 mkdir -p "$OUTPUT_DIR"
 
@@ -27,7 +21,6 @@ CONTEXT_CANDIDATES = (
     Path("/app/input/input/context.md"),
 )
 
-# Fallback matches the checked-in context.md note.
 DEFAULT_ROWS = [
     ("oat milk", "2", "urgent"),
     ("batteries", "4", "normal"),

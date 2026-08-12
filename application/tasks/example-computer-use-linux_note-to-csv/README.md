@@ -17,14 +17,13 @@ uv run harbor run \
 
 ## Smoke
 
-**Oracle (no API key)** — minimal harness smoke: read mounted `input/context.md`,
-write the CSV + `submission.json` contract (no desktop UI):
+Oracle:
 
 ```bash
 uv run harbor run -p application/tasks/example-computer-use-linux_note-to-csv -a oracle
 ```
 
-**One-persona** — smoke the Linux desktop agent path (`persona-computer-1`).
+Persona agent (`persona-computer-1`): see command above.
 
 ## Output
 

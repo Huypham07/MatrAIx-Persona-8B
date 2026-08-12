@@ -1,10 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# Oracle = harness smoke for this survey task (no LLM).
-# Reads the mounted questionnaire and writes the platform survey_result.json
-# contract that the verifier expects.
-
 mkdir -p /app/output
 
 python3 <<'PY'
@@ -26,7 +22,6 @@ QUESTIONNAIRE_CANDIDATES = (
     Path("/app/input/input/questionnaire.yaml"),
 )
 
-# Persona-aligned choice maps (same intent as the previous oracle).
 PATHS: dict[str, dict[str, object]] = {
     "Cost-sensitive": {
         "q0": "q0_use_free_wont_pay",
@@ -91,7 +86,7 @@ def _load_instrument() -> dict:
             data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
             if isinstance(data, dict) and data.get("questions"):
                 return data
-    # Fallback if YAML is unavailable in the oracle container.
+    #if PyYAML missing
     return {
         "id": "product_feedback_v1",
         "title": "Survey Product Feedback",

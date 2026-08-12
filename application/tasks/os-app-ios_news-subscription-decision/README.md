@@ -49,7 +49,7 @@ uv run harbor run \
 
 ## Smoke
 
-**Oracle** — artifact-contract smoke only (valid `decision.json`; no News UI):
+Oracle (writes a valid `decision.json`):
 
 ```bash
 uv run harbor run \
@@ -59,7 +59,7 @@ uv run harbor run \
   --ek platform=ios
 ```
 
-**One-persona** — required for iOS UI / use.computer harness smoke (Suggested setup above).
+Persona agent (News UI): use the Suggested setup command above.
 
 ## Output path
 

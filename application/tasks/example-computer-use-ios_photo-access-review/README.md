@@ -42,8 +42,7 @@ uv run harbor run \
 
 ## Smoke
 
-**Oracle** — artifact-contract smoke only (valid `decision.json`; does **not**
-open Settings / the simulator UI):
+Oracle (writes a valid `decision.json`):
 
 ```bash
 uv run harbor run \
@@ -53,8 +52,7 @@ uv run harbor run \
   --ek platform=ios
 ```
 
-**One-persona** — required for iOS UI / use.computer harness smoke (command under
-Suggested setup above).
+Persona agent (simulator UI): use the Suggested setup command above.
 
 ## Output path
 

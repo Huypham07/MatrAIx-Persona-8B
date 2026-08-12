@@ -7,21 +7,13 @@ This import contains application task folders, tests, and reference solutions.
 Runtime build contexts live under `environment/task-environments/application/`.
 Generated job recipes land under `configs/jobs/` (see [quickstart.md](../../docs/quickstart.md)).
 
-## Oracle (harness smoke)
+## Oracle
 
-Optional `solution/solve.sh` is for **`harbor run -a oracle`**. Purpose: prove the
-task harness (runtime, mounts, optional sidecar/browser, verifier, `reward.txt`)
-without a persona LLM. It is **not** a substitute for persona evaluation.
+Optional `solution/solve.sh` runs with `harbor run -a oracle`. Use it to check
+the task harness (runtime, mounts, sidecar/browser when applicable, verifier)
+without a persona model. Persona evaluation still needs a normal agent run.
 
-- Chat / Playwright web examples: oracle should exercise the real protocol when
-  practical (HTTP/MCP/browser).
-- Survey: oracle must write `/app/output/survey_result.json` in the platform
-  schema (`answers` + `trajectory`).
-- iOS/macOS os-app: oracle may only write valid artifacts (contract smoke). Use
-  one `persona-computer-1` trial to smoke the UI / use.computer path.
-
-Before a large run: oracle (if present) → one persona → cohort. Details:
-[task-guide.md](../../docs/application/task-guide.md#oracle-vs-persona-smoke).
+Details: [task-guide.md](../../docs/application/task-guide.md#oracle).
 
 ## Naming
 
@@ -82,24 +74,23 @@ the scenario, task metadata, and verifier.
 10. Use `persona/datasets/matraix-persona-dev-sample/persona_0042.yaml` for lightweight
    smoke examples; use `matraix-persona-1m` for production-scale cohorts.
 
-For survey tasks, the **full task package** (not only `input/`) should include:
-
-**Task root (required for Playground / batch):**
+A complete task includes these at the **task root** (required):
 
 - `task.toml`
 - `instruction.md`
 - `tests/`
 - `reporting.json` — batch reporting policy
-- `persona_strategy.json` — target cohort + sampling defaults
+- `persona_strategy.json` — target cohort and sampling defaults
 
-**`input/` (agent-facing materials mounted into the trial):**
+Agent-facing materials go under **`input/`** (mounted into the trial), for
+surveys typically:
 
 - `context.md`
 - `questionnaire.yaml` (include `askRationale` / `askConfidence` as needed)
 
-`persona_strategy.json` and `reporting.json` stay at the **task root**, not under
-`input/` — they configure Playground sampling and job aggregation, and are not
-persona-readable trial inputs.
+`persona_strategy.json` and `reporting.json` are part of the task definition.
+They live at the task root (not under `input/`) because they configure Playground
+sampling and job aggregation rather than persona-readable trial inputs.
 
 Do **not** add `output_schema.md` for surveys — the platform derives the answer
 envelope from `questionnaire.yaml` and writes `survey_result.json`.

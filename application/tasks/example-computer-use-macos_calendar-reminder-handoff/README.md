@@ -36,14 +36,13 @@ The curated local job recipe is
 
 ## Smoke
 
-**Oracle** — artifact-contract smoke only (writes `handoff.txt` / `plan.json`; no
-macOS UI):
+Oracle (writes `handoff.txt` / `plan.json`):
 
 ```bash
 uv run harbor run -p application/tasks/example-computer-use-macos_calendar-reminder-handoff -a oracle -e use-computer
 ```
 
-**One-persona** — required for desktop UI / use.computer harness smoke.
+Persona agent (desktop UI): use the Suggested setup command above.
 
 ## Output path
 
