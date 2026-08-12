@@ -20,7 +20,7 @@ application/tasks/example-survey_product-feedback/
 │   └── test_*.py       # optional helpers
 ├── reporting.json      # Batch reporting policy (contextRules, judge directives)
 ├── persona_strategy.json  # target cohort + Playground sampling defaults
-├── solution/           # optional — reference solution for CI smoke
+├── solution/           # optional — oracle harness smoke (`harbor run -a oracle`)
 └── README.md           # optional notes (smoke commands, suggested agent)
 ```
 
@@ -39,6 +39,24 @@ task-specific environment only when the agent image itself is genuinely new.
 Do **not** create `application/tasks/<your-task>/environment/` for surveys.
 Matraix Playground treats a task-local `environment/` as the full runtime, which shadows the
 shared survey runtime instead of extending it.
+
+## Oracle vs persona smoke
+
+`solution/solve.sh` is the **oracle** agent target (`harbor run -a oracle`).
+It is **harness smoke**, not a quality baseline for the product under test:
+
+| Smoke | What it proves | Needs |
+|-------|----------------|-------|
+| **Oracle** | Environment/mounts, sidecar or browser when the script calls them, artifact path + verifier → `reward.txt` | Usually no LLM key |
+| **One-persona** | Everything above **plus** the persona agent / tool loop | Model API key (and often Docker / use.computer) |
+
+Prefer a strong oracle for `example-*` chat and real-browser web tasks (call the
+real sidecar/browser). For iOS/macOS os-app tasks, oracle is often
+**artifact-contract only** (write a valid JSON); use a one-persona run to smoke
+the simulator UI. Survey oracle must write platform `survey_result.json`
+(`answers` + `trajectory`), not a private filename.
+
+Recommended order before a large cohort: oracle (if present) → one persona → batch.
 
 ## The files
 

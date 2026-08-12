@@ -7,6 +7,22 @@ This import contains application task folders, tests, and reference solutions.
 Runtime build contexts live under `environment/task-environments/application/`.
 Generated job recipes land under `configs/jobs/` (see [quickstart.md](../../docs/quickstart.md)).
 
+## Oracle (harness smoke)
+
+Optional `solution/solve.sh` is for **`harbor run -a oracle`**. Purpose: prove the
+task harness (runtime, mounts, optional sidecar/browser, verifier, `reward.txt`)
+without a persona LLM. It is **not** a substitute for persona evaluation.
+
+- Chat / Playwright web examples: oracle should exercise the real protocol when
+  practical (HTTP/MCP/browser).
+- Survey: oracle must write `/app/output/survey_result.json` in the platform
+  schema (`answers` + `trajectory`).
+- iOS/macOS os-app: oracle may only write valid artifacts (contract smoke). Use
+  one `persona-computer-1` trial to smoke the UI / use.computer path.
+
+Before a large run: oracle (if present) → one persona → cohort. Details:
+[task-guide.md](../../docs/application/task-guide.md#oracle-vs-persona-smoke).
+
 ## Naming
 
 - **`example-*`** — reference tasks in the repo (copy from these). For surveys, only

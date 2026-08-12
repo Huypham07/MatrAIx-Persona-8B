@@ -17,6 +17,17 @@ See [Application Tasks](../README.md).
 
 ## Smoke run
 
+**Oracle (no API key)** — harness smoke for the survey artifact contract:
+
+```bash
+uv run harbor run -p application/tasks/example-survey_product-feedback -a oracle
+```
+
+Writes `/app/output/survey_result.json` (platform schema) so the verifier can
+score `reward=1`. Does **not** exercise the LLM persona path.
+
+**One-persona** — smoke the full survey harness + persona agent:
+
 ```bash
 uv run python application/scripts/generate_application_job.py \
   --task application/tasks/example-survey_product-feedback \
@@ -33,5 +44,5 @@ See [Application Quickstart](../../../docs/quickstart.md) for the UI path and fu
 ## What this exercises
 
 - Task-local survey docs in `input/` plus the shared `shared-survey-form` runtime
-- `/app/input` → read materials → `/app/output` submission contract
+- `/app/input` → read materials → `/app/output/survey_result.json` contract
 - Schema verifier (question coverage + interest scale)

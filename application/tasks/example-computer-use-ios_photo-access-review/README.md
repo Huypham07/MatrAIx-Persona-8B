@@ -40,7 +40,10 @@ uv run harbor run \
   --ek platform=ios
 ```
 
-Oracle check (writes the submission file directly; no LLM):
+## Smoke
+
+**Oracle** — artifact-contract smoke only (valid `decision.json`; does **not**
+open Settings / the simulator UI):
 
 ```bash
 uv run harbor run \
@@ -49,6 +52,9 @@ uv run harbor run \
   -e use-computer \
   --ek platform=ios
 ```
+
+**One-persona** — required for iOS UI / use.computer harness smoke (command under
+Suggested setup above).
 
 ## Output path
 
