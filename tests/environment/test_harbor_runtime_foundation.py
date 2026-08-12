@@ -53,9 +53,9 @@ def test_harbor_console_scripts_are_registered() -> None:
 def test_runtime_import_excludes_raw_snapshot_directories() -> None:
     """These paths must not be *tracked* as vendored snapshots.
 
-    ``jobs/`` is created by normal ``harbor run`` workflows and is gitignored
-    (with a few reserved tracked subtrees). Assert via ``git ls-files`` so a
-    developer who has run a local job is not failed by directory existence.
+    ``jobs/`` is created by normal ``harbor run`` workflows and is fully
+    gitignored. Assert via ``git ls-files`` so a developer who has run a local
+    job is not failed by directory existence.
     """
     forbidden_paths = [
         "adapters",
@@ -69,13 +69,7 @@ def test_runtime_import_excludes_raw_snapshot_directories() -> None:
         cwd=ROOT,
         text=True,
     ).splitlines()
-    # Allow only explicitly reserved tracked trees under jobs/ (see .gitignore).
-    unexpected = [
-        path
-        for path in tracked
-        if not path.startswith("jobs/gpt55/") and not path.startswith("jobs/opus/")
-    ]
-    assert unexpected == [], unexpected
+    assert tracked == [], tracked
 
     apps_dir = ROOT / "apps"
     if apps_dir.exists():
