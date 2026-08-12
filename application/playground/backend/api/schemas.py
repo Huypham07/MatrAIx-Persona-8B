@@ -88,15 +88,11 @@ SUPPORTED_APPLICATION_IDS = (
     "acme_support_api",
     "acme_support_mcp",
     "meal_planning_nutrition",
-    "deeptutor",
-    "prescreening_assistant",
 )
 DEFAULT_APPLICATION_CONTEXTS = {
     "finance_openbb": "financial_research",
     "medical_assistant": "medical_consultation",
     "meal_planning_nutrition": "meal_planning",
-    "deeptutor": "education_tutoring",
-    "prescreening_assistant": "clinical_trial_prescreening",
 }
 
 SUPPORTED_PERSONA_MODELS = tuple(PERSONA_MODEL_OPTIONS)

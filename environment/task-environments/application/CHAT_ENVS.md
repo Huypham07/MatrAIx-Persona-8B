@@ -12,10 +12,9 @@ Pick the sidecar **by the persona-facing protocol** (`input/chatbot.yaml`
 | Directory | Task | Persona-facing protocol |
 |-----------|------|-------------------------|
 | `chatbot-api-sidecar_recai/` | `chat_recai` | HTTP |
-| `chatbot-api-sidecar_openbb/` | `chat_openbb` | HTTP adapter (`finance-chatbot`) over OpenBB MCP (`openbb-mcp`) |
+| `chatbot-api-sidecar_openbb/` | `chat_openbb` / `chat_openbb-corporate-action-honesty` | HTTP adapter (`finance-chatbot`) over OpenBB MCP (`openbb-mcp`) |
 | `chatbot-api-sidecar_acme-support-api/` | `example-chat-api_support_chatbot` | HTTP |
 | `chatbot-mcp-sidecar_acme-support/` | `example-chat-mcp_support_chatbot` | MCP |
-| `chatbot-api-sidecar_prescreening/` | `chat_prescreening-01-diabetes` .. `chat_prescreening-10-asthma` (10 tasks, one trial each) | HTTP |
 | `chatbot-api-sidecar_multi-agent-medical-assistant/` | `chat_multi-agent-medical-assistant` | HTTP adapter over product upstream |
 | `chatbot-api-sidecar_meal-plan-api/` | `chat_meal-planning-nutrition` | HTTP |
 

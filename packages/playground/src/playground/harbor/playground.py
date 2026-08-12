@@ -322,8 +322,6 @@ def _chatbot_system_label(*, application_id: str, application_context: str) -> s
         return "medical assistant"
     if application_id == "meal_planning_nutrition":
         return "meal planning nutrition assistant"
-    if application_id == "prescreening_assistant":
-        return "clinical trial prescreening assistant"
     return "{} system".format(context)
 
 
@@ -440,8 +438,6 @@ class HarborPlaygroundRunner:
         elif config.application_id == "medical_assistant":
             env["COMPOSE_PROFILES"] = "medical"
         elif config.application_id == "meal_planning_nutrition":
-            env.pop("COMPOSE_PROFILES", None)
-        elif config.application_id == "prescreening_assistant":
             env.pop("COMPOSE_PROFILES", None)
         else:
             env["COMPOSE_PROFILES"] = "recai"

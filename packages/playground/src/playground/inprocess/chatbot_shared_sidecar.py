@@ -50,8 +50,6 @@ _PRIMARY_SERVICE_ORDER: tuple[str, ...] = (
     "support-api",
     "support-bot",
     "meal-plan-api",
-    "tutor-adapter",
-    "prescreening-chatbot",
 )
 
 _SHARED_BY_SERVICE: dict[str, SharedSidecarSpec] = {
@@ -100,21 +98,6 @@ _SHARED_BY_SERVICE: dict[str, SharedSidecarSpec] = {
         host_port=8905,
         primary_env="CHATBOT_API_URL",
     ),
-    "tutor-adapter": SharedSidecarSpec(
-        application_id="deeptutor",
-        service_name="tutor-adapter",
-        build_context="tutor-adapter",
-        host_port=8906,
-        primary_env="CHATBOT_UPSTREAM_DEEPTUTOR",
-    ),
-    "prescreening-chatbot": SharedSidecarSpec(
-        application_id="prescreening_assistant",
-        service_name="prescreening-chatbot",
-        build_context="prescreening-chatbot",
-        host_port=8906,
-        primary_env="CHATBOT_UPSTREAM_PRESCREENING",
-        legacy_env="PRESCREENING_CHATBOT_URL",
-    ),
 }
 
 
@@ -140,16 +123,6 @@ def shared_base_url(spec: SharedSidecarSpec) -> str:
     default = "http://127.0.0.1:{}".format(spec.host_port)
     if spec.application_id in {"recai", "acme_support_mcp", "acme_support_api"}:
         return os.environ.get(spec.primary_env, "").strip() or default
-    if spec.application_id == "prescreening_assistant":
-        # Scoped envs only, matching the backend health probe. The generic
-        # CHATBOT_API_URL belongs to recai/meal-planning, so honouring it here
-        # would send chat traffic to a different sidecar than the one the
-        # health card reports as ready.
-        return (
-            os.environ.get(spec.primary_env, "").strip()
-            or os.environ.get(spec.legacy_env or "", "").strip()
-            or default
-        )
     return _sidecar_base_url(spec.primary_env, spec.legacy_env or "", default)
 
 
@@ -251,7 +224,7 @@ def start_shared_sidecar(
             cwd=str(compose_dir),
             capture_output=True,
             text=True,
-            timeout=900 if spec.application_id in {"medical_assistant", "finance_openbb", "deeptutor"} else 300,
+            timeout=900 if spec.application_id in {"medical_assistant", "finance_openbb"} else 300,
             check=False,
         )
         if result.returncode != 0:
@@ -263,7 +236,7 @@ def start_shared_sidecar(
                 )
             )
 
-        wait_sec = 180.0 if spec.application_id in {"medical_assistant", "finance_openbb", "deeptutor"} else 60.0
+        wait_sec = 180.0 if spec.application_id in {"medical_assistant", "finance_openbb"} else 60.0
         if not _wait_until_ready(spec, timeout_sec=wait_sec):
             raise RuntimeError(
                 "shared chatbot sidecar {} started but is not ready at {}".format(

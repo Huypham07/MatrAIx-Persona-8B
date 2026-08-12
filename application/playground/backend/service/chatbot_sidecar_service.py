@@ -72,17 +72,6 @@ _SIDECAR_SPECS: dict[str, SidecarSpec] = {
         primary_env="CHATBOT_API_URL",
         legacy_env=None,
     ),
-    "prescreening_assistant": SidecarSpec(
-        application_id="prescreening_assistant",
-        compose_dir=(
-            "environment/task-environments/application/chatbot-api-sidecar_prescreening"
-        ),
-        service_name="prescreening-chatbot",
-        build_context="prescreening-chatbot",
-        host_port=8906,
-        primary_env="CHATBOT_UPSTREAM_PRESCREENING",
-        legacy_env="PRESCREENING_CHATBOT_URL",
-    ),
     "acme_support_mcp": SidecarSpec(
         application_id="acme_support_mcp",
         compose_dir=(
@@ -106,17 +95,6 @@ _SIDECAR_SPECS: dict[str, SidecarSpec] = {
         primary_env="CHATBOT_API_URL",
         legacy_env=None,
     ),
-    "deeptutor": SidecarSpec(
-        application_id="deeptutor",
-        compose_dir=(
-            "environment/task-environments/application/chatbot-api-sidecar_deeptutor"
-        ),
-        service_name="tutor-adapter",
-        build_context="tutor-adapter",
-        host_port=8906,
-        primary_env="CHATBOT_UPSTREAM_DEEPTUTOR",
-        legacy_env=None,
-    ),
 }
 
 
@@ -135,15 +113,6 @@ def resolve_health_url(application_id: str) -> str:
     if spec.application_id == "acme_support_mcp":
         return (
             os.environ.get(spec.primary_env, "").strip() or _default_health_url(spec)
-        )
-    if spec.application_id == "prescreening_assistant":
-        # Scoped envs only - never the generic CHATBOT_API_URL fallback, which
-        # belongs to recai and would silently point the probe at a different
-        # sidecar when both are configured.
-        return (
-            os.environ.get(spec.primary_env, "").strip()
-            or os.environ.get(spec.legacy_env or "", "").strip()
-            or _default_health_url(spec)
         )
     return _sidecar_base_url(
         spec.primary_env,

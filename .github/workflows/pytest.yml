@@ -74,6 +74,9 @@ jobs:
             application/playground/backend/tests/test_task_detail_service.py \
             application/playground/backend/tests/test_trial_events.py \
             packages/playground/src/playground/tests/test_chatbot_sidecar_compose.py \
+            packages/playground/src/playground/tests/test_model_client.py \
             tests/environment/test_application_task_contracts.py \
             tests/environment/test_application_tasks.py \
+            tests/environment/test_harbor_runtime_foundation.py \
+            tests/environment/test_task_catalog_alignment.py \
             tests/unit/harbor/test_compose_materialize.py
