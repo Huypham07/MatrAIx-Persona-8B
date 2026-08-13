@@ -256,8 +256,9 @@ persona/post_process/**/jobs/sbatch_logs/
 persona/curation/attribute_pool/outputs/
 persona/curation/attribute_pool/sources/acs_pums/*.csv
 persona/curation/attribute_pool/sources/raw/
-# Generated synthetic pools (bench-dev-2000, etc.). Checked-in fixture is
-# persona/datasets/matraix-persona-dev-sample/ (not matched by this pattern).
+# Local generate_dev_personas.py pools (Playground-selectable, not checked in).
+# Checked-in fixture is persona/datasets/matraix-persona-dev-sample/.
+persona/datasets/generated-persona-dev-*/
 persona/datasets/bench-dev-*/
 persona/datasets/_generated/
 # Launch caches next to a source dataset (dev sample, saved datasets, …).

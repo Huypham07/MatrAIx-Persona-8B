@@ -105,6 +105,12 @@ def test_list_datasets_includes_default_and_extras(tmp_path):
         json.dumps({"count": 1, "personas": [{"persona_id": "0001"}]}),
         encoding="utf-8",
     )
+    generated_dev = repo / "persona" / "datasets" / "generated-persona-dev-50"
+    generated_dev.mkdir(parents=True)
+    (generated_dev / "manifest.json").write_text(
+        json.dumps({"count": 50, "personas": []}),
+        encoding="utf-8",
+    )
     generated = repo / "persona" / "datasets" / "_generated" / "strategy-demo"
     generated.mkdir(parents=True)
     (generated / "manifest.json").write_text(
@@ -132,13 +138,15 @@ def test_list_datasets_includes_default_and_extras(tmp_path):
     assert listed[0]["default"] is True
     assert listed[0]["label"] == "matraix-persona-dev-sample"
     assert "persona/datasets/bench-dev-extra" in pools
-    # Legacy synthetic top-up pools are no longer listed.
+    assert "persona/datasets/generated-persona-dev-50" in pools
+    # Nested leftover `_generated/` dirs stay omitted from Dataset.
     assert "persona/datasets/_generated/strategy-demo" not in pools
     assert "persona/datasets/cohorts/ignore-me" not in pools
     # Production sample caches must not appear as Dataset sources.
     assert "persona/datasets/matraix-persona-1m/cohorts/cohort-deadbeef" not in pools
     by_pool = {item["pool"]: item for item in listed}
     assert by_pool["persona/datasets/bench-dev-extra"]["count"] == 1
+    assert by_pool["persona/datasets/generated-persona-dev-50"]["count"] == 50
     assert "persona/datasets/matraix-persona-1m" in by_pool
     assert by_pool["persona/datasets/matraix-persona-1m"]["kind"] == "production"
 

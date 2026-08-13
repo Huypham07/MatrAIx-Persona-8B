@@ -147,5 +147,7 @@ undershoot it.
 3. Use a saved cohort under `persona/datasets/cohorts/` that already has enough
    personas.
 
-Playground / job launch **does not** auto-synthesize `_generated` pools. Thin
-coverage raises an error with the same recovery hint.
+Playground / job launch **does not** auto-synthesize local generated pools.
+Write a selectable pool with `generate_dev_personas.py` (default
+`persona/datasets/generated-persona-dev-<count>/`), or recover with the
+hints above. Thin coverage raises an error with the same recovery hint.
