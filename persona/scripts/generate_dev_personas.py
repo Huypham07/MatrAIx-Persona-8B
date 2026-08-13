@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Generate a local dev persona pool from the PersonaBench dimension schema.
+"""Write a synthetic persona pool you can pick in Playground Dataset.
 
-Modes:
-  * Default — even coverage pool (``--count``, default 2000).
-  * Grounding top-up — ``--task`` + ``--stratum-min`` (persona grounding cells).
-  * Strategy top-up — ``--strategy`` pointing at a task ``persona_strategy.json``
-    (or task dir). Expands ``dimensionFilters`` into strata and tops up each
-    cell so Playground / CLI sampling does not fail on the 200-persona fixture.
+Default: sample ``--count`` rows (2000) into
+``persona/datasets/generated-persona-dev-<count>/``.
+
+``--strategy PATH`` fills the task's stratified cells (perCell / equalTotal /
+proportional) so a later Playground draw will not run short.
+``--task PATH --stratum-min N`` fills grounding probe cells.
 """
 
 from __future__ import annotations
@@ -16,14 +16,12 @@ import json
 import re
 from pathlib import Path
 
-from matraix.persona_consistency import validate_dimensions
 from matraix.persona_dimension_catalog import values_for_dimension
 from matraix.persona_generator import (
-    PERSONA_SOURCES,
-    build_filter_strata,
     build_probe_strata,
-    filter_feasible_strata,
     generate_persona_pool,
+    stratified_cell_quota,
+    strategy_pin_cells,
     write_persona_dataset,
 )
 from matraix.task_catalog import (
@@ -64,6 +62,33 @@ def _is_picker_listed(out: Path) -> bool:
 def _slug(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug or "strategy"
+
+
+def _progress(stage: str, message: str) -> None:
+    print(f"[{stage}] {message}", flush=True)
+
+
+def _wipe_stale_personas(out: Path) -> int:
+    """Remove leftover ``persona_*.yaml`` so a smaller rewrite cannot leave ghosts."""
+    if not out.is_dir():
+        return 0
+    removed = 0
+    for stale in out.glob("persona_*.yaml"):
+        stale.unlink()
+        removed += 1
+    return removed
+
+
+def _write_progress(stage: str, payload: dict) -> None:
+    label = str(payload.get("label") or stage)
+    if stage == "write":
+        done = int(payload.get("done") or 0)
+        total = int(payload.get("total") or 0)
+        if total > 0:
+            pct = round(100 * done / total)
+            _progress("write", f"{label} ({pct}%)")
+            return
+    _progress(stage, label)
 
 
 def _stratum_top_up_from_task(
@@ -155,31 +180,13 @@ def _load_strategy(path: Path) -> dict[str, object]:
 
 def _stratum_top_up_from_strategy(
     strategy_path: Path,
-) -> tuple[list[dict[str, str]], dict[str, object], tuple[str, ...], int]:
+) -> tuple[list[dict[str, str]], dict[str, object], int]:
     strategy = _load_strategy(strategy_path)
     filters = strategy.get("dimensionFilters") or {}
     if not isinstance(filters, dict) or not filters:
         raise SystemExit(
             f"{strategy_path} has no dimensionFilters; nothing to top up. "
             "Add allow-lists for the cohort this task needs."
-        )
-    try:
-        strata = build_filter_strata(
-            {str(k): list(v) for k, v in filters.items() if isinstance(v, list)},
-            max_strata=MAX_FILTER_STRATA,
-        )
-    except ValueError as exc:
-        raise SystemExit(str(exc)) from exc
-    strata, dropped = filter_feasible_strata(strata)
-    if dropped:
-        print(
-            f"WARNING: dropped {len(dropped)} inconsistent filter cells "
-            f"(constrained dimensions clash), e.g. {dropped[0]!r}"
-        )
-    if not strata:
-        raise SystemExit(
-            f"{strategy_path}: dimensionFilters produced zero feasible strata "
-            "after consistency filtering"
         )
 
     sampling = strategy.get("sampling") if isinstance(strategy.get("sampling"), dict) else {}
@@ -188,44 +195,61 @@ def _stratum_top_up_from_strategy(
         for field in (sampling.get("fields") or [])
         if str(field).strip()
     ]
-    filter_keys = set(filters)
-    uncovered = [field for field in stratify_fields if field not in filter_keys]
-    if uncovered:
-        print(
-            "WARNING: sampling.fields not listed in dimensionFilters will stay "
-            f"randomly filled: {uncovered}. Add them to dimensionFilters if "
-            "Playground stratified sampling needs guaranteed cell coverage."
+    missing_axes = [field for field in stratify_fields if field not in filters]
+    if missing_axes:
+        raise SystemExit(
+            f"{strategy_path}: every sampling.fields entry must also appear in "
+            f"dimensionFilters (missing: {', '.join(missing_axes)})"
         )
 
-    per_group = sampling.get("perCell")
-    if isinstance(per_group, int) and per_group >= 1:
-        stratum_min = per_group
-    else:
-        sample_size = sampling.get("sampleSize")
-        if isinstance(sample_size, int) and sample_size >= 1 and len(strata) > 0:
-            # Enough for at least one full stratified draw across filter cells.
-            stratum_min = max(DEFAULT_STRATEGY_STRATUM_MIN, (sample_size + len(strata) - 1) // len(strata))
-        else:
-            stratum_min = DEFAULT_STRATEGY_STRATUM_MIN
+    try:
+        strata, dropped = strategy_pin_cells(
+            dimension_filters={
+                str(k): list(v) for k, v in filters.items() if isinstance(v, list)
+            },
+            stratify_fields=stratify_fields,
+            max_strata=MAX_FILTER_STRATA,
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    if dropped:
+        print(
+            f"WARNING: dropped {len(dropped)} filter cells the DAG cannot pin "
+            f"(unknown value or hard mask), e.g. {dropped[0]!r}"
+        )
+    if not strata:
+        raise SystemExit(
+            f"{strategy_path}: dimensionFilters produced zero cells the DAG can pin"
+        )
 
-    sources_raw = strategy.get("sources") or []
-    if isinstance(sources_raw, list) and sources_raw:
-        sources = tuple(str(s).strip() for s in sources_raw if str(s).strip())
-    else:
-        sources = PERSONA_SOURCES
+    allocation = str(sampling.get("allocation") or "").strip() or None
+    per_group = sampling.get("perCell")
+    sample_size = sampling.get("sampleSize")
+    try:
+        stratum_min = stratified_cell_quota(
+            allocation=allocation,
+            per_cell=per_group if isinstance(per_group, int) else None,
+            sample_size=sample_size if isinstance(sample_size, int) else None,
+            n_cells=len(strata),
+            default=DEFAULT_STRATEGY_STRATUM_MIN,
+        )
+    except ValueError as exc:
+        raise SystemExit(f"{strategy_path}: {exc}") from exc
 
     meta = {
         "strategy_path": str(strategy_path.relative_to(REPO_ROOT)),
         "dimensionFilters": filters,
         "sampling": {
+            "mode": sampling.get("mode"),
             "fields": stratify_fields,
-            "allocation": sampling.get("allocation"),
+            "allocation": allocation,
             "perCell": per_group if isinstance(per_group, int) else None,
-            "sampleSize": sampling.get("sampleSize"),
+            "sampleSize": sample_size if isinstance(sample_size, int) else None,
         },
         "strata_count": len(strata),
+        "rows_per_cell": stratum_min,
     }
-    return strata, meta, sources, stratum_min
+    return strata, meta, stratum_min
 
 
 def main() -> None:
@@ -235,7 +259,7 @@ def main() -> None:
         type=int,
         default=None,
         help=(
-            f"Base pool size before stratum top-up (default: {DEFAULT_COUNT}; "
+            f"How many personas to sample (default: {DEFAULT_COUNT}; "
             "0 when --strategy is set)"
         ),
     )
@@ -255,8 +279,7 @@ def main() -> None:
         "--task",
         default=None,
         help=(
-            "Optional Harbor grounding task path; when set with --stratum-min, "
-            "top up personas for each catalog confounder × probe value cell"
+            "Fill grounding probe cells for this task (requires --stratum-min)"
         ),
     )
     parser.add_argument(
@@ -264,10 +287,11 @@ def main() -> None:
         default=None,
         metavar="PATH",
         help=(
-            "Task persona_strategy.json (or task directory). Expands "
-            "dimensionFilters into strata and tops up each cell under "
+            "Fill this task's stratified cells (perCell / equalTotal / "
+            "proportional) from persona_strategy.json so a later Dataset draw "
+            "will not run short. Writes "
             f"persona/datasets/{DEFAULT_POOL_PREFIX}-strategy-<task>/ "
-            "(gitignored, listed in the Playground Dataset picker)."
+            "(listed in the Playground Dataset picker)."
         ),
     )
     parser.add_argument(
@@ -275,8 +299,9 @@ def main() -> None:
         type=int,
         default=None,
         help=(
-            "Minimum personas per stratum when --task or --strategy is set "
-            f"(strategy default: {DEFAULT_STRATEGY_STRATUM_MIN} or derived from sampleSize)"
+            "Override rows per cell (--strategy quota otherwise follows "
+            "perCell / equalTotal / proportional; "
+            f"fallback {DEFAULT_STRATEGY_STRATUM_MIN})"
         ),
     )
     args = parser.parse_args()
@@ -288,12 +313,11 @@ def main() -> None:
     grounding_meta: dict[str, object] | None = None
     strategy_meta: dict[str, object] | None = None
     strategy_path: Path | None = None
-    sources: tuple[str, ...] = PERSONA_SOURCES
     stratum_min = args.stratum_min if args.stratum_min is not None else 0
 
     if args.strategy:
         strategy_path = _resolve_strategy_path(args.strategy)
-        stratum_top_up, strategy_meta, sources, derived_min = _stratum_top_up_from_strategy(
+        stratum_top_up, strategy_meta, derived_min = _stratum_top_up_from_strategy(
             strategy_path
         )
         if args.stratum_min is None:
@@ -321,30 +345,37 @@ def main() -> None:
     else:
         out = _default_out_dir(count if count > 0 else DEFAULT_COUNT)
 
+    _progress("prepare", f"Output → {out.relative_to(REPO_ROOT) if out.is_relative_to(REPO_ROOT) else out}")
+    removed = _wipe_stale_personas(out)
+    if removed:
+        _progress("prepare", f"Removed {removed} stale persona_*.yaml")
+
+    if count > 0:
+        _progress("sample", f"Sampling Full DAG ({count} personas, seed={args.seed})…")
+    elif stratum_top_up and stratum_min > 0:
+        _progress(
+            "sample",
+            f"Sampling stratified cells ({len(stratum_top_up)} × min {stratum_min})…",
+        )
+    else:
+        _progress("sample", "Sampling…")
+
     personas = generate_persona_pool(
         count=count,
         seed=args.seed,
         smoke_persona_id=args.smoke_id,
         stratum_top_up=stratum_top_up,
         min_per_stratum=stratum_min,
-        sources=sources,
         include_smoke=count > 0,
     )
-
-    violations = 0
-    for entry in personas:
-        errors = validate_dimensions(entry["dimensions"])
-        if errors:
-            violations += 1
-            print(f"VIOLATION persona_{entry['persona_id']}: {errors}")
-    if violations:
-        raise SystemExit(f"{violations} personas failed consistency checks")
+    _progress("sample", f"Sampled {len(personas)} personas")
 
     kind = (
         f"{DEFAULT_POOL_PREFIX}-strategy-{_slug(strategy_path.parent.name)}"
         if strategy_path is not None
         else f"{DEFAULT_POOL_PREFIX}-{count if count > 0 else len(personas)}"
     )
+    _progress("write", f"Writing {len(personas)} YAML files…")
     manifest = write_persona_dataset(
         out_dir=out,
         personas=personas,
@@ -352,6 +383,7 @@ def main() -> None:
         kind=kind,
         seed=args.seed,
         smoke_persona_id=args.smoke_id,
+        on_progress=_write_progress,
     )
     if stratum_top_up and stratum_min > 0:
         if grounding_meta is not None:
@@ -367,13 +399,14 @@ def main() -> None:
                 "min_per_stratum": stratum_min,
                 "strata_count": len(stratum_top_up),
             }
+        _progress("manifest", "Updating manifest with stratum metadata…")
         (out / "manifest.json").write_text(
             json.dumps(manifest, indent=2) + "\n",
             encoding="utf-8",
         )
 
     rel_out = out.relative_to(REPO_ROOT) if out.is_relative_to(REPO_ROOT) else out
-    print(f"Wrote {manifest['count']} personas to {rel_out}")
+    _progress("done", f"Wrote {manifest['count']} personas to {rel_out}")
     if count > 0:
         print(f"Smoke: persona_{manifest['smoke_persona_id']}.yaml")
     print(
@@ -388,18 +421,15 @@ def main() -> None:
         )
     if stratum_top_up and args.task:
         print(
-            f"Stratum top-up: {len(stratum_top_up)} cells × min {stratum_min} "
-            f"from grounding task {args.task}"
+            f"Filled {len(stratum_top_up)} grounding cells × min {stratum_min} "
+            f"from {args.task}"
         )
     if stratum_top_up and strategy_path is not None:
         print(
-            f"Strategy top-up: {len(stratum_top_up)} filter cells × min {stratum_min} "
+            f"Filled {len(stratum_top_up)} filter cells × min {stratum_min} "
             f"from {strategy_path.relative_to(REPO_ROOT)}"
         )
-        print("Next:")
-        print(f'  1. Point persona_strategy.json "pool" at "{rel_out}",')
-        print("  2. Or pick that pool in Playground / pass it to CLI sampling,")
-        print("  3. Then sample — do this before Playground/CLI coverage failures.")
+        print(f'Point the task "pool" at "{rel_out}", or pick it in Playground Dataset.')
 
 
 if __name__ == "__main__":
