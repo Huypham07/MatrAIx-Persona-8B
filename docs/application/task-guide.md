@@ -135,9 +135,11 @@ Target cohort and Playground sampling defaults (mode, `dimensionFilters`
 and/or `cohortId`, optional `sampleSize`). Other fields may use defaults.
 
 The checked-in `matraix-persona-dev-sample` pool is only ~200 personas — narrow
-filters often undershoot it. For real coverage, sample from
-`persona/datasets/matraix-persona-1m`, widen filters, or use a saved cohort.
-See [Ensuring pool coverage](../../application/task-spec/docs/authoring-bundle.md#ensuring-pool-coverage).
+filters often undershoot it. For real coverage: sample from
+`persona/datasets/matraix-persona-1m`, widen filters, **Save as dataset…** after
+a good pull, or synthesize a strategy fill pool. Details:
+[Ensuring pool coverage](../../application/task-spec/docs/authoring-bundle.md#ensuring-pool-coverage)
+and [Playground pools & cohorts](../persona/README.md#playground-pools--cohorts).
 
 ## Conventions
 

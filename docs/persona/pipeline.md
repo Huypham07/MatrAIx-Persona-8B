@@ -168,8 +168,20 @@ with `scripts/score_personas.py`.
 ## Synthesis
 
 Source: [`../../persona/synthesis/`](../../persona/synthesis/). A Full-DAG graph over
-the schema drives synthetic persona sampling; the sampler and renderers live in
-`../../persona/synthesis/scripts/` (`sample_personas.py`, `render_personas.py`).
+the schema drives synthetic persona sampling.
+
+For a Playground-selectable YAML pool (`source: synthetic`, **gitignored**):
+
+```bash
+uv run python persona/scripts/generate_dev_personas.py
+# → persona/datasets/generated-persona-dev-2000/
+```
+
+Large jobs use `persona/synthesis/scripts/sample_personas.py` (compact `codes.gz`)
+and `render_personas.py`. `generate_dev_personas.py` writes YAML for Dataset
+experiments: same Full-DAG sampler, **no** quality filter, dedup, or calibration.
+It is not the published 1M coreset. Operator-facing pool/cohort paths:
+[Playground pools & cohorts](README.md#playground-pools--cohorts).
 
 ### Full-DAG 10B generation
 

@@ -22,9 +22,9 @@ user in a product scenario (survey, chat, web, …), and inspecting what they
 | **Anthropic API key** | Persona agents (step 6+). [Create one](https://console.anthropic.com/) if needed |
 | **OpenAI API key** | Some chat tasks and alternate LLM backends |
 
-Persona pool for local runs: `persona/datasets/matraix-persona-dev-sample/` (200 profiles;
-smoke persona **`0042`**). For population-scale eval, import the public **Persona 1M**
-coreset — [Handbook § Persona 1M](README.md#3-persona-1m-optional) ·
+Smoke pool: `persona/datasets/matraix-persona-dev-sample/` (200 profiles;
+persona **`0042`**). **Recommended** for real cohorts: import **Persona 1M** —
+[Handbook § Persona 1M](README.md#3-persona-1m-recommended) ·
 [Persona setup](persona/README.md#setup-and-usage).
 
 ---
@@ -274,7 +274,7 @@ uv run python application/scripts/generate_application_job.py \
 ```
 
 **Persona 1M pool** (after
-[importing the public coreset](README.md#3-persona-1m-optional)):
+[importing the public coreset](README.md#3-persona-1m-recommended)):
 
 ```bash
 uv run python application/scripts/generate_application_job.py \

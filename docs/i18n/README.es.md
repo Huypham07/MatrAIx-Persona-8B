@@ -99,7 +99,9 @@ export ANTHROPIC_API_KEY="sk-ant-..."   # modelos anthropic/claude-*
 Consulta la matriz completa de claves en [agents.md](../environment/agents.md).
 Playground también puede cargar claves desde `application/playground/.env.local`.
 
-### Importar Persona 1M (opcional)
+### Importar Persona 1M (recomendado)
+
+El `matraix-persona-dev-sample` del repo (~200) es solo para smoke. Para cohorts reales y muestreo en Playground, importa el 1M público:
 
 ```bash
 huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
@@ -108,7 +110,7 @@ huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
 ```
 
 Playground: Dataset → **`matraix-persona-1m`**. CLI: `--dataset persona/datasets/matraix-persona-1m`.
-Detalles: [Handbook § Persona 1M](../README.md#3-persona-1m-optional).
+Detalles: [Handbook § Persona 1M](../README.md#3-persona-1m-recommended).
 
 ## Inicio rápido
 

@@ -94,7 +94,9 @@ export ANTHROPIC_API_KEY="sk-ant-..."   # anthropic/claude-* 모델
 전체 키 매트릭스는 [agents.md](../environment/agents.md)를 참고하세요.
 Playground는 `application/playground/.env.local`에서도 키를 로드할 수 있습니다.
 
-### Persona 1M 가져오기 (선택)
+### Persona 1M 가져오기 (권장)
+
+저장소의 `matraix-persona-dev-sample`(약 200)은 smoke 전용입니다. 실제 cohort / Playground 샘플링에는 공개 1M을 가져오세요:
 
 ```bash
 huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
@@ -103,7 +105,7 @@ huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
 ```
 
 Playground: Dataset → **`matraix-persona-1m`**. CLI: `--dataset persona/datasets/matraix-persona-1m`.
-자세한 내용: [Handbook § Persona 1M](../README.md#3-persona-1m-optional).
+자세한 내용: [Handbook § Persona 1M](../README.md#3-persona-1m-recommended).
 
 ## 빠른 시작
 

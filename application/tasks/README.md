@@ -68,9 +68,9 @@ the scenario, task metadata, and verifier.
    See
    [`authoring-bundle.md`](../../application/task-spec/docs/authoring-bundle.md#persona_strategyjson).
 9. If those filters are narrower than `matraix-persona-dev-sample` (~200 personas),
-   sample from `persona/datasets/matraix-persona-1m`, widen filters / sources, or
-   use a saved cohort. Playground does **not** synthesize coverage pools.
-   Details:
+   sample from `persona/datasets/matraix-persona-1m`, widen filters / sources,
+   **Save as dataset…** after a good pull, or synthesize a strategy fill pool.
+   Playground does **not** invent personas at Pull time. Details:
    [Ensuring pool coverage](../../application/task-spec/docs/authoring-bundle.md#ensuring-pool-coverage).
 10. Use `persona/datasets/matraix-persona-dev-sample/persona_0042.yaml` for lightweight
    smoke examples; use `matraix-persona-1m` for production-scale cohorts.
