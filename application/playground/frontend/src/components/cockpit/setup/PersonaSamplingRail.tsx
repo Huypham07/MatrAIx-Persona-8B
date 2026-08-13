@@ -1137,6 +1137,7 @@ export function PersonaSamplingRail({
               value={personaModel}
               options={personaModelOptions}
               disabled={disabled}
+              wideMenu
               onChange={onPersonaModelChange}
             />
           )}
