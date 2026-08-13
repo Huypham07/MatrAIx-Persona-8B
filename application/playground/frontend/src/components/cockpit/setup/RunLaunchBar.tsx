@@ -174,7 +174,7 @@ export function RunLaunchBar({
               className={`glow inline-flex w-full min-w-[200px] items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3.5 font-display text-[16px] font-bold text-on-primary transition hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto ${FOCUS_RING}`}
             >
               <Sym name={isBatch ? "rocket_launch" : "play_arrow"} fill={1} size={22} />
-              {isRunning ? "Launching…" : isBatch ? `Run batch (${personaCount})` : "Run simulation"}
+              {isRunning ? "Launching…" : isBatch ? `Run Batch (${personaCount})` : "Run Live"}
             </button>
             {isBatch && personaCount > 1 && (
               <CockpitInlineCount
