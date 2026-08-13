@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional
 # full 1290-dim persona profile + questionnaire.
 from matraix.persona_agent_context import SURVEY_MAX_OUTPUT_TOKENS as ANTHROPIC_JSON_MAX_TOKENS
 from playground.openai_client import (
+    DEFAULT_REQUEST_TIMEOUT_SECONDS,
     OpenAIChatClient,
     coerce_json,
     openai_model_supports_custom_temperature,
@@ -83,7 +84,7 @@ class AnthropicJSONClient:
         *,
         api_key: Optional[str] = None,
         temperature: float = 0.7,
-        timeout_seconds: float = 180.0,
+        timeout_seconds: float = DEFAULT_REQUEST_TIMEOUT_SECONDS,
         max_tokens: int = ANTHROPIC_JSON_MAX_TOKENS,
     ) -> None:
         self.model = model
@@ -174,14 +175,30 @@ def _llm_proxy_base_url() -> str:
     ).strip()
 
 
+def _llm_request_timeout_seconds() -> float:
+    """Return the configured OpenAI-compatible request timeout."""
+    value = os.environ.get("LLM_REQUEST_TIMEOUT_SECONDS")
+    if value is None:
+        return DEFAULT_REQUEST_TIMEOUT_SECONDS
+    try:
+        return float(value)
+    except ValueError:
+        return DEFAULT_REQUEST_TIMEOUT_SECONDS
+
+
 def build_json_client(model: str, *, temperature: float = 0.7) -> Any:
     """Return a JSON-mode client for a configured persona model string."""
     value = (model or "openai/gpt-4o-mini").strip()
+    timeout_seconds = _llm_request_timeout_seconds()
     if value.startswith("anthropic/"):
         if _llm_proxy_base_url():
             # Route Claude through the proxy's OpenAI-compatible endpoint; base
             # url + api key come from OPENAI_* env (proxy master key).
-            return OpenAIChatClient(model=value, temperature=temperature)
+            return OpenAIChatClient(
+                model=value,
+                temperature=temperature,
+                timeout_seconds=timeout_seconds,
+            )
         return AnthropicJSONClient(value.split("/", 1)[1], temperature=temperature)
     if value.startswith("dashscope/"):
         kwargs = dashscope_openai_client_kwargs(value)
@@ -190,6 +207,7 @@ def build_json_client(model: str, *, temperature: float = 0.7) -> Any:
             api_key=kwargs["api_key"],
             base_url=kwargs["base_url"],
             temperature=temperature,
+            timeout_seconds=timeout_seconds,
         )
     if value.startswith("openrouter/"):
         kwargs = openrouter_openai_client_kwargs(value)
@@ -198,12 +216,18 @@ def build_json_client(model: str, *, temperature: float = 0.7) -> Any:
             api_key=kwargs["api_key"],
             base_url=kwargs["base_url"],
             temperature=temperature,
+            timeout_seconds=timeout_seconds,
         )
     if value.startswith("openai/"):
         return OpenAIChatClient(
             model=value.split("/", 1)[1],
             temperature=temperature,
+            timeout_seconds=timeout_seconds,
         )
     if value.startswith("gpt-"):
-        return OpenAIChatClient(model=value, temperature=temperature)
+        return OpenAIChatClient(
+            model=value,
+            temperature=temperature,
+            timeout_seconds=timeout_seconds,
+        )
     return AnthropicJSONClient(value, temperature=temperature)

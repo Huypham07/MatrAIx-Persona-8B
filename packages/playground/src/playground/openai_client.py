@@ -5,6 +5,7 @@ import re
 from typing import Any, Dict, Optional, Protocol
 
 _FENCE = re.compile(r"```(?:json)?\s*(?P<body>\{.*\})\s*```", re.DOTALL)
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 180.0
 
 
 def coerce_json(text: str) -> Dict[str, Any]:
@@ -56,9 +57,11 @@ class OpenAIChatClient:
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         temperature: float = 0.7,
+        timeout_seconds: float = DEFAULT_REQUEST_TIMEOUT_SECONDS,
     ) -> None:
         self.model = model
         self.temperature = temperature
+        self.timeout_seconds = timeout_seconds
         if client is None:
             from openai import OpenAI  # lazy: tests inject a fake
 
@@ -78,6 +81,7 @@ class OpenAIChatClient:
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
+            "timeout": self.timeout_seconds,
         }
         if openai_model_supports_custom_temperature(self.model):
             kwargs["temperature"] = self.temperature
