@@ -76,6 +76,7 @@ jobs:
             packages/playground/src/playground/tests/test_chatbot_sidecar_compose.py \
             packages/playground/src/playground/tests/test_model_client.py \
             packages/playground/src/playground/tests/test_model_client_openrouter.py \
+            packages/playground/src/playground/tests/test_model_request_timeout.py \
             tests/environment/test_application_task_contracts.py \
             tests/environment/test_application_tasks.py \
             tests/environment/test_harbor_runtime_foundation.py \
