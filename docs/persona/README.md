@@ -189,7 +189,7 @@ Use `persona/datasets/matraix-persona-1m` for any Playground or job launch. This
 Generate lightweight offline cohorts:
 ```bash
 uv run python persona/scripts/generate_dev_personas.py
-# → persona/datasets/_generated/bench-dev-2000/
+# → persona/datasets/generated-persona-dev-2000/  (listed in Playground Dataset)
 ```
 
 Optional flags:
@@ -245,7 +245,7 @@ persona/
 │   └── eval_grounding_job.py        # Aggregate job-level metrics
 ├── datasets/
 │   ├── matraix-persona-1m/          # Public 1M coreset (HF mirror + indexes)
-│   └── _generated/                  # Local dev cohorts (gitignored)
+│   └── generated-persona-dev-*/     # Local generate_dev_personas output (gitignored)
 └── post_process/                    # Build pipeline: dedup, quality, calibration
     ├── coreset_1m/                  # 1M build, calibration, audit
     ├── deduplication/               # MinHash + contradiction detection

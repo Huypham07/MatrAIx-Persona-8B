@@ -34,14 +34,31 @@ from matraix.task_catalog import (
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_COUNT = 2000
-DEFAULT_GENERATED_DATASETS_DIR = REPO_ROOT / "persona" / "datasets" / "_generated"
+DATASETS_DIR = REPO_ROOT / "persona" / "datasets"
+DEFAULT_POOL_PREFIX = "generated-persona-dev"
+# Keep in sync with playground persona_pool_service._DATASETS_SKIP_TOP_LEVEL.
+_DATASETS_SKIP_TOP_LEVEL = frozenset(
+    {"_generated", "_sampled", "cohorts", "matraix-persona-1m"}
+)
 DEFAULT_STRATEGY_STRATUM_MIN = 2
 # Keep in sync with playground persona_pool_service.MAX_FILTER_STRATA.
 MAX_FILTER_STRATA = 2048
 
 
 def _default_out_dir(count: int) -> Path:
-    return DEFAULT_GENERATED_DATASETS_DIR / f"bench-dev-{count}"
+    return DATASETS_DIR / f"{DEFAULT_POOL_PREFIX}-{count}"
+
+
+def _strategy_out_dir(task_slug: str) -> Path:
+    return DATASETS_DIR / f"{DEFAULT_POOL_PREFIX}-strategy-{task_slug}"
+
+
+def _is_picker_listed(out: Path) -> bool:
+    try:
+        rel = out.resolve().relative_to(DATASETS_DIR.resolve())
+    except ValueError:
+        return False
+    return len(rel.parts) == 1 and rel.parts[0] not in _DATASETS_SKIP_TOP_LEVEL
 
 
 def _slug(value: str) -> str:
@@ -227,7 +244,11 @@ def main() -> None:
         "--out",
         type=Path,
         default=None,
-        help="Output directory (default: persona/datasets/_generated/...)",
+        help=(
+            "Output directory (default: "
+            f"persona/datasets/{DEFAULT_POOL_PREFIX}-<count>, listed in "
+            "the Playground Dataset picker)"
+        ),
     )
     parser.add_argument("--smoke-id", default="0042")
     parser.add_argument(
@@ -245,7 +266,8 @@ def main() -> None:
         help=(
             "Task persona_strategy.json (or task directory). Expands "
             "dimensionFilters into strata and tops up each cell under "
-            "persona/datasets/_generated/ (gitignored)."
+            f"persona/datasets/{DEFAULT_POOL_PREFIX}-strategy-<task>/ "
+            "(gitignored, listed in the Playground Dataset picker)."
         ),
     )
     parser.add_argument(
@@ -295,8 +317,7 @@ def main() -> None:
     if args.out is not None:
         out = args.out if args.out.is_absolute() else REPO_ROOT / args.out
     elif strategy_path is not None:
-        slug = _slug(strategy_path.parent.name)
-        out = DEFAULT_GENERATED_DATASETS_DIR / f"strategy-{slug}"
+        out = _strategy_out_dir(_slug(strategy_path.parent.name))
     else:
         out = _default_out_dir(count if count > 0 else DEFAULT_COUNT)
 
@@ -320,9 +341,9 @@ def main() -> None:
         raise SystemExit(f"{violations} personas failed consistency checks")
 
     kind = (
-        f"strategy-{_slug(strategy_path.parent.name)}"
+        f"{DEFAULT_POOL_PREFIX}-strategy-{_slug(strategy_path.parent.name)}"
         if strategy_path is not None
-        else f"bench-dev-{count if count > 0 else len(personas)}"
+        else f"{DEFAULT_POOL_PREFIX}-{count if count > 0 else len(personas)}"
     )
     manifest = write_persona_dataset(
         out_dir=out,
@@ -358,6 +379,13 @@ def main() -> None:
     print(
         f"Dimensions: {manifest.get('dimension_count', len(manifest['dimension_ids']))} fields"
     )
+    if _is_picker_listed(out):
+        print(f"Playground Dataset picker: {rel_out}")
+    else:
+        print(
+            "Not listed in the Playground Dataset picker "
+            f"(use --out persona/datasets/{DEFAULT_POOL_PREFIX}-<name>)."
+        )
     if stratum_top_up and args.task:
         print(
             f"Stratum top-up: {len(stratum_top_up)} cells × min {stratum_min} "
@@ -369,11 +397,8 @@ def main() -> None:
             f"from {strategy_path.relative_to(REPO_ROOT)}"
         )
         print("Next:")
-        print(
-            f'  1. Point persona_strategy.json "pool" at "{rel_out}" '
-            "(local only; _generated is gitignored),"
-        )
-        print("  2. Or pass that pool path in Playground / CLI sampling,")
+        print(f'  1. Point persona_strategy.json "pool" at "{rel_out}",')
+        print("  2. Or pick that pool in Playground / pass it to CLI sampling,")
         print("  3. Then sample — do this before Playground/CLI coverage failures.")
 
 
