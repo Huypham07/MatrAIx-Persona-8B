@@ -977,7 +977,7 @@ export interface PersonaMatchAttributesResponse {
 export interface PersonaDatasetOption {
   pool: string;
   label: string;
-  kind: "dataset" | "generated" | "production" | "production-cohort" | string;
+  kind: "dataset" | "saved" | "generated" | "production" | "production-cohort" | string;
   count: number;
   default?: boolean;
   available?: boolean;
@@ -993,6 +993,27 @@ export interface PersonaPoolIdsResponse {
   personaIds: string[];
   count: number;
   idsTruncated?: boolean;
+}
+
+export interface PersonaPoolGenerateResult {
+  pool: string;
+  label: string;
+  count: number;
+  dimensionCount: number;
+  source: string;
+  kind: string;
+  personaIds: string[];
+  seed: number;
+}
+
+/** NDJSON progress line from ``POST /api/persona-pool/generate?stream=1``. */
+export interface PersonaPoolGenerateProgress {
+  type: "progress";
+  stage: "prepare" | "sample" | "write" | "manifest" | "done" | string;
+  ratio: number;
+  label: string;
+  done?: number;
+  total?: number;
 }
 
 export interface PersonaPoolSampleResult {
@@ -1103,6 +1124,8 @@ export const PERSONA_BENCH_POOL = "persona/datasets/matraix-persona-dev-sample";
 /** Production 1M coreset (HF MatrAIx_Persona_1M_Public_Release). */
 export const PERSONA_PRODUCTION_1M_POOL = "persona/datasets/matraix-persona-1m";
 export const PERSONA_SAMPLE_SIZE_MAX_DEV = 500;
+export const PERSONA_GENERATE_COUNT_DEFAULT = 2000;
+export const PERSONA_GENERATE_COUNT_MAX = 5000;
 export const PERSONA_SAMPLE_SIZE_MAX_PRODUCTION = 10_000;
 
 /**

@@ -179,6 +179,7 @@ export function OsAppEvalCockpit({
     clearBatch,
     cancelBatch,
     cancelBusy,
+    batchCancelled,
     retryFailed,
     retryBusy,
     retryError,
@@ -427,10 +428,11 @@ export function OsAppEvalCockpit({
     batchComplete,
     batchError,
     phase,
+    batchCancelled,
   );
   const runProgressPct = batchJobName
     ? computeBatchProgressPct(batchJobName, batchCompletedTrials, expectedTrialCount)
-    : phase === "done"
+    : phase === "done" || phase === "error" || phase === "timeout"
       ? 100
       : phase === "launching"
         ? 12
@@ -440,10 +442,12 @@ export function OsAppEvalCockpit({
             ? 20
             : 0;
   const runProgressLabel = batchJobName
-    ? formatBatchProgressLabel(
-        batchCompletedTrials,
-        expectedTrialCount,
-      )
+    ? batchCancelled
+      ? "Batch stopped"
+      : formatBatchProgressLabel(
+          batchCompletedTrials,
+          expectedTrialCount,
+        )
     : phase === "launching"
       ? "Launching OS app trial…"
       : phase === "running"
@@ -453,7 +457,9 @@ export function OsAppEvalCockpit({
         : phase === "done"
           ? `OS app complete · ${stepCount} steps`
           : failed
-            ? "OS app trial failed"
+            ? error?.startsWith("Run stopped")
+              ? "Run stopped"
+              : "OS app trial failed"
             : undefined;
   const canExport = exportSnapshot !== null && osAppResult !== null;
 
@@ -568,7 +574,9 @@ export function OsAppEvalCockpit({
           }
           onDownload={!batchJobName ? handleExport : undefined}
           canDownload={canExport}
-          onRetryFailed={batchJobName ? () => void retryFailed() : undefined}
+          onRetryFailed={
+            batchJobName && !batchCancelled ? () => void retryFailed() : undefined
+          }
           failedCount={failedTrials}
           retryBusy={retryBusy}
         />

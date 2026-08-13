@@ -241,7 +241,7 @@ export function PersonaGroupBuilder({
               onClick={() => saveMutation.mutate()}
               className={`h-8 rounded-md bg-primary px-3 text-[13px] text-on-primary disabled:opacity-55 ${FOCUS_RING}`}
             >
-              {saveMutation.isPending ? "Saving…" : "Save to persona/datasets/cohorts/"}
+              {saveMutation.isPending ? "Saving…" : "Save to persona/datasets/saved-cohorts/"}
             </button>
           </div>
           {saveError && <p className="text-[13px] text-danger sm:col-span-2">{saveError}</p>}

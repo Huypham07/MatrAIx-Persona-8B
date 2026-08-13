@@ -200,6 +200,7 @@ export function WebEvalCockpit({
     clearBatch,
     cancelBatch,
     cancelBusy,
+    batchCancelled,
     retryFailed,
     retryBusy,
     retryError,
@@ -455,10 +456,11 @@ export function WebEvalCockpit({
     batchComplete,
     batchError,
     phase,
+    batchCancelled,
   );
   const runProgressPct = batchJobName
     ? computeBatchProgressPct(batchJobName, batchCompletedTrials, expectedTrialCount)
-    : phase === "done"
+    : phase === "done" || phase === "error" || phase === "timeout"
       ? 100
       : phase === "launching"
         ? 12
@@ -468,10 +470,12 @@ export function WebEvalCockpit({
             ? 20
             : 0;
   const runProgressLabel = batchJobName
-    ? formatBatchProgressLabel(
-        batchCompletedTrials,
-        expectedTrialCount,
-      )
+    ? batchCancelled
+      ? "Batch stopped"
+      : formatBatchProgressLabel(
+          batchCompletedTrials,
+          expectedTrialCount,
+        )
     : phase === "launching"
       ? "Launching web trial…"
       : phase === "running"
@@ -481,7 +485,9 @@ export function WebEvalCockpit({
         : phase === "done"
           ? `Web run complete · ${stepCount} steps`
           : failed
-            ? displayError ?? "The website test didn't finish."
+            ? error?.startsWith("Run stopped")
+              ? "Run stopped"
+              : displayError ?? "The website test didn't finish."
             : undefined;
   const canExport = exportSnapshot !== null && webResult !== null;
 
@@ -595,7 +601,9 @@ export function WebEvalCockpit({
           }
           onDownload={!batchJobName ? handleExport : undefined}
           canDownload={canExport}
-          onRetryFailed={batchJobName ? () => void retryFailed() : undefined}
+          onRetryFailed={
+            batchJobName && !batchCancelled ? () => void retryFailed() : undefined
+          }
           failedCount={failedTrials}
           retryBusy={retryBusy}
         />

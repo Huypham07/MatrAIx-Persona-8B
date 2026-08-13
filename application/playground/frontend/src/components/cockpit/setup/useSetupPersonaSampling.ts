@@ -11,14 +11,17 @@ import { PERSONA_BENCH_POOL } from "@/lib/types";
 import {
   defaultPersonaSetup,
   hasStoredPersonaSetup,
+  isTaskStrategyFillPool,
   readCockpitPersonaSetup,
   sanitizePersonaPool,
+  scrubTaskStrategyFillForCustomMode,
   setupFromPersonaStrategy,
   writeCockpitPersonaSetup,
   type CockpitPersonaSetupRecord,
 } from "./cockpitPersonaSetupStorage";
 import {
   emptyPersonaDimensionFilters,
+  readStrategySampling,
   type PersonaDimensionFilters,
   type PersonaSamplingMode,
   type StratifiedAllocation,
@@ -150,22 +153,78 @@ export function useSetupPersonaSampling(
         resetToTaskStrategy();
         return;
       }
-      // Explicit operator opt-out — do not confuse with pre-hydrate false.
+      // Explicit opt-out: leave the task-fill / strategy cohort and return to
+      // the stock Quick-pick sandbox (dev-sample + empty selection).
+      const defaults = defaultPersonaSetup(fallbackPersonaModel);
       setTaskDefaultStrategyDismissed(true);
       setUseTaskDefaultStrategyState(false);
-      // Drop strategy-owned filters so custom mode starts clean.
+      setPersonaPool(PERSONA_BENCH_POOL);
+      setSelectedPersonaIds([]);
+      setSelectedCount(0);
+      setUseEntirePool(false);
+      setSamplingMode(defaults.samplingMode);
       setGroupFilters(emptyPersonaDimensionFilters());
-      // Custom stratified UI expects an editable per-cell; invent 1 only after unlock.
-      if (stratifiedAllocation === "perCell") {
-        setPerCell((prev) => (prev == null ? 1 : prev));
-      }
+      setFields(defaults.fields);
+      setStratifiedAllocationState(defaults.stratifiedAllocation);
+      setSampleSize(defaults.sampleSize);
+      setPerCell(defaults.perCell);
     },
-    [resetToTaskStrategy, stratifiedAllocation],
+    [fallbackPersonaModel, resetToTaskStrategy],
   );
 
   useEffect(() => {
     setTaskPersonaStrategy(strategyQuery.data ?? null);
   }, [strategyQuery.data]);
+
+  const appliedKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!useTaskDefaultStrategy) {
+      appliedKeyRef.current = null;
+      return;
+    }
+    const strategy = strategyQuery.data;
+    if (!strategy) return;
+    const sampling = readStrategySampling(strategy);
+    const key = `${normalizedPath ?? ""}:${sampling.mode}:${sampling.allocation}:${sampling.sampleSize ?? ""}:${sampling.perCell ?? ""}:${sampling.fields.join(",")}`;
+    if (appliedKeyRef.current === key) return;
+    appliedKeyRef.current = key;
+    setSamplingMode(sampling.mode);
+    if (sampling.fields.length > 0) {
+      setFields(sampling.fields);
+    }
+    setStratifiedAllocationState(sampling.allocation);
+    if (sampling.allocation === "perCell") {
+      setPerCell(Math.min(50, Math.max(1, sampling.perCell ?? 1)));
+    } else {
+      setPerCell(null);
+      if (sampling.sampleSize != null) {
+        setSampleSize(Math.min(500, Math.max(2, sampling.sampleSize)));
+      }
+    }
+    setGroupFilters({
+      sources: Array.isArray(strategy.sources)
+        ? strategy.sources.filter(
+            (value): value is string => typeof value === "string" && Boolean(value.trim()),
+          )
+        : [],
+      dimensionFilters:
+        strategy.dimensionFilters && typeof strategy.dimensionFilters === "object"
+          ? Object.fromEntries(
+              Object.entries(strategy.dimensionFilters)
+                .map(([key, values]) => [
+                  key,
+                  Array.isArray(values)
+                    ? values.filter(
+                        (value): value is string =>
+                          typeof value === "string" && Boolean(value.trim()),
+                      )
+                    : [],
+                ])
+                .filter(([, values]) => (values as string[]).length > 0),
+            )
+          : {},
+    });
+  }, [normalizedPath, strategyQuery.data, useTaskDefaultStrategy]);
 
   useEffect(() => {
     const path = normalizedPath;
@@ -200,12 +259,20 @@ export function useSetupPersonaSampling(
         applied.selectedCount = stored.selectedCount || stored.selectedPersonaIds.length;
         applied.useEntirePool = stored.useEntirePool;
       }
+      // Task-fill pools belong to Task default ON — restore them with the cohort.
+      if (isTaskStrategyFillPool(stored.personaPool)) {
+        applied.personaPool = sanitizePersonaPool(stored.personaPool);
+      }
     } else if (hasTaskSpecificStore) {
-      applied = {
-        ...stored,
-        useTaskDefaultStrategy: Boolean(strategy) && stored.useTaskDefaultStrategy,
-        taskDefaultStrategyDismissed: dismissed,
-      };
+      // Custom / dismissed: restore draft, but never sticky-restore a task-fill pool.
+      applied = scrubTaskStrategyFillForCustomMode(
+        {
+          ...stored,
+          useTaskDefaultStrategy: Boolean(strategy) && stored.useTaskDefaultStrategy,
+          taskDefaultStrategyDismissed: dismissed,
+        },
+        fallbackPersonaModel,
+      );
     } else {
       applied = setupFromPersonaStrategy(strategy, fallbackPersonaModel, {
         ...defaultPersonaSetup(fallbackPersonaModel),
@@ -286,24 +353,28 @@ export function useSetupPersonaSampling(
       skipNextPersistRef.current = false;
       return;
     }
+    const draft: CockpitPersonaSetupRecord = {
+      selectedPersonaIds,
+      selectedCount,
+      useEntirePool,
+      samplingMode,
+      groupFilters,
+      fields,
+      stratifiedAllocation,
+      sampleSize,
+      perCell,
+      parallelTrials,
+      personaModel,
+      personaPool,
+      useTaskDefaultStrategy,
+      taskDefaultStrategyDismissed,
+    };
+    // Task-fill pools are valid only while Task default is on.
     writeCockpitPersonaSetup(
       taskKind,
-      {
-        selectedPersonaIds,
-        selectedCount,
-        useEntirePool,
-        samplingMode,
-        groupFilters,
-        fields,
-        stratifiedAllocation,
-        sampleSize,
-        perCell,
-        parallelTrials,
-        personaModel,
-        personaPool,
-        useTaskDefaultStrategy,
-        taskDefaultStrategyDismissed,
-      },
+      useTaskDefaultStrategy
+        ? draft
+        : scrubTaskStrategyFillForCustomMode(draft, fallbackPersonaModel),
       normalizedPath,
     );
   }, [
@@ -323,6 +394,7 @@ export function useSetupPersonaSampling(
     personaPool,
     useTaskDefaultStrategy,
     taskDefaultStrategyDismissed,
+    fallbackPersonaModel,
   ]);
 
   useEffect(() => {

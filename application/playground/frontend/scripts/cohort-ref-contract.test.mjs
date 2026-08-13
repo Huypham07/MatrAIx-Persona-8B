@@ -22,8 +22,10 @@ test("PERSONA_UI_ID_LIST_MAX is 100", () => {
 test("Save as dataset is offered for both 1M and dev sample launch caches", () => {
   const rail = read("src/components/cockpit/setup/PersonaSamplingRail.tsx");
   assert.match(rail, /isMaterializedCohortPool/);
+  assert.match(rail, /isGeneratedDevPool/);
   assert.match(rail, /parentDatasetFromCohortPool/);
   assert.match(rail, /canSaveAsDataset/);
+  assert.match(rail, /Synthesize to fill this task/);
 });
 
 test("storage persists selectedCount / useEntirePool without giant ID arrays", () => {

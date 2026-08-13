@@ -59,35 +59,63 @@ export function readStrategySampling(
   strategy: TaskPersonaStrategy | null | undefined,
 ): StrategySamplingView {
   const sampling = strategy?.sampling;
-  if (!sampling || typeof sampling !== "object") {
-    return {
-      mode: "single",
-      fields: [],
-      allocation: "perCell",
-      sampleSize: null,
-      perCell: null,
-    };
-  }
-  const mode = asSamplingMode(sampling.mode);
-  const fields = Array.isArray(sampling.fields)
-    ? sampling.fields.filter(
-        (field): field is string => typeof field === "string" && Boolean(field.trim()),
-      )
-    : [];
+  if (sampling && typeof sampling === "object") {
+    const mode = asSamplingMode(sampling.mode);
+    const fields = Array.isArray(sampling.fields)
+      ? sampling.fields.filter(
+          (field): field is string => typeof field === "string" && Boolean(field.trim()),
+        )
+      : [];
   const sampleSize =
     typeof sampling.sampleSize === "number" && sampling.sampleSize > 0
       ? Math.round(sampling.sampleSize)
-      : null;
+      : typeof (sampling as { sample_size?: number }).sample_size === "number"
+        ? Math.round((sampling as { sample_size?: number }).sample_size as number)
+        : null;
   const perCell =
     typeof sampling.perCell === "number" && sampling.perCell >= 1
       ? Math.round(sampling.perCell)
+      : typeof (sampling as { per_cell?: number }).per_cell === "number"
+        ? Math.round((sampling as { per_cell?: number }).per_cell as number)
+        : null;
+    const allocationFallback: StratifiedAllocation =
+      perCell != null ? "perCell" : sampleSize != null ? "equalTotal" : "perCell";
+    return {
+      mode: mode === "single" && fields.length > 0 ? "stratified" : mode,
+      fields,
+      allocation: asAllocation(sampling.allocation, allocationFallback),
+      sampleSize,
+      perCell,
+    };
+  }
+
+  const legacy = strategy as
+    | (TaskPersonaStrategy & {
+        defaultMode?: string;
+        stratifyFields?: string[];
+        sampleSizePerValueGroup?: number;
+        sampleSize?: number;
+      })
+    | null
+    | undefined;
+  const fields = Array.isArray(legacy?.stratifyFields)
+    ? legacy.stratifyFields.filter(
+        (field): field is string => typeof field === "string" && Boolean(field.trim()),
+      )
+    : [];
+  const perCell =
+    typeof legacy?.sampleSizePerValueGroup === "number" && legacy.sampleSizePerValueGroup >= 1
+      ? Math.round(legacy.sampleSizePerValueGroup)
       : null;
-  const allocationFallback: StratifiedAllocation =
-    perCell != null ? "perCell" : sampleSize != null ? "equalTotal" : "perCell";
+  const sampleSize =
+    typeof legacy?.sampleSize === "number" && legacy.sampleSize > 0
+      ? Math.round(legacy.sampleSize)
+      : null;
+  const mode = asSamplingMode(legacy?.defaultMode);
   return {
-    mode,
+    mode: fields.length > 0 ? "stratified" : mode,
     fields,
-    allocation: asAllocation(sampling.allocation, allocationFallback),
+    allocation: perCell != null ? "perCell" : sampleSize != null ? "equalTotal" : "perCell",
     sampleSize,
     perCell,
   };

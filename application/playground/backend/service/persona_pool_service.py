@@ -10,7 +10,7 @@ import yaml
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 from matraix.persona_dimension_catalog import values_for_dimension
 from matraix.persona_job import (
@@ -33,10 +33,16 @@ PERSONA_CARD_DIMENSIONS = (
 
 DEFAULT_PERSONA_POOL = "persona/datasets/matraix-persona-dev-sample"
 DATASETS_DIR = "persona/datasets"
-COHORTS_DIR = "persona/datasets/cohorts"
+COHORTS_DIR = "persona/datasets/saved-cohorts"
 # Top-level dirs under persona/datasets that are not selectable pools.
 _DATASETS_SKIP_TOP_LEVEL = frozenset(
-    {"_generated", "_sampled", "cohorts", "matraix-persona-1m"}
+    {
+        "_generated",
+        "_sampled",
+        "cohorts",  # legacy Save-cohort root; superseded by saved-cohorts
+        "saved-cohorts",
+        "matraix-persona-1m",
+    }
 )
 # Names that cannot be used when saving a pool as a named dataset.
 _RESERVED_DATASET_SLUGS = frozenset(
@@ -44,6 +50,7 @@ _RESERVED_DATASET_SLUGS = frozenset(
         "_generated",
         "_sampled",
         "cohorts",
+        "saved-cohorts",
         "matraix-persona-1m",
         "matraix-persona-dev-sample",
     }
@@ -54,17 +61,24 @@ MAX_FILTER_STRATA = 2048
 # UI keeps a full personaId list only at or below this size; larger cohorts are ref-based.
 PERSONA_UI_ID_LIST_MAX = 100
 PERSONA_CARD_PREVIEW_DEFAULT = 32
+GENERATE_COUNT_DEFAULT = 2000
+GENERATE_COUNT_MAX = 5000
+GENERATED_POOL_PREFIX = "generated-persona-dev"
 CohortKind = Literal["recipe", "frozen"]
 
 
 def coverage_recovery_hint(*, task_path: str | None = None) -> str:
-    """Hint when a dataset cannot satisfy filters — never synthesize personas."""
-    _ = task_path
+    """Hint when a dataset cannot satisfy the current (task) filters."""
+    synthesize = (
+        " With Task default persona strategy on, you can also Synthesize to fill this task."
+        if task_path
+        else ""
+    )
     return (
         "Not enough matching personas in this dataset for the current filters. "
-        "Widen filters / sources, switch dataset (dev sample vs matraix-persona-1m), "
-        "or use a saved cohort that already has enough matches. "
-        "Playground does not synthesize missing personas."
+        "Consider switching Dataset to matraix-persona-1m for fuller coverage."
+        + synthesize
+        + " Or widen filters / sources, or use a saved cohort that already has enough matches."
     )
 
 
@@ -393,6 +407,17 @@ class PersonaPoolService:
         except OSError:
             return 0
 
+    def _manifest_dataset_kind(self, path: Path) -> str | None:
+        manifest_path = path / "manifest.json"
+        if not manifest_path.is_file():
+            return None
+        try:
+            raw = self._read_json(manifest_path)
+        except Exception:  # noqa: BLE001
+            return None
+        kind = str(raw.get("kind") or "").strip()
+        return kind or None
+
     def _dataset_entry(self, *, pool: str, label: str, kind: str, path: Path) -> dict[str, Any]:
         return {
             "pool": pool,
@@ -424,8 +449,15 @@ class PersonaPoolService:
                 if not self._is_persona_dataset_dir(child):
                     continue
                 pool = f"{DATASETS_DIR}/{child.name}"
+                manifest_kind = self._manifest_dataset_kind(child)
+                # Promote Save-as-dataset pools so the UI can default sampling to All.
+                kind = (
+                    "saved"
+                    if manifest_kind == "saved-persona-dataset"
+                    else "dataset"
+                )
                 by_pool[pool] = self._dataset_entry(
-                    pool=pool, label=child.name, kind="dataset", path=child
+                    pool=pool, label=child.name, kind=kind, path=child
                 )
 
             # Intentionally omit matraix-persona-1m/cohorts/* from Dataset.
@@ -450,8 +482,9 @@ class PersonaPoolService:
             key=lambda item: (
                 0 if item["default"] else
                 1 if item.get("kind") == "production" else
-                2 if item.get("kind") == "dataset" else
-                3,
+                2 if item.get("kind") == "saved" else
+                3 if item.get("kind") == "dataset" else
+                4,
                 str(item["label"]).lower(),
             ),
         )
@@ -579,6 +612,225 @@ class PersonaPoolService:
             "count": manifest["count"],
             "sourcePool": src_rel,
             "kind": "dataset",
+        }
+
+    def generate_synthetic_pool(
+        self,
+        *,
+        count: int | None = None,
+        seed: int = 42,
+        dimension_filters: dict[str, str | list[str]] | None = None,
+        stratify_fields: list[str] | None = None,
+        allocation: str | None = None,
+        per_cell: int | None = None,
+        sample_size: int | None = None,
+        task_path: str | None = None,
+        name: str | None = None,
+        on_progress: Callable[[dict[str, Any]], None] | None = None,
+    ) -> dict[str, Any]:
+        """Write a Full-DAG synthetic pool under ``persona/datasets/generated-persona-dev-*``.
+
+        ``task_path`` loads that task's ``persona_strategy.json`` (one-time fill).
+        Otherwise this is a custom Generation draw (plain ``count`` or stratified).
+
+        ``on_progress`` receives NDJSON-friendly events::
+            ``{"type":"progress","stage":...,"ratio":0..1,"label":...}``.
+        """
+        from matraix.persona_generator import (
+            generate_persona_pool,
+            stratified_cell_quota,
+            strategy_pin_cells,
+            write_persona_dataset,
+        )
+
+        def emit(
+            stage: str,
+            *,
+            ratio: float,
+            label: str,
+            done: int | None = None,
+            total: int | None = None,
+        ) -> None:
+            if on_progress is None:
+                return
+            payload: dict[str, Any] = {
+                "type": "progress",
+                "stage": stage,
+                "ratio": max(0.0, min(1.0, float(ratio))),
+                "label": label,
+            }
+            if done is not None:
+                payload["done"] = int(done)
+            if total is not None:
+                payload["total"] = int(total)
+            on_progress(payload)
+
+        filters = self._filters_as_lists(self._normalize_dimension_filters(dimension_filters))
+        fields = [
+            str(field).removeprefix("dimensions.").strip()
+            for field in (stratify_fields or [])
+            if str(field).strip()
+        ]
+        alloc = str(allocation or "").strip() or None
+        per_cell_n = per_cell if isinstance(per_cell, int) and per_cell >= 1 else None
+        sample_n = sample_size if isinstance(sample_size, int) and sample_size >= 1 else None
+        kind_slug = _cohort_slug(name) if name and str(name).strip() else None
+
+        if task_path and str(task_path).strip():
+            from backend.service.task_persona_strategy_service import (
+                get_task_persona_strategy,
+            )
+
+            strategy = get_task_persona_strategy(task_path, repo_root=self.repo_root)
+            if not strategy:
+                raise ValueError(f"{task_path}: no persona_strategy.json")
+            filters = {
+                str(key): list(values)
+                for key, values in (strategy.get("dimensionFilters") or {}).items()
+                if isinstance(values, list) and values
+            }
+            if not filters:
+                raise ValueError(f"{task_path}: persona_strategy.json has no dimensionFilters")
+            sampling = strategy.get("sampling") if isinstance(strategy.get("sampling"), dict) else {}
+            fields = [
+                str(field).removeprefix("dimensions.").strip()
+                for field in (sampling.get("fields") or [])
+                if str(field).strip()
+            ]
+            alloc = str(sampling.get("allocation") or "").strip() or None
+            per_cell_n = (
+                sampling.get("perCell")
+                if isinstance(sampling.get("perCell"), int)
+                else None
+            )
+            sample_n = (
+                sampling.get("sampleSize")
+                if isinstance(sampling.get("sampleSize"), int)
+                else None
+            )
+            if isinstance(strategy.get("seed"), int):
+                seed = int(strategy["seed"])
+            task_slug = _cohort_slug(Path(str(task_path).strip()).name)
+            kind_slug = kind_slug or f"strategy-{task_slug}"
+
+        missing = [field for field in fields if field not in filters]
+        if missing:
+            raise ValueError(
+                "every sampling.fields entry must also appear in dimensionFilters "
+                f"(missing: {', '.join(missing)})"
+            )
+
+        stratum_top_up: list[dict[str, str]] | None = None
+        min_per_stratum = 0
+        pool_count = 0
+        pin_cells = bool(task_path) or bool(fields) or bool(filters and alloc)
+        if pin_cells:
+            if not filters:
+                raise ValueError("stratified generation requires dimensionFilters")
+            cells, dropped = strategy_pin_cells(
+                dimension_filters=filters,
+                stratify_fields=fields,
+                seed=seed,
+                max_strata=MAX_FILTER_STRATA,
+            )
+            del dropped
+            if not cells:
+                raise ValueError("dimensionFilters produced zero cells the DAG can pin")
+            min_per_stratum = stratified_cell_quota(
+                allocation=alloc,
+                per_cell=per_cell_n,
+                sample_size=sample_n,
+                n_cells=len(cells),
+            )
+            estimated = len(cells) * min_per_stratum
+            if estimated > GENERATE_COUNT_MAX:
+                raise ValueError(
+                    f"stratified generation would write {estimated} personas "
+                    f"(max {GENERATE_COUNT_MAX})"
+                )
+            stratum_top_up = cells
+            pool_count = 0
+        else:
+            pool_count = GENERATE_COUNT_DEFAULT if count is None else int(count)
+            if pool_count < 1:
+                raise ValueError("count must be >= 1")
+            if pool_count > GENERATE_COUNT_MAX:
+                raise ValueError(f"count must be <= {GENERATE_COUNT_MAX}")
+
+        if not kind_slug:
+            kind_slug = str(pool_count if pool_count > 0 else "stratified")
+        folder = f"{GENERATED_POOL_PREFIX}-{kind_slug}"
+        rel_pool = f"{DATASETS_DIR}/{folder}"
+        out_dir = self.repo_root / rel_pool
+
+        emit("prepare", ratio=0.02, label="Preparing output folder…")
+        if out_dir.exists():
+            for stale in out_dir.glob("persona_*.yaml"):
+                stale.unlink()
+
+        emit(
+            "sample",
+            ratio=0.08,
+            label=(
+                f"Sampling Full DAG ({pool_count} personas)…"
+                if pool_count > 0
+                else "Sampling stratified cells…"
+            ),
+        )
+        personas = generate_persona_pool(
+            count=pool_count,
+            seed=seed,
+            stratum_top_up=stratum_top_up,
+            min_per_stratum=min_per_stratum,
+            include_smoke=pool_count > 0,
+        )
+        if not personas:
+            raise ValueError("generation produced no personas")
+        emit(
+            "sample",
+            ratio=0.18,
+            label=f"Sampled {len(personas)} personas",
+            done=len(personas),
+            total=len(personas),
+        )
+
+        def _write_progress(stage: str, payload: dict[str, Any]) -> None:
+            if stage == "write":
+                done = int(payload.get("done") or 0)
+                total = max(1, int(payload.get("total") or 1))
+                # Write dominates wall time — map 18% → 90%.
+                ratio = 0.18 + 0.72 * (done / total)
+                emit(
+                    "write",
+                    ratio=ratio,
+                    label=str(payload.get("label") or "Writing personas…"),
+                    done=done,
+                    total=total,
+                )
+                return
+            if stage == "manifest":
+                emit("manifest", ratio=0.92, label=str(payload.get("label") or "Writing manifest…"))
+
+        manifest = write_persona_dataset(
+            out_dir=out_dir,
+            personas=personas,
+            repo_root=self.repo_root,
+            kind=folder,
+            seed=seed,
+            smoke_persona_id="0042",
+            on_progress=_write_progress if on_progress is not None else None,
+        )
+        emit("done", ratio=1.0, label=f"Generated {int(manifest['count'])} personas")
+        persona_ids = [str(entry["persona_id"]) for entry in personas]
+        return {
+            "pool": rel_pool,
+            "label": folder,
+            "count": int(manifest["count"]),
+            "dimensionCount": int(manifest.get("dimension_count") or 0),
+            "source": "synthetic",
+            "kind": "dataset",
+            "personaIds": persona_ids,
+            "seed": seed,
         }
 
     def _normalize_dimension_filters(

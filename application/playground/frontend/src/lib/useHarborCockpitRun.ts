@@ -418,9 +418,20 @@ export function useHarborCockpitRun<TJob>(options: UseHarborCockpitRunOptions) {
       await api.deleteHarborJob(jobName);
     } finally {
       setCancelBusy(false);
-      reset();
+      // Stay locked until Reset — same end-state as a failed/finished run.
+      setJob(null);
+      setHarborJobName(null);
+      setHarborTrialName(null);
+      setHarborPhase(null);
+      setVncUrl(null);
+      setSandboxId(null);
+      liveStateRef.current = EMPTY_LIVE;
+      eventOffsetRef.current = 0;
+      clearCockpitUrl();
+      setPhase("error");
+      setError("Run stopped. Reset to change setup and launch again.");
     }
-  }, [cancelBusy, harborJobName, phase, reset]);
+  }, [cancelBusy, clearCockpitUrl, harborJobName, phase]);
 
   return {
     run,

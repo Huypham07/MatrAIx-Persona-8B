@@ -15,6 +15,8 @@ import type {
   PersonaPoolCardsResponse,
   PersonaPoolIdsResponse,
   PersonaPoolPersonaDetail,
+  PersonaPoolGenerateResult,
+  PersonaPoolGenerateProgress,
   PersonaPoolSampleResult,
   TaskDetail,
   TaskPersonaStrategy,
@@ -351,6 +353,87 @@ export const api = {
         ...body,
       }),
     }),
+  generatePersonaPool: async (
+    body: {
+      count?: number;
+      seed?: number;
+      dimensionFilters?: Record<string, string | string[]>;
+      fields?: string[];
+      perCell?: number;
+      allocation?: string;
+      sampleSize?: number;
+      taskPath?: string;
+      name?: string;
+    },
+    options?: { onProgress?: (event: PersonaPoolGenerateProgress) => void },
+  ): Promise<PersonaPoolGenerateResult> => {
+    if (!options?.onProgress) {
+      return request<PersonaPoolGenerateResult>("/api/persona-pool/generate", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    }
+
+    const response = await fetch("/api/persona-pool/generate?stream=1", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok || !response.body) {
+      let message = response.statusText || "Generate failed";
+      try {
+        const data = await response.json();
+        if (data && typeof data === "object" && "detail" in data) {
+          message = typeof data.detail === "string" ? data.detail : message;
+        }
+      } catch {
+        /* ignore */
+      }
+      throw new ApiError(response.status, message);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let result: PersonaPoolGenerateResult | null = null;
+
+    const handleLine = (line: string) => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+      const event = JSON.parse(trimmed) as
+        | PersonaPoolGenerateProgress
+        | (PersonaPoolGenerateResult & { type: "result" })
+        | { type: "error"; detail?: string; status?: number };
+      if (event.type === "progress") {
+        options.onProgress?.(event);
+        return;
+      }
+      if (event.type === "error") {
+        throw new ApiError(
+          typeof event.status === "number" ? event.status : 500,
+          event.detail || "Generate failed",
+        );
+      }
+      if (event.type === "result") {
+        const { type: _type, ...payload } = event;
+        result = payload as PersonaPoolGenerateResult;
+      }
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) handleLine(line);
+    }
+    if (buffer.trim()) handleLine(buffer);
+    if (!result) {
+      throw new ApiError(500, "Generate stream ended without a result");
+    }
+    return result;
+  },
 
   listPersonaCohorts: () =>
     request<{ cohorts: PersonaCohortSummary[] }>("/api/persona-pool/cohorts"),

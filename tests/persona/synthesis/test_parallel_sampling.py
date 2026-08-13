@@ -243,3 +243,25 @@ def test_conditional_hard_mask_is_enforced(tmp_path: Path) -> None:
     power = idx["tool_python"] == sampler.vtoi["tool_python"]["Power user"]
     assert minors.sum() > 0
     assert not (minors & power).any()
+
+
+def test_sample_clamps_fixed_nodes(tmp_path: Path) -> None:
+    graph_path = tmp_path / "tiny_graph.json"
+    _write_tiny_graph(graph_path)
+    sampler = PersonaForwardSampler(graph_path, SamplingConfig(seed=3))
+    rows = sampler.sample(40, fixed={"age_bracket": "18-24"})
+    assert all(row["age_bracket"] == "18-24" for row in rows)
+    assert {row["tool_python"] for row in rows} == {"Never used", "Power user"}
+
+
+def test_assignment_supported_uses_hard_masks(tmp_path: Path) -> None:
+    graph_path = tmp_path / "tiny_graph.json"
+    _write_tiny_graph(graph_path)
+    sampler = PersonaForwardSampler(graph_path, SamplingConfig(seed=3))
+    assert sampler.assignment_supported({"age_bracket": "18-24", "tool_python": "Power user"})
+    assert sampler.assignment_supported({"age_bracket": "13-17", "tool_python": "Never used"})
+    assert not sampler.assignment_supported(
+        {"age_bracket": "13-17", "tool_python": "Power user"}
+    )
+    assert sampler.assignment_supported({"tool_python": "Power user"})
+    assert not sampler.assignment_supported({"age_bracket": "99-99"})

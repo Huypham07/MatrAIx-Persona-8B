@@ -432,7 +432,9 @@ export function CockpitPipelineDiagram({
 
       <p className="shrink-0 text-center text-[15px] font-medium leading-snug sm:text-[14px]">
         {ready ? (
-          <span className="font-semibold text-secondary">Ready to launch — pipeline locked.</span>
+          <span className="font-semibold text-secondary">
+            Run config complete — Ready to launch.
+          </span>
         ) : (
           <span className="text-text-variant">Select personas and a task, then run below.</span>
         )}
