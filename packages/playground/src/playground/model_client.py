@@ -17,6 +17,7 @@ from playground.openai_client import (
 )
 
 DASHSCOPE_DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 
 
 def dashscope_model_id(model: str) -> str:
@@ -41,6 +42,33 @@ def dashscope_openai_client_kwargs(model: str) -> Dict[str, str]:
     ).strip()
     return {
         "model": dashscope_model_id(model),
+        "api_key": api_key,
+        "base_url": base_url,
+    }
+
+
+def openrouter_model_id(model: str) -> str:
+    """Return the bare OpenRouter model id from a Harbor persona model string."""
+    value = (model or "").strip()
+    if value.startswith("openrouter/"):
+        return value.split("/", 1)[1]
+    return value
+
+
+def openrouter_openai_client_kwargs(model: str) -> Dict[str, str]:
+    """OpenAI SDK kwargs for OpenRouter chat."""
+    api_key = (os.environ.get("OPENROUTER_API_KEY") or "").strip()
+    if not api_key:
+        raise RuntimeError(
+            "OPENROUTER_API_KEY is required for persona model {!r}".format(model)
+        )
+    base_url = (
+        os.environ.get("OPENROUTER_API_BASE")
+        or os.environ.get("OPENROUTER_BASE_URL")
+        or OPENROUTER_DEFAULT_BASE_URL
+    ).strip()
+    return {
+        "model": openrouter_model_id(model),
         "api_key": api_key,
         "base_url": base_url,
     }
@@ -157,6 +185,14 @@ def build_json_client(model: str, *, temperature: float = 0.7) -> Any:
         return AnthropicJSONClient(value.split("/", 1)[1], temperature=temperature)
     if value.startswith("dashscope/"):
         kwargs = dashscope_openai_client_kwargs(value)
+        return OpenAIChatClient(
+            model=kwargs["model"],
+            api_key=kwargs["api_key"],
+            base_url=kwargs["base_url"],
+            temperature=temperature,
+        )
+    if value.startswith("openrouter/"):
+        kwargs = openrouter_openai_client_kwargs(value)
         return OpenAIChatClient(
             model=kwargs["model"],
             api_key=kwargs["api_key"],

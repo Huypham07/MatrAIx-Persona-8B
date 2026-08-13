@@ -67,8 +67,31 @@ def test_options_knob_values_match_allowed(config_manager):
     assert "anthropic/claude-opus-4-8" in PERSONA_MODEL_OPTIONS
     assert "dashscope/qwen3.7-max" in PERSONA_MODEL_OPTIONS
     assert "dashscope/deepseek-v4-pro" in PERSONA_MODEL_OPTIONS
+    assert "openrouter/z-ai/glm-4.7" in PERSONA_MODEL_OPTIONS
+    assert "openrouter/anthropic/claude-haiku-4.5" in PERSONA_MODEL_OPTIONS
     assert "openai/gpt-5.4" in PERSONA_MODEL_OPTIONS
     assert "openai/gpt-5.5" in PERSONA_MODEL_OPTIONS
+
+
+def test_preflight_recognizes_openrouter_credentials(client, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
+    monkeypatch.delenv("DASHSCOPE_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+
+    body = client.get("/api/preflight").json()
+    model = next(c for c in body["checks"] if c["name"] == "Model credentials")
+    assert model["ok"] is False
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+    body = client.get("/api/preflight").json()
+    model = next(c for c in body["checks"] if c["name"] == "Model credentials")
+    openrouter = next(c for c in body["checks"] if c["name"] == "OpenRouter")
+    assert model["ok"] is True
+    assert "OpenRouter" in model["detail"]
+    assert openrouter["ok"] is True
+    assert openrouter.get("optional") is True
 
 
 def test_options_rebuilds_agent_flag(config_manager):

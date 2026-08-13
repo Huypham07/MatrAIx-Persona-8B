@@ -176,6 +176,7 @@ def preflight_checks() -> List[Dict[str, Any]]:
     **Required** (block platform ready)
 
     * Model credentials — at least one of OpenAI / Anthropic / DashScope
+      / OpenRouter
       (every survey / chat / web / os-app run needs a persona or agent model).
     * Survey forms / Web tasks — surfaces are always available in-process.
 
@@ -198,12 +199,14 @@ def preflight_checks() -> List[Dict[str, Any]]:
         os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_API_KEY")
     )
     dashscope_key = bool(os.environ.get("DASHSCOPE_API_KEY"))
+    openrouter_key = bool(os.environ.get("OPENROUTER_API_KEY"))
     configured = [
         label
         for label, present in (
             ("OpenAI", openai_key),
             ("Anthropic", anthropic_key),
             ("DashScope", dashscope_key),
+            ("OpenRouter", openrouter_key),
         )
         if present
     ]
@@ -215,8 +218,8 @@ def preflight_checks() -> List[Dict[str, Any]]:
             "detail": (
                 "Configured: {}.".format(", ".join(configured))
                 if configured
-                else "Not configured. Set OpenAI, Anthropic, or DashScope credentials "
-                "to run application tasks."
+                else "Not configured. Set OpenAI, Anthropic, DashScope, or "
+                "OpenRouter credentials to run application tasks."
             ),
         }
     )
@@ -257,6 +260,19 @@ def preflight_checks() -> List[Dict[str, Any]]:
                 if dashscope_key
                 else "Not configured. Needed only for DashScope persona models "
                 "(Qwen, DeepSeek)."
+            ),
+        }
+    )
+    checks.append(
+        {
+            "group": "Core",
+            "name": "OpenRouter",
+            "ok": openrouter_key,
+            "optional": True,
+            "detail": (
+                "Configured."
+                if openrouter_key
+                else "Not configured. Needed only for OpenRouter persona models."
             ),
         }
     )

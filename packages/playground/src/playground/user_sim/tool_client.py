@@ -189,7 +189,10 @@ def build_tool_step_client(
     temperature: float = 0.7,
     capabilities: Sequence[ChatbotCapability] | None = None,
 ) -> ToolStepClient:
-    from playground.model_client import dashscope_openai_client_kwargs
+    from playground.model_client import (
+        dashscope_openai_client_kwargs,
+        openrouter_openai_client_kwargs,
+    )
 
     value = (model or "openai/gpt-4o-mini").strip()
     if value.startswith("anthropic/"):
@@ -212,6 +215,15 @@ def build_tool_step_client(
         )
     if value.startswith("dashscope/"):
         kwargs = dashscope_openai_client_kwargs(value)
+        return OpenAIToolStepClient(
+            kwargs["model"],
+            api_key=kwargs["api_key"],
+            base_url=kwargs["base_url"],
+            temperature=temperature,
+            capabilities=capabilities,
+        )
+    if value.startswith("openrouter/"):
+        kwargs = openrouter_openai_client_kwargs(value)
         return OpenAIToolStepClient(
             kwargs["model"],
             api_key=kwargs["api_key"],

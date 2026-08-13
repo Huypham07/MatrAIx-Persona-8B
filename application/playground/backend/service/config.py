@@ -28,8 +28,8 @@ REMOTE_RUNNER_API_URL_ENV = "REMOTE_RUNNER_API_URL"
 DEFAULT_PERSONA_MODEL = "anthropic/claude-haiku-4-5"
 
 # Persona-model IDs use LiteLLM provider prefixes (``anthropic/``, ``openai/``,
-# ``dashscope/``). DashScope models route through Alibaba's OpenAI-compatible
-# endpoint when ``DASHSCOPE_API_KEY`` is set.
+# ``dashscope/``, ``openrouter/``). OpenAI-compatible providers use their own
+# credentials and endpoints.
 PERSONA_MODEL_KNOB_META: Dict[str, Dict[str, str]] = {
     "anthropic/claude-haiku-4-5": {
         "label": "Claude Haiku 4.5",
@@ -118,6 +118,14 @@ PERSONA_MODEL_KNOB_META: Dict[str, Dict[str, str]] = {
     "dashscope/deepseek-v3.2": {
         "label": "DeepSeek V3.2",
         "description": "DeepSeek V3.2 via DashScope compatible API.",
+    },
+    "openrouter/z-ai/glm-4.7": {
+        "label": "GLM 4.7",
+        "description": "Z.ai GLM 4.7 served through OpenRouter.",
+    },
+    "openrouter/anthropic/claude-haiku-4.5": {
+        "label": "Claude Haiku 4.5",
+        "description": "Anthropic Claude Haiku 4.5 served through OpenRouter.",
     },
 }
 
@@ -521,4 +529,3 @@ def _runtime_label(runtime: str) -> str:
     if runtime == "harbor":
         return "Harbor persona runner"
     return "In-process Harbor runner"
-

@@ -32,6 +32,7 @@ def test_preflight_shape(client):
         "OpenAI credentials",
         "Anthropic credentials",
         "DashScope (Qwen / DeepSeek)",
+        "OpenRouter",
         "OpenBB (finance)",
         "Meal planning",
         "Acme support API",
@@ -60,6 +61,7 @@ def test_preflight_required_vs_optional_contract(client):
         "OpenAI credentials",
         "Anthropic credentials",
         "DashScope (Qwen / DeepSeek)",
+        "OpenRouter",
         "OpenBB (finance)",
         "Meal planning",
         "Acme support API",
@@ -77,6 +79,7 @@ def test_preflight_does_not_leak_env_var_names(client):
         "ANTHROPIC_API_KEY",
         "CLAUDE_API_KEY",
         "DASHSCOPE_API_KEY",
+        "OPENROUTER_API_KEY",
         "USE_COMPUTER_API_KEY",
         "INTERECAGENT_ROOT",
         "INTERECAGENT_CATALOG_PATH",
@@ -92,6 +95,7 @@ def test_preflight_model_credentials_any_provider(client, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
     monkeypatch.delenv("DASHSCOPE_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     body = client.get("/api/preflight").json()
     model = next(c for c in body["checks"] if c["name"] == "Model credentials")
     assert model["ok"] is False
@@ -117,6 +121,19 @@ def test_preflight_dashscope_check_optional(client, monkeypatch):
     body = client.get("/api/preflight").json()
     dashscope = next(c for c in body["checks"] if c["name"] == "DashScope (Qwen / DeepSeek)")
     assert dashscope["ok"] is True
+
+
+def test_preflight_openrouter_check_optional(client, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    body = client.get("/api/preflight").json()
+    openrouter = next(c for c in body["checks"] if c["name"] == "OpenRouter")
+    assert openrouter["ok"] is False
+    assert openrouter.get("optional") is True
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+    body = client.get("/api/preflight").json()
+    openrouter = next(c for c in body["checks"] if c["name"] == "OpenRouter")
+    assert openrouter["ok"] is True
 
 
 def test_preflight_anthropic_check_optional(client, monkeypatch):
@@ -250,6 +267,8 @@ def test_config_options(client):
     assert persona_model_values == set(PERSONA_MODEL_OPTIONS)
     assert "dashscope/qwen3.6-plus-2026-04-02" in persona_model_values
     assert "dashscope/deepseek-v4-pro" in persona_model_values
+    assert "openrouter/z-ai/glm-4.7" in persona_model_values
+    assert "openrouter/anthropic/claude-haiku-4.5" in persona_model_values
 
     assert body["defaults"]["engine"] == "gpt-4o-mini"
     assert body["defaults"]["rankerMode"] == "native"
