@@ -425,12 +425,13 @@ export function useSetupPersonaSampling(
     samplingMode !== "single" || selectedCount > 1 || selectedPersonaIds.length > 1;
 
   const personaModelKnob = options?.knobs.find((k) => k.key === "personaModel");
+  // Provider meta only in the open menu (closed trigger stays label-only).
+  // Omit summary — long descriptions clutter the compact Persona rail.
   const personaModelOptions =
     personaModelKnob?.options.map((o) => ({
       value: o.value,
       label: o.label,
       meta: personaModelProviderLabel(o.value),
-      summary: o.description,
     })) ?? [{ value: personaModel, label: personaModel }];
 
   const togglePersona = useCallback(
