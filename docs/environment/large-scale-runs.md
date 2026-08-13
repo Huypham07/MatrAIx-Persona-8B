@@ -21,7 +21,8 @@ One launch covers the whole cohort. Do not start a separate job per persona.
 
 ## Personas
 
-A **cohort** is a directory of persona YAML files.
+A **cohort** for launch is a directory of persona YAML files (or a pool path
+plus `useEntirePool`).
 
 | Batch size | How to pass them |
 |------------|------------------|
@@ -38,10 +39,16 @@ Sources:
    the other two use ``sampling.sampleSize`` as the total.
 2. **Public Persona 1M** —
    [`MatrAIx2026/MatrAIx_Persona_1M_Public_Release`](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release).
-   Import it locally, then point the job at that path. See
+   Import it locally, then **Pull cohort** in Playground (writes a launch cache
+   under `matraix-persona-1m/cohorts/`). See
    [Persona setup](../persona/README.md#setup-and-usage).
 3. **Dev sample** — `persona/datasets/matraix-persona-dev-sample/` for small
    local batches.
+4. **Saved dataset** — after a pull, **Save as dataset…** copies the YAML into
+   `persona/datasets/<name>/` for reuse. Playground defaults sampling to **All**.
+
+Path taxonomy (picker vs on-disk caches):  
+[Playground pools & cohorts](../persona/README.md#playground-pools--cohorts).
 
 Playground / API fields: `personaPool`, `useEntirePool`, `sampleSize`,
 `nConcurrentTrials`. Reference: [playground-api.md](../application/playground-api.md).
@@ -64,8 +71,13 @@ jobs/<job_name>/
 ```
 
 Keep `jobs/<job_name>/` and any sampled cohort directory if you need to
-reproduce the run. Pulled copies sit next to the source dataset, for example
-`persona/datasets/matraix-persona-dev-sample/cohorts/`.
+reproduce the run. Pulled launch caches sit next to the source dataset, for
+example:
+
+- `persona/datasets/matraix-persona-1m/cohorts/cohort-<digest>/`
+- `persona/datasets/matraix-persona-dev-sample/cohorts/cohort-<digest>/`
+
+Those caches (and `generated-persona-dev-*`, `saved-cohorts/`) are gitignored.
 
 ---
 

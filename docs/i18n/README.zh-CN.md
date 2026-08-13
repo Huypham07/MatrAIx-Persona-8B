@@ -84,7 +84,9 @@ export ANTHROPIC_API_KEY="sk-ant-..."   # anthropic/claude-* 模型
 完整 Key 对照见 [agents.md](../environment/agents.md)。
 Playground 也可从 `application/playground/.env.local` 加载 Key。
 
-### 导入 Persona 1M（可选）
+### 导入 Persona 1M（推荐）
+
+仓库内 `matraix-persona-dev-sample`（约 200）仅用于冒烟。真实 cohort / Playground 采样请导入公开 1M：
 
 ```bash
 huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
@@ -93,7 +95,7 @@ huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
 ```
 
 Playground：Dataset → **`matraix-persona-1m`**。CLI：`--dataset persona/datasets/matraix-persona-1m`。
-详情：[Handbook § Persona 1M](../README.md#3-persona-1m-optional)。
+详情：[Handbook § Persona 1M](../README.md#3-persona-1m-recommended)。
 
 ## 快速开始
 

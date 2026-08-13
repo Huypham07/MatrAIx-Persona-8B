@@ -33,7 +33,10 @@ Optional packages: [packages.md](packages.md).
 
 ---
 
-## 3. Persona 1M (optional)
+## 3. Persona 1M (recommended)
+
+The checked-in `matraix-persona-dev-sample` (~200) is for smoke only. For real
+cohorts, strategy coverage, and Playground sampling, import the public 1M coreset:
 
 ```bash
 huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \

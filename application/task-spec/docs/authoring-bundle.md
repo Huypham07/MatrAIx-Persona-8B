@@ -126,7 +126,7 @@ Playground uses this for Single / Random / All / Stratified defaults.
 Rules:
 
 1. Every `sampling.fields` entry must also appear under `dimensionFilters` with allowed values.
-2. Thin / missing cells → sample from `matraix-persona-1m`, widen filters / sources, or use a saved cohort — sampling never synthesizes personas.
+2. Thin / missing cells → generate a local pool with `generate_dev_personas.py --strategy <task>`, sample from `matraix-persona-1m`, widen filters / sources, or reuse a **Save as dataset…** YAML pool. Sampling never synthesizes personas at draw time.
 3. Do not set both `perCell` and `sampleSize` under stratified sampling.
 
 Playground turns on **Task default strategy** from this file (filters / mode /
@@ -141,13 +141,21 @@ undershoot it.
 
 **When coverage fails**, do one of:
 
-1. Sample from production: set `"pool"` to `persona/datasets/matraix-persona-1m`
-   (or choose that pool in Playground).
-2. Widen `dimensionFilters` / `sources` until the fixture (or 1M) has enough matches.
-3. Use a saved cohort under `persona/datasets/cohorts/` that already has enough
-   personas.
+1. **Sample from production** — set `"pool"` to `persona/datasets/matraix-persona-1m`
+   (or choose that pool in Playground), then Pull a cohort.
+2. **Widen filters** — relax `dimensionFilters` / `sources` until the fixture (or 1M)
+   has enough matches.
+3. **Reuse a saved YAML dataset** — after a good pull, **Save as dataset…** writes
+   `persona/datasets/<name>/` (listed under Dataset; sampling defaults to **All**).
+4. **Synthesize a fill pool** — `generate_dev_personas.py --strategy <task>` (or
+   Playground **Synthesize to fill this task**) writes
+   `persona/datasets/generated-persona-dev-strategy-<task>/` (`source: synthetic`;
+   no quality filter / dedup / calibration). Gitignored; listed in Dataset.
 
-Playground / job launch **does not** auto-synthesize local generated pools.
-Write a selectable pool with `generate_dev_personas.py` (default
-`persona/datasets/generated-persona-dev-<count>/`), or recover with the
-hints above. Thin coverage raises an error with the same recovery hint.
+Playground / job launch **does not** invent personas at Pull time.
+
+> **Not the same thing:** `persona/datasets/saved-cohorts/` stores **Save cohort**
+> recipes / frozen id lists (`cohort.json`). It does not expand pool coverage by
+> itself. See [Playground pools & cohorts](../../../docs/persona/README.md#playground-pools--cohorts).
+
+Thin coverage raises an error with the same recovery hint.

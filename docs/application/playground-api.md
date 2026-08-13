@@ -63,13 +63,16 @@ Optional per-request override: `"plane": "harbor"` or `"plane": "remote"` on
 | `GET` | `/api/harbor/jobs/{job_name}/trials/{trial_name}/trace` | Web trace payload for one trial. |
 | `GET` | `/api/harbor/jobs/{job_name}/trials/{trial_name}/screenshots/{filename}` | Fetch one web trace screenshot. |
 | `GET` | `/api/harbor/jobs/{job_name}/trials/{trial_name}/recording` | Fetch one os-app screen recording. |
+| `GET` | `/api/persona-pool/datasets` | List Dataset picker pools (`kind`: dataset / saved / production). |
+| `POST` | `/api/persona-pool/datasets` | Save as dataset (promote pulled YAML cohort). |
 | `GET` | `/api/persona-pool/catalog` | Persona pool dimension catalog. |
-| `POST` | `/api/persona-pool/sample` | Sample personas from a pool. |
+| `POST` | `/api/persona-pool/sample` | Sample / Pull personas from a pool. |
+| `POST` | `/api/persona-pool/generate` | Write a synthetic `generated-persona-dev-*` pool. |
 | `GET` | `/api/persona-pool/personas` | List persona cards from a pool. |
 | `GET` | `/api/persona-pool/personas/{persona_id}` | Read one persona card/detail from a pool. |
-| `GET` | `/api/persona-pool/cohorts` | List saved persona cohorts. |
-| `POST` | `/api/persona-pool/cohorts` | Save a persona cohort. |
-| `GET` | `/api/persona-pool/cohorts/{cohort_id}` | Read one saved cohort. |
+| `GET` | `/api/persona-pool/cohorts` | List saved cohort recipes (`saved-cohorts/`). |
+| `POST` | `/api/persona-pool/cohorts` | Save a cohort recipe / frozen ids. |
+| `GET` | `/api/persona-pool/cohorts/{cohort_id}` | Read one saved cohort recipe. |
 | `GET` | `/api/tasks/detail` | Task detail for Playground setup (`taskPath` query). |
 | `GET` | `/api/survey-eval/instruments` | List task-backed survey questionnaires. |
 | `GET` | `/api/survey-eval/harbor-tasks` | List survey Harbor tasks for the Playground. |
@@ -244,6 +247,25 @@ persona labels.
 ## Persona pool
 
 Used by the Playground setup rails for sampling and cohort management.
+User-facing path taxonomy:
+[Playground pools & cohorts](../persona/README.md#playground-pools--cohorts).
+
+### `GET /api/persona-pool/datasets`
+
+Lists selectable Dataset pools. Entries include `kind`:
+
+| `kind` | Meaning |
+|--------|---------|
+| `dataset` | Local YAML pool (fixture, generated, etc.) |
+| `saved` | Promoted via **Save as dataset…** (`saved-persona-dataset` manifest) |
+| `production` | `matraix-persona-1m` root |
+
+Launch caches (`*/cohorts/`) and `saved-cohorts/` are omitted.
+
+### `POST /api/persona-pool/datasets`
+
+**Save as dataset…** — copy a pulled cohort’s YAML into
+`persona/datasets/<slug>/` so it appears in the Dataset picker.
 
 ### `GET /api/persona-pool/catalog?pool=...`
 
@@ -254,7 +276,13 @@ Returns dimension metadata for one persona pool.
 Samples personas from a pool with optional filters and stratification.
 Optional `previewLimit` (default 32) and `includePersonaIds`. Cohorts larger
 than 100 IDs return a truncated `personaIds` list plus `selectedCount` /
-`idsTruncated`.
+`idsTruncated`, and may materialize a launch cache under
+`<source>/cohorts/cohort-<digest>/`.
+
+### `POST /api/persona-pool/generate`
+
+Writes a Full-DAG synthetic pool under `persona/datasets/generated-persona-dev-*`
+(gitignored). Optional `?stream=1` returns NDJSON progress stages.
 
 ### `GET /api/persona-pool/personas`
 
@@ -267,11 +295,12 @@ Returns one persona card or detail record from the requested pool.
 
 ### `GET /api/persona-pool/cohorts`
 
-Lists saved cohorts.
+Lists **saved cohort recipes** under `persona/datasets/saved-cohorts/`
+(`cohort.json` — not Dataset YAML pools).
 
 ### `POST /api/persona-pool/cohorts`
 
-Saves a cohort from explicit persona ids or a sampled/filtered selection.
+Saves a recipe or frozen id list to `persona/datasets/saved-cohorts/<id>/`.
 
 ### `GET /api/persona-pool/cohorts/{cohort_id}`
 
