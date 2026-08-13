@@ -516,7 +516,7 @@ export function PersonaStoreContent({
 
   return (
     <>
-      <StudioGlassPanel className="mb-3 overflow-visible p-0">
+      <StudioGlassPanel className="relative z-20 mb-3 overflow-visible p-0">
         <div className="space-y-2.5 px-3 py-2.5 sm:px-3.5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="w-full shrink-0 sm:min-w-[16rem] sm:max-w-[20rem] sm:flex-1 lg:max-w-[22rem]">
