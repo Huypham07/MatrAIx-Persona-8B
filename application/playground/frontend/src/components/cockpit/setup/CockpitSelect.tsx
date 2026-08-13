@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { FOCUS_RING, Sym } from "../cockpitShared";
 
@@ -36,6 +37,45 @@ export interface CockpitSelectProps {
   showSelectedMeta?: boolean;
 }
 
+type MenuCoords = {
+  top?: number;
+  bottom?: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+};
+
+function menuCoordsFor(trigger: HTMLElement, wideMenu: boolean): MenuCoords {
+  const rect = trigger.getBoundingClientRect();
+  const gap = 4;
+  const viewportPad = 8;
+  const spaceBelow = window.innerHeight - rect.bottom - gap - viewportPad;
+  const spaceAbove = rect.top - gap - viewportPad;
+  const preferBelow = spaceBelow >= 160 || spaceBelow >= spaceAbove;
+  const maxHeight = Math.max(120, Math.min(320, preferBelow ? spaceBelow : spaceAbove));
+  const width = wideMenu
+    ? Math.min(Math.max(rect.width, 288), Math.min(window.innerWidth - viewportPad * 2, 448))
+    : rect.width;
+  let left = rect.left;
+  if (left + width > window.innerWidth - viewportPad) {
+    left = Math.max(viewportPad, window.innerWidth - viewportPad - width);
+  }
+  if (preferBelow) {
+    return {
+      top: rect.bottom + gap,
+      left,
+      width,
+      maxHeight,
+    };
+  }
+  return {
+    bottom: window.innerHeight - rect.top + gap,
+    left,
+    width,
+    maxHeight,
+  };
+}
+
 export function CockpitSelect({
   label,
   value,
@@ -51,19 +91,49 @@ export function CockpitSelect({
 }: CockpitSelectProps) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<MenuCoords | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLUListElement | null>(null);
   const menuId = useId();
 
   const selected = options.find((o) => o.value === value) ?? null;
 
+  const syncCoords = () => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    setCoords(menuCoordsFor(trigger, wideMenu));
+  };
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setCoords(null);
+      return;
+    }
+    syncCoords();
+  }, [open, wideMenu, options.length]);
+
   useEffect(() => {
     if (!open) return;
     function onDown(e: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+    function onReposition() {
+      syncCoords();
     }
     document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
+    window.addEventListener("resize", onReposition);
+    // Capture scroll from nested scroll parents (Persona World page frame, etc.).
+    window.addEventListener("scroll", onReposition, true);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
+    };
+  }, [open, wideMenu]);
 
   useEffect(() => {
     if (open) {
@@ -98,6 +168,7 @@ export function CockpitSelect({
     } else if (e.key === "Escape") {
       e.preventDefault();
       setOpen(false);
+      triggerRef.current?.focus();
     }
   }
 
@@ -123,68 +194,31 @@ export function CockpitSelect({
     return sections;
   }, [options]);
 
-  return (
-    <div
-      ref={rootRef}
-      className={inlineLabel ? "flex items-center gap-2" : "flex flex-col gap-1.5"}
-    >
-      {label ? (
-        <span
-          className={`text-[13px] font-medium text-text-dim normal-case tracking-normal ${
-            inlineLabel ? "shrink-0" : ""
-          } ${labelClassName ?? ""}`}
-        >
-          {label}
-        </span>
-      ) : null}
-      <div className={inlineLabel ? "relative min-w-0 flex-1" : "relative"}>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => !disabled && setOpen((v) => !v)}
-          onKeyDown={onButtonKey}
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          aria-label={`${label}: ${selected?.label ?? value}`}
-          className={`glass-tile glass-tile--hover flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left backdrop-blur transition ease-out active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100 ${FOCUS_RING}`}
-        >
-          <span className="min-w-0 flex-1">
-            <span
-              className={`block text-[15px] font-medium text-text-main ${
-                wrapOptions ? "whitespace-normal break-words leading-snug" : "truncate"
-              }`}
-            >
-              {selected?.label ?? value}
-            </span>
-            {showSelectedMeta && selected?.meta ? (
-              <span
-                className={`block text-[12px] text-text-dim ${
-                  wrapOptions ? "whitespace-normal break-words leading-snug" : "truncate"
-                }`}
-              >
-                {selected.meta}
-              </span>
-            ) : null}
-          </span>
-          <Sym
-            name="expand_more"
-            size={18}
-            className={`shrink-0 text-text-dim transition-transform duration-150 ${open ? "rotate-180" : ""}`}
-          />
-        </button>
-        {open && (
+  const menu =
+    open && coords
+      ? createPortal(
           <ul
             id={menuId}
+            ref={(el) => {
+              menuRef.current = el;
+              el?.focus();
+            }}
             role="listbox"
             aria-label={label}
             tabIndex={-1}
             onKeyDown={onMenuKey}
-            ref={(el) => el?.focus()}
-            className={`pop-in custom-scrollbar absolute left-0 top-full z-[60] mt-1 max-h-80 overflow-auto rounded-lg border border-outline/60 bg-surface-lowest p-1 shadow-2xl outline-none ${
-              wideMenu
-                ? "w-max min-w-[18rem] max-w-[min(92vw,28rem)]"
-                : "w-full"
-            }`}
+            style={{
+              position: "fixed",
+              top: coords.top,
+              bottom: coords.bottom,
+              left: coords.left,
+              width: coords.width,
+              maxHeight: coords.maxHeight,
+              // Opaque fill — avoids glass-panel backdrop-filter compositing bugs.
+              backgroundColor: "rgb(var(--surface-lowest))",
+              zIndex: 80,
+            }}
+            className="pop-in custom-scrollbar overflow-auto rounded-lg border border-outline/60 p-1 shadow-2xl outline-none"
           >
             {groupedOptions.map((section) => (
               <li key={section.group ?? "default"} role="presentation" className="list-none">
@@ -239,8 +273,63 @@ export function CockpitSelect({
                 </ul>
               </li>
             ))}
-          </ul>
-        )}
+          </ul>,
+          document.body,
+        )
+      : null;
+
+  return (
+    <div
+      ref={rootRef}
+      className={inlineLabel ? "flex items-center gap-2" : "flex flex-col gap-1.5"}
+    >
+      {label ? (
+        <span
+          className={`text-[13px] font-medium text-text-dim normal-case tracking-normal ${
+            inlineLabel ? "shrink-0" : ""
+          } ${labelClassName ?? ""}`}
+        >
+          {label}
+        </span>
+      ) : null}
+      <div className={inlineLabel ? "relative min-w-0 flex-1" : "relative"}>
+        <button
+          ref={triggerRef}
+          type="button"
+          disabled={disabled}
+          onClick={() => !disabled && setOpen((v) => !v)}
+          onKeyDown={onButtonKey}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={open ? menuId : undefined}
+          aria-label={`${label}: ${selected?.label ?? value}`}
+          className={`glass-tile glass-tile--hover flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left backdrop-blur transition ease-out active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100 ${FOCUS_RING}`}
+        >
+          <span className="min-w-0 flex-1">
+            <span
+              className={`block text-[15px] font-medium text-text-main ${
+                wrapOptions ? "whitespace-normal break-words leading-snug" : "truncate"
+              }`}
+            >
+              {selected?.label ?? value}
+            </span>
+            {showSelectedMeta && selected?.meta ? (
+              <span
+                className={`block text-[12px] text-text-dim ${
+                  wrapOptions ? "whitespace-normal break-words leading-snug" : "truncate"
+                }`}
+              >
+                {selected.meta}
+              </span>
+            ) : null}
+          </span>
+          <Sym
+            name="expand_more"
+            size={18}
+            className={`shrink-0 text-text-dim transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+        {menu}
       </div>
       {footer ? (
         <p className="text-[12px] leading-relaxed text-text-dim normal-case">{footer}</p>

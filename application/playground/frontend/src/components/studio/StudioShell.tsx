@@ -45,7 +45,14 @@ export function StudioGlassPanel({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={`glass-panel overflow-hidden rounded-xl ${className}`}>{children}</div>;
+  // Callers may pass overflow-visible for dropdowns; don't force overflow-hidden
+  // ahead of that or Tailwind's conflicting-utility order can clip menus.
+  const overflowClass = /\boverflow-/.test(className) ? "" : "overflow-hidden";
+  return (
+    <div className={`glass-panel rounded-xl ${overflowClass} ${className}`.trim()}>
+      {children}
+    </div>
+  );
 }
 
 export function StudioPageFrame({ children }: { children: ReactNode }) {
