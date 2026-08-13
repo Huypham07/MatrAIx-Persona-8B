@@ -53,9 +53,11 @@ function menuCoordsFor(trigger: HTMLElement, wideMenu: boolean): MenuCoords {
   const spaceAbove = rect.top - gap - viewportPad;
   const preferBelow = spaceBelow >= 160 || spaceBelow >= spaceAbove;
   const maxHeight = Math.max(120, Math.min(320, preferBelow ? spaceBelow : spaceAbove));
-  const width = wideMenu
-    ? Math.min(Math.max(rect.width, 288), Math.min(window.innerWidth - viewportPad * 2, 448))
-    : rect.width;
+  // Never size the portaled menu solely from a squeezed inline trigger — Model
+  // selects share a row with long option summaries and can shrink near-zero.
+  const minWidth = wideMenu ? 288 : 240;
+  const maxWidth = Math.min(window.innerWidth - viewportPad * 2, wideMenu ? 448 : 360);
+  const width = Math.min(Math.max(rect.width, minWidth), maxWidth);
   let left = rect.left;
   if (left + width > window.innerWidth - viewportPad) {
     left = Math.max(viewportPad, window.innerWidth - viewportPad - width);
@@ -279,57 +281,56 @@ export function CockpitSelect({
       : null;
 
   return (
-    <div
-      ref={rootRef}
-      className={inlineLabel ? "flex items-center gap-2" : "flex flex-col gap-1.5"}
-    >
-      {label ? (
-        <span
-          className={`text-[13px] font-medium text-text-dim normal-case tracking-normal ${
-            inlineLabel ? "shrink-0" : ""
-          } ${labelClassName ?? ""}`}
-        >
-          {label}
-        </span>
-      ) : null}
-      <div className={inlineLabel ? "relative min-w-0 flex-1" : "relative"}>
-        <button
-          ref={triggerRef}
-          type="button"
-          disabled={disabled}
-          onClick={() => !disabled && setOpen((v) => !v)}
-          onKeyDown={onButtonKey}
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          aria-controls={open ? menuId : undefined}
-          aria-label={`${label}: ${selected?.label ?? value}`}
-          className={`glass-tile glass-tile--hover flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left backdrop-blur transition ease-out active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100 ${FOCUS_RING}`}
-        >
-          <span className="min-w-0 flex-1">
-            <span
-              className={`block text-[15px] font-medium text-text-main ${
-                wrapOptions ? "whitespace-normal break-words leading-snug" : "truncate"
-              }`}
-            >
-              {selected?.label ?? value}
-            </span>
-            {showSelectedMeta && selected?.meta ? (
+    <div ref={rootRef} className="flex flex-col gap-1.5">
+      <div className={inlineLabel ? "flex min-w-0 items-center gap-2" : "contents"}>
+        {label ? (
+          <span
+            className={`text-[13px] font-medium text-text-dim normal-case tracking-normal ${
+              inlineLabel ? "shrink-0" : ""
+            } ${labelClassName ?? ""}`}
+          >
+            {label}
+          </span>
+        ) : null}
+        <div className={inlineLabel ? "relative min-w-0 flex-1" : "relative"}>
+          <button
+            ref={triggerRef}
+            type="button"
+            disabled={disabled}
+            onClick={() => !disabled && setOpen((v) => !v)}
+            onKeyDown={onButtonKey}
+            aria-haspopup="listbox"
+            aria-expanded={open}
+            aria-controls={open ? menuId : undefined}
+            aria-label={`${label}: ${selected?.label ?? value}`}
+            className={`glass-tile glass-tile--hover flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left backdrop-blur transition ease-out active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100 ${FOCUS_RING}`}
+          >
+            <span className="min-w-0 flex-1">
               <span
-                className={`block text-[12px] text-text-dim ${
+                className={`block text-[15px] font-medium text-text-main ${
                   wrapOptions ? "whitespace-normal break-words leading-snug" : "truncate"
                 }`}
               >
-                {selected.meta}
+                {selected?.label ?? value}
               </span>
-            ) : null}
-          </span>
-          <Sym
-            name="expand_more"
-            size={18}
-            className={`shrink-0 text-text-dim transition-transform duration-150 ${open ? "rotate-180" : ""}`}
-          />
-        </button>
-        {menu}
+              {showSelectedMeta && selected?.meta ? (
+                <span
+                  className={`block text-[12px] text-text-dim ${
+                    wrapOptions ? "whitespace-normal break-words leading-snug" : "truncate"
+                  }`}
+                >
+                  {selected.meta}
+                </span>
+              ) : null}
+            </span>
+            <Sym
+              name="expand_more"
+              size={18}
+              className={`shrink-0 text-text-dim transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+            />
+          </button>
+          {menu}
+        </div>
       </div>
       {footer ? (
         <p className="text-[12px] leading-relaxed text-text-dim normal-case">{footer}</p>
