@@ -57,7 +57,7 @@ class OpenAIChatClient:
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         temperature: float = 0.7,
-        timeout_seconds: float = 180.0,
+        timeout_seconds: float = DEFAULT_REQUEST_TIMEOUT_SECONDS,
     ) -> None:
         self.model = model
         self.temperature = temperature

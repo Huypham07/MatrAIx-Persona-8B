@@ -84,7 +84,7 @@ class AnthropicJSONClient:
         *,
         api_key: Optional[str] = None,
         temperature: float = 0.7,
-        timeout_seconds: float = 180.0,
+        timeout_seconds: float = DEFAULT_REQUEST_TIMEOUT_SECONDS,
         max_tokens: int = ANTHROPIC_JSON_MAX_TOKENS,
     ) -> None:
         self.model = model
