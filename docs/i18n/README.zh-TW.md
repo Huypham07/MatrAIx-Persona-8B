@@ -47,7 +47,7 @@
 
 ## 動態
 
-- **[2026-08-10]** 登上 [X Trending Story](https://x.com/i/trending/2086626337561911419)：*Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*。科技媒體亦有報導，包括 [AI Era](https://www.36kr.com/p/3932853833759876)、[Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html)、[Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/)、[AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824)、[CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/)、[Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) 等。
+- **[2026-08-10]** 登上 [X Trending Story](https://x.com/i/trending/2086626337561911419)：*Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*。科技媒體亦有報導，包括 [新智元](https://www.36kr.com/p/3932853833759876)、[Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html)、[Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/)、[AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824)、[CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/)、[Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) 等。
 - **[2026-08-04]** 技術報告發布於 arXiv：[MatrAIx: Simulating the World with 8.3 Billion Persona Agents](https://arxiv.org/abs/2608.04205)（`2608.04205`）。
 - **[2026-08-01]** 在 Hugging Face 發布 [Persona 1M](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release)（約 100 萬條品質過濾人格）。
 - **[2026-07-31]** 開源 Playground 與任務庫：[MatrAIx-Persona-8B](https://github.com/MatrAIx-ai/MatrAIx-Persona-8B)。
@@ -229,6 +229,16 @@ MatrAIx/
 論文：[arXiv:2608.04205](https://arxiv.org/abs/2608.04205) ·
 完整作者名單：GitHub **Cite this repository**（`CITATION.cff`） ·
 資料集：[Persona 1M on Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release)。
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=MatrAIx-ai%2FMatrAIx-Persona-8B&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=MatrAIx-ai/MatrAIx-Persona-8B&type=date&theme=dark&legend=top-left&sealed_token=Yg8UrFwz3ELwyx6wW2CobWIwzUg_VZv53wOwlLji13fApPKuro445vOLW1W5Vy_NfU4NUON-ARepltF9i1-YiNiuSzMK4BVrFHURZLQMoAkeeh4uaxqysfKvTrPQ1cW6zXotcAwoUlKv5Ana5kuWGQj0e-wZoNDaJ6QVL7c8adFut281xX5Quo0c07Y7" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=MatrAIx-ai/MatrAIx-Persona-8B&type=date&legend=top-left&sealed_token=Yg8UrFwz3ELwyx6wW2CobWIwzUg_VZv53wOwlLji13fApPKuro445vOLW1W5Vy_NfU4NUON-ARepltF9i1-YiNiuSzMK4BVrFHURZLQMoAkeeh4uaxqysfKvTrPQ1cW6zXotcAwoUlKv5Ana5kuWGQj0e-wZoNDaJ6QVL7c8adFut281xX5Quo0c07Y7" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=MatrAIx-ai/MatrAIx-Persona-8B&type=date&legend=top-left&sealed_token=Yg8UrFwz3ELwyx6wW2CobWIwzUg_VZv53wOwlLji13fApPKuro445vOLW1W5Vy_NfU4NUON-ARepltF9i1-YiNiuSzMK4BVrFHURZLQMoAkeeh4uaxqysfKvTrPQ1cW6zXotcAwoUlKv5Ana5kuWGQj0e-wZoNDaJ6QVL7c8adFut281xX5Quo0c07Y7" />
+ </picture>
+</a>
 
 ## 授權條款
 
