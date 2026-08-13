@@ -25,12 +25,15 @@ export function isPersonaPoolCoverageError(message: string | null | undefined): 
   );
 }
 
-export function personaPoolCoverageHint(_taskPath?: string | null): string {
+export function personaPoolCoverageHint(taskPath?: string | null): string {
+  const synthesize = taskPath
+    ? " With Task default persona strategy on, you can also Synthesize to fill this task."
+    : "";
   return (
     "Not enough matching personas in this dataset for the current filters. " +
-    "Widen filters / sources, switch dataset (dev sample vs matraix-persona-1m), " +
-    "or use a saved cohort that already has enough matches. " +
-    "Playground does not synthesize missing personas."
+    "Consider switching Dataset to matraix-persona-1m for fuller coverage." +
+    synthesize +
+    " Or widen filters / sources, or use a saved cohort that already has enough matches."
   );
 }
 
@@ -44,6 +47,7 @@ export function formatPersonaSampleError(
     const first = trimmed.split("\n").find((line) => line.trim()) || trimmed;
     const alreadyHinted =
       trimmed.includes("matraix-persona-1m") ||
+      trimmed.includes("Synthesize to fill") ||
       trimmed.includes("does not synthesize");
     return alreadyHinted ? trimmed : `${first}\n\n${personaPoolCoverageHint(taskPath)}`;
   }

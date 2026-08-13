@@ -117,8 +117,10 @@ def test_list_datasets_includes_default_and_extras(tmp_path):
         json.dumps({"count": 3, "personas": []}),
         encoding="utf-8",
     )
-    (repo / "persona" / "datasets" / "cohorts" / "ignore-me").mkdir(parents=True)
-    (repo / "persona" / "datasets" / "cohorts" / "ignore-me" / "manifest.json").write_text(
+    (repo / "persona" / "datasets" / "saved-cohorts" / "ignore-me").mkdir(parents=True)
+    (
+        repo / "persona" / "datasets" / "saved-cohorts" / "ignore-me" / "manifest.json"
+    ).write_text(
         "{}",
         encoding="utf-8",
     )
@@ -141,7 +143,7 @@ def test_list_datasets_includes_default_and_extras(tmp_path):
     assert "persona/datasets/generated-persona-dev-50" in pools
     # Nested leftover `_generated/` dirs stay omitted from Dataset.
     assert "persona/datasets/_generated/strategy-demo" not in pools
-    assert "persona/datasets/cohorts/ignore-me" not in pools
+    assert "persona/datasets/saved-cohorts/ignore-me" not in pools
     # Production sample caches must not appear as Dataset sources.
     assert "persona/datasets/matraix-persona-1m/cohorts/cohort-deadbeef" not in pools
     by_pool = {item["pool"]: item for item in listed}
@@ -200,8 +202,9 @@ def test_save_pool_as_dataset(tmp_path):
         "persona/datasets/my-robinhood-cohort/"
     )
 
-    listed = {item["pool"] for item in service.list_datasets()}
+    listed = {item["pool"]: item for item in service.list_datasets()}
     assert "persona/datasets/my-robinhood-cohort" in listed
+    assert listed["persona/datasets/my-robinhood-cohort"]["kind"] == "saved"
 
     with pytest.raises(FileExistsError):
         service.save_pool_as_dataset(
@@ -266,7 +269,9 @@ def test_save_list_and_resolve_cohort(tmp_path, monkeypatch):
         dimension_filters={"economic_motivation": "Price-sensitive"},
     )
     assert saved["cohortId"] == "nemotron-price-sensitive"
-    assert (repo / "persona/datasets/cohorts/nemotron-price-sensitive/cohort.json").is_file()
+    assert (
+        repo / "persona/datasets/saved-cohorts/nemotron-price-sensitive/cohort.json"
+    ).is_file()
 
     listed = service.list_cohorts()
     assert len(listed) == 1
@@ -714,3 +719,113 @@ def test_list_persona_ids_truncates_over_ui_max(tmp_path, monkeypatch):
     assert listed["count"] == 120
     assert listed["idsTruncated"] is True
     assert len(listed["personaIds"]) <= 32
+
+
+def test_coverage_recovery_hint_mentions_synthesize_when_task_path():
+    from backend.service.persona_pool_service import coverage_recovery_hint
+
+    plain = coverage_recovery_hint()
+    assert "Not enough matching personas" in plain
+    assert "matraix-persona-1m" in plain
+    assert "does not synthesize" not in plain
+    tasked = coverage_recovery_hint(task_path="application/tasks/demo")
+    assert "matraix-persona-1m" in tasked
+    assert "Synthesize to fill this task" in tasked
+
+
+def _fake_generated_persona(persona_id: str = "0001") -> dict:
+    return {
+        "persona_id": persona_id,
+        "version": "1.0",
+        "source": "synthetic",
+        "dimensions": {"age_bracket": "25-34"},
+    }
+
+
+def test_generate_synthetic_pool_random_count(tmp_path, monkeypatch):
+    _write_pool(tmp_path)
+    service = PersonaPoolService(repo_root=tmp_path)
+
+    def fake_generate(**kwargs):
+        assert kwargs["count"] == 2
+        assert kwargs["stratum_top_up"] is None
+        return [_fake_generated_persona("0001"), _fake_generated_persona("0002")]
+
+    monkeypatch.setattr(
+        "matraix.persona_generator.generate_persona_pool",
+        fake_generate,
+    )
+    result = service.generate_synthetic_pool(count=2, seed=7)
+    assert result["pool"] == "persona/datasets/generated-persona-dev-2"
+    assert result["count"] == 2
+    assert result["source"] == "synthetic"
+    assert result["personaIds"] == ["0001", "0002"]
+    dest = tmp_path / "persona/datasets/generated-persona-dev-2"
+    assert (dest / "persona_0001.yaml").is_file()
+    assert (dest / "manifest.json").is_file()
+
+
+def test_generate_synthetic_pool_rejects_over_max(tmp_path):
+    _write_pool(tmp_path)
+    service = PersonaPoolService(repo_root=tmp_path)
+    with pytest.raises(ValueError, match="count must be <="):
+        service.generate_synthetic_pool(count=5001)
+
+
+def test_generate_synthetic_pool_stratified(tmp_path, monkeypatch):
+    _write_pool(tmp_path)
+    service = PersonaPoolService(repo_root=tmp_path)
+    monkeypatch.setattr(
+        "matraix.persona_generator.strategy_pin_cells",
+        lambda **kwargs: ([{"age_bracket": "25-34"}], []),
+    )
+    monkeypatch.setattr(
+        "matraix.persona_generator.generate_persona_pool",
+        lambda **kwargs: (
+            [_fake_generated_persona("0001"), _fake_generated_persona("0002")]
+            if kwargs["min_per_stratum"] == 2
+            else []
+        ),
+    )
+    result = service.generate_synthetic_pool(
+        dimension_filters={"age_bracket": ["25-34"]},
+        stratify_fields=["age_bracket"],
+        allocation="perCell",
+        per_cell=2,
+        seed=1,
+    )
+    assert result["pool"] == "persona/datasets/generated-persona-dev-stratified"
+    assert result["count"] == 2
+
+
+def test_generate_synthetic_pool_from_task_strategy(tmp_path, monkeypatch):
+    _write_pool(tmp_path)
+    task_dir = tmp_path / "application" / "tasks" / "demo-task"
+    task_dir.mkdir(parents=True)
+    (task_dir / "persona_strategy.json").write_text(
+        json.dumps(
+            {
+                "schemaVersion": "1.0",
+                "dimensionFilters": {"age_bracket": ["25-34"]},
+                "sampling": {
+                    "mode": "stratified",
+                    "fields": ["age_bracket"],
+                    "allocation": "perCell",
+                    "perCell": 2,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    service = PersonaPoolService(repo_root=tmp_path)
+    monkeypatch.setattr(
+        "matraix.persona_generator.strategy_pin_cells",
+        lambda **kwargs: ([{"age_bracket": "25-34"}], []),
+    )
+    monkeypatch.setattr(
+        "matraix.persona_generator.generate_persona_pool",
+        lambda **kwargs: [_fake_generated_persona("0001"), _fake_generated_persona("0002")],
+    )
+    result = service.generate_synthetic_pool(task_path="application/tasks/demo-task")
+    assert result["pool"] == "persona/datasets/generated-persona-dev-strategy-demo-task"
+    assert result["count"] == 2

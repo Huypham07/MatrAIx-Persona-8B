@@ -1018,6 +1018,76 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    @app.post(
+        "/api/persona-pool/generate",
+        response_model=None,
+        tags=["persona-pool"],
+    )
+    def generate_persona_pool(
+        body: schemas.PersonaPoolGenerateRequest,
+        services: AppState = Depends(get_services),
+        stream: bool = Query(
+            default=False,
+            description="When true, stream NDJSON progress events then a final result line.",
+        ),
+    ):
+        kwargs = dict(
+            count=body.count,
+            seed=body.seed,
+            dimension_filters=body.dimensionFilters,
+            stratify_fields=body.fields,
+            allocation=body.allocation,
+            per_cell=body.perCell,
+            sample_size=body.sampleSize,
+            task_path=body.taskPath,
+            name=body.name,
+        )
+        if not stream:
+            try:
+                return services.persona_pool.generate_synthetic_pool(**kwargs)
+            except FileNotFoundError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        import json
+        import queue
+        import threading
+
+        from starlette.responses import StreamingResponse
+
+        events: queue.Queue = queue.Queue()
+
+        def on_progress(event: Dict[str, Any]) -> None:
+            events.put(event)
+
+        def worker() -> None:
+            try:
+                result = services.persona_pool.generate_synthetic_pool(
+                    on_progress=on_progress,
+                    **kwargs,
+                )
+                events.put({"type": "result", **result})
+            except FileNotFoundError as exc:
+                events.put({"type": "error", "status": 404, "detail": str(exc)})
+            except ValueError as exc:
+                events.put({"type": "error", "status": 422, "detail": str(exc)})
+            except Exception as exc:  # noqa: BLE001 — surface to client stream
+                events.put({"type": "error", "status": 500, "detail": str(exc)})
+            finally:
+                events.put(None)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+        def ndjson():
+            while True:
+                item = events.get()
+                if item is None:
+                    break
+                yield json.dumps(item, ensure_ascii=False) + "\n"
+
+        return StreamingResponse(ndjson(), media_type="application/x-ndjson")
+
     @app.get(
         "/api/persona-pool/personas",
         tags=["persona-pool"],

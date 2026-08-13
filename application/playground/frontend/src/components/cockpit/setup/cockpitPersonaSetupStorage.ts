@@ -14,7 +14,15 @@ import {
 /** Legacy pool slug renamed to matraix-persona-dev-sample (directory removed). */
 const LEGACY_BENCH_DEV_SAMPLE = "persona/datasets/bench-dev-sample";
 
-/** Drop legacy synthetic strategy pools from restored setup. */
+/**
+ * One-time Task-default fill pools (`generated-persona-dev-strategy-*`).
+ * Owned by Task default ON + Pull/Synthesize — not a durable Dataset choice.
+ */
+export function isTaskStrategyFillPool(pool: string | null | undefined): boolean {
+  return /(?:^|\/)generated-persona-dev-strategy-/.test((pool ?? "").trim());
+}
+
+/** Drop legacy / ephemeral pools that must not sticky-restore as Dataset. */
 export function sanitizePersonaPool(pool: string | null | undefined): string {
   const text = (pool ?? "").trim();
   if (!text) return PERSONA_BENCH_POOL;
@@ -175,7 +183,7 @@ function normalizeRecord(
     groupFilters: record.groupFilters ?? emptyPersonaDimensionFilters(),
     fields: Array.isArray(record.fields)
       ? record.fields.filter((field): field is string => typeof field === "string")
-      : ["age_bracket", "region"],
+      : [],
     stratifiedAllocation:
       record.stratifiedAllocation === "proportional" ||
       record.stratifiedAllocation === "equalTotal" ||
@@ -214,7 +222,8 @@ export function defaultPersonaSetup(fallbackPersonaModel: string): CockpitPerson
     useEntirePool: false,
     samplingMode: "single",
     groupFilters: emptyPersonaDimensionFilters(),
-    fields: ["age_bracket", "region"],
+    // Stratify axes are operator-chosen — never seed Age/Region by default.
+    fields: [],
     stratifiedAllocation: "perCell",
     sampleSize: 4,
     perCell: 1,
@@ -222,6 +231,25 @@ export function defaultPersonaSetup(fallbackPersonaModel: string): CockpitPerson
     personaModel: fallbackPersonaModel,
     personaPool: PERSONA_BENCH_POOL,
     useTaskDefaultStrategy: false,
+  };
+}
+
+/**
+ * Custom mode (Task default off) must not keep a task-fill cohort as Dataset.
+ * Returns a clean sandbox record when the stored pool is strategy-owned.
+ */
+export function scrubTaskStrategyFillForCustomMode(
+  record: CockpitPersonaSetupRecord,
+  fallbackPersonaModel: string,
+): CockpitPersonaSetupRecord {
+  if (!isTaskStrategyFillPool(record.personaPool)) return record;
+  const defaults = defaultPersonaSetup(fallbackPersonaModel);
+  return {
+    ...defaults,
+    personaModel: record.personaModel || defaults.personaModel,
+    parallelTrials: record.parallelTrials || defaults.parallelTrials,
+    useTaskDefaultStrategy: false,
+    taskDefaultStrategyDismissed: true,
   };
 }
 

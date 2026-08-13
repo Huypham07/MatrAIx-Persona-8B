@@ -261,6 +261,10 @@ persona/curation/attribute_pool/sources/raw/
 persona/datasets/generated-persona-dev-*/
 persona/datasets/bench-dev-*/
 persona/datasets/_generated/
+# Playground “Save cohort” recipes/frozen sets (persona/datasets/saved-cohorts/<id>/).
+persona/datasets/saved-cohorts/
+# Legacy Save-cohort root (pre-rename); keep ignored if leftover locally.
+persona/datasets/cohorts/
 # Launch caches next to a source dataset (dev sample, saved datasets, …).
 persona/datasets/*/cohorts/
 # Production 1M release mirror + sampled cohorts (large / machine-local).

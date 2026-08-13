@@ -52,6 +52,8 @@ export function useCockpitBatchJob(
   const [restoredPersonaPool, setRestoredPersonaPool] = useState<string | null>(
     initial.personaPool,
   );
+  /** Operator stopped the batch — keep attachment locked until Reset. */
+  const [batchCancelled, setBatchCancelled] = useState(false);
 
   // Freeze the cohort to the batch launch snapshot until the user resets.
   const effectivePersonaIds = batchJobName
@@ -65,8 +67,13 @@ export function useCockpitBatchJob(
   // Large cohorts drop the heavy per-trial live feed for a lightweight,
   // incremental aggregate status feed that scales to tens of thousands.
   const aggregate = effectivePersonaIds.length > BATCH_MOSAIC_THRESHOLD;
-  const batchLive = useHarborBatchLive(batchJobName, { enabled: !aggregate });
-  const statusFeed = useHarborBatchStatus(batchJobName, aggregate);
+  const batchLive = useHarborBatchLive(batchJobName, {
+    enabled: !aggregate && !batchCancelled,
+  });
+  const statusFeed = useHarborBatchStatus(
+    batchCancelled ? null : batchJobName,
+    aggregate,
+  );
 
   const setBatchJobName = useCallback(
     (jobName: string | null, meta?: { taskId?: string; personaPool?: string }) => {
@@ -74,6 +81,7 @@ export function useCockpitBatchJob(
       if (!taskKind) return;
 
       if (jobName) {
+        setBatchCancelled(false);
         const personaIds = selectedPersonaIds.length > 0 ? selectedPersonaIds : restoredPersonaIds;
         const cohortSize = Math.max(
           selectedCount,
@@ -107,6 +115,7 @@ export function useCockpitBatchJob(
           });
         }
       } else {
+        setBatchCancelled(false);
         writeCockpitBatch(taskKind, null);
         setRestoredPersonaIds([]);
         setRestoredSelectedCount(0);
@@ -137,15 +146,16 @@ export function useCockpitBatchJob(
   const [retryError, setRetryError] = useState<string | null>(null);
 
   const cancelBatch = useCallback(async () => {
-    if (!batchJobName || cancelBusy) return;
+    if (!batchJobName || cancelBusy || batchCancelled) return;
     setCancelBusy(true);
     try {
       await api.deleteHarborJob(batchJobName);
-      clearBatch();
+      // Keep batchJobName so rails stay locked until Reset (same as done/failed).
+      setBatchCancelled(true);
     } finally {
       setCancelBusy(false);
     }
-  }, [batchJobName, cancelBusy, clearBatch]);
+  }, [batchCancelled, batchJobName, cancelBusy]);
 
   const retryFailed = useCallback(async () => {
     if (!batchJobName || retryBusy) return;
@@ -235,17 +245,19 @@ export function useCockpitBatchJob(
           (trial) => trial.completed && trial.error != null,
         ).length;
 
-  const isBatchActive = Boolean(batchJobName)
-    ? aggregate
-      ? statusSnapshot == null ||
-        statusSnapshot.launchStatus === "running" ||
-        statusSnapshot.launchStatus === "queued" ||
-        completedTrials < expectedTrialCount
-      : batchLive.isActive
-    : false;
+  const isBatchActive =
+    Boolean(batchJobName) && !batchCancelled
+      ? aggregate
+        ? statusSnapshot == null ||
+          statusSnapshot.launchStatus === "running" ||
+          statusSnapshot.launchStatus === "queued" ||
+          completedTrials < expectedTrialCount
+        : batchLive.isActive
+      : false;
 
   const batchComplete =
     Boolean(batchJobName) &&
+    !batchCancelled &&
     completedTrials >= expectedTrialCount &&
     expectedTrialCount > 0;
 
@@ -284,6 +296,7 @@ export function useCockpitBatchJob(
     clearBatch,
     cancelBatch,
     cancelBusy,
+    batchCancelled,
     retryFailed,
     retryBusy,
     retryError,
@@ -294,7 +307,11 @@ export function useCockpitBatchJob(
     completedTrials,
     expectedTrialCount,
     personaById,
-    batchError: aggregate ? statusFeed.error : batchLive.error,
+    batchError: batchCancelled
+      ? "Batch stopped. Reset to change setup and launch again."
+      : aggregate
+        ? statusFeed.error
+        : batchLive.error,
   };
 }
 
@@ -303,8 +320,10 @@ export function resolveRunLaunchPhase(
   batchComplete: boolean,
   batchError: string | null,
   phase: HarborCockpitPhase,
+  batchCancelled = false,
 ): RunLaunchPhase {
   if (batchJobName) {
+    if (batchCancelled) return "error";
     if (batchComplete) return "done";
     if (batchError) return "error";
     return "running";

@@ -246,6 +246,7 @@ export function SurveyEvalCockpit({
     clearBatch,
     cancelBatch,
     cancelBusy,
+    batchCancelled,
     retryFailed,
     retryBusy,
     retryError,
@@ -506,10 +507,11 @@ export function SurveyEvalCockpit({
     batchComplete,
     batchError,
     phase,
+    batchCancelled,
   );
   const runProgressPct = batchJobName
     ? computeBatchProgressPct(batchJobName, batchCompletedTrials, expectedTrialCount)
-    : phase === "done"
+    : phase === "done" || phase === "error" || phase === "timeout"
       ? 100
       : phase === "launching"
         ? 12
@@ -519,10 +521,12 @@ export function SurveyEvalCockpit({
             ? 20
             : 0;
   const runProgressLabel = batchJobName
-    ? formatBatchProgressLabel(
-        batchCompletedTrials,
-        expectedTrialCount,
-      )
+    ? batchCancelled
+      ? "Batch stopped"
+      : formatBatchProgressLabel(
+          batchCompletedTrials,
+          expectedTrialCount,
+        )
     : phase === "launching"
       ? "Launching survey trial…"
       : phase === "running"
@@ -532,7 +536,9 @@ export function SurveyEvalCockpit({
         : phase === "done"
           ? `Survey complete · ${questionAnswered} answers`
           : failed
-            ? error ?? "The questionnaire didn't finish."
+            ? error?.startsWith("Run stopped")
+              ? "Run stopped"
+              : error ?? "The questionnaire didn't finish."
             : undefined;
   const canExport = exportSnapshot !== null && surveyResult !== null;
 
@@ -641,7 +647,9 @@ export function SurveyEvalCockpit({
           }
           onDownload={!batchJobName ? handleExport : undefined}
           canDownload={canExport}
-          onRetryFailed={batchJobName ? () => void retryFailed() : undefined}
+          onRetryFailed={
+            batchJobName && !batchCancelled ? () => void retryFailed() : undefined
+          }
           failedCount={failedTrials}
           retryBusy={retryBusy}
         />

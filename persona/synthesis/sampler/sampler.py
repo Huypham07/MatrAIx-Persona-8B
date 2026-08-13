@@ -384,10 +384,57 @@ class PersonaForwardSampler:
             [len(self.values[nid]) for nid in self.required_nodes]
         )
 
-    def sample_indices(self, n: int) -> Dict[str, np.ndarray]:
-        """Sample N personas and return integer-coded node values."""
+    def _fixed_value_indices(self, fixed: Mapping[str, str] | None) -> Dict[str, int]:
+        if not fixed:
+            return {}
+        out: Dict[str, int] = {}
+        for nid, value in fixed.items():
+            if nid not in self.vtoi:
+                raise ValueError(f"cannot clamp unknown DAG node {nid!r}")
+            if value not in self.vtoi[nid]:
+                raise ValueError(f"cannot clamp {nid}={value!r}; not in node values")
+            out[nid] = int(self.vtoi[nid][value])
+        return out
+
+    def assignment_supported(self, fixed: Mapping[str, str] | None) -> bool:
+        """Whether this partial assignment can be pinned on the DAG.
+
+        Unknown nodes/values are unsupported. A hard mask (multiplier 0) fires
+        only when every condition field is present in ``fixed`` and matches.
+        Unpinned parents stay free, so the cell is still allowed.
+        """
+        if not fixed:
+            return True
+        try:
+            fixed_idx = self._fixed_value_indices(fixed)
+        except ValueError:
+            return False
+        for target, masks in self.masks.items():
+            if target not in fixed_idx:
+                continue
+            t_idx = fixed_idx[target]
+            for mask in masks:
+                if float(mask["value_mult"][t_idx]) != 0.0:
+                    continue
+                if any(
+                    parent not in fixed_idx or not np.isin(int(fixed_idx[parent]), allowed)
+                    for parent, allowed in mask["condition"]
+                ):
+                    continue
+                return False
+        return True
+
+    def sample_indices(
+        self, n: int, *, fixed: Mapping[str, str] | None = None
+    ) -> Dict[str, np.ndarray]:
+        """Sample N personas and return integer-coded node values.
+
+        ``fixed`` pins named nodes to a value on every row. Later nodes still
+        condition on those pins.
+        """
         idx: Dict[str, np.ndarray] = {}
         rng = self.rng
+        fixed_idx = self._fixed_value_indices(fixed)
         out_dtype = self._index_dtype
         kmax = self._plan_max_k
         # All per-node work runs in reused value-major (k, n) views of these
@@ -403,6 +450,9 @@ class PersonaForwardSampler:
         sel = np.empty(n, dtype=np.int64)
 
         for plan in self._plan:
+            if plan.nid in fixed_idx:
+                idx[plan.nid] = np.full(n, fixed_idx[plan.nid], dtype=out_dtype)
+                continue
             k = plan.k
             rng.random(out=u)
 
@@ -469,7 +519,12 @@ class PersonaForwardSampler:
             idx[plan.nid] = sel.astype(out_dtype)
 
         for nid in self._prior_only_nodes:
-            idx[nid] = rng.choice(len(self.values[nid]), size=n, p=self.prior[nid]).astype(out_dtype)
+            if nid in fixed_idx:
+                idx[nid] = np.full(n, fixed_idx[nid], dtype=out_dtype)
+            else:
+                idx[nid] = rng.choice(
+                    len(self.values[nid]), size=n, p=self.prior[nid]
+                ).astype(out_dtype)
         return idx
 
     def _codes_dtype(self) -> np.dtype:
@@ -561,8 +616,10 @@ class PersonaForwardSampler:
             node_ids = [nid for nid, n in self.nodes.items() if include_hidden or n.get("emit", True) is not False]
         return {nid: self.values[nid][int(idx[nid][row])] for nid in node_ids if nid in idx}
 
-    def sample(self, n: int) -> List[Dict[str, str]]:
-        idx = self.sample_indices(n)
+    def sample(
+        self, n: int, *, fixed: Mapping[str, str] | None = None
+    ) -> List[Dict[str, str]]:
+        idx = self.sample_indices(n, fixed=fixed)
         return [self.decode_row(idx, i) for i in range(n)]
 
     def write_jsonl(self, idx: Dict[str, np.ndarray], out: str | Path) -> None:

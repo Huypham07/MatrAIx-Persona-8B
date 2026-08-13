@@ -1,11 +1,13 @@
-"""Generate consistent synthetic persona YAML from dimensions.json."""
+"""Sample synthetic persona YAML from the Full DAG."""
 
 from __future__ import annotations
 
+import itertools
 import json
 import random
+import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Callable
 
 import yaml
 
@@ -21,9 +23,12 @@ from matraix.persona_consistency import (
     validate_dimensions,
 )
 
+if TYPE_CHECKING:
+    from persona.synthesis.sampler import PersonaForwardSampler
+
 DEFAULT_CATALOG_PATH = "persona/schema/dimensions.json"
 DEFAULT_PERSONA_VERSION = "1.0"
-PERSONA_SOURCES = ("Nemotron", "OASIS", "PersonaHub", "PRIMEX")
+SYNTHETIC_SOURCE = "synthetic"
 
 
 def _repo_root() -> Path:
@@ -131,26 +136,27 @@ def _count_stratum(personas: list[dict[str, Any]], stratum: dict[str, str]) -> i
     return sum(1 for entry in personas if _stratum_match(entry["dimensions"], stratum))
 
 
-def _pick_source(rng: random.Random, sources: tuple[str, ...]) -> str:
-    if not sources:
-        raise ValueError("sources must not be empty")
-    return rng.choice(sources)
-
-
 def _persona_entry(
     *,
     persona_id: str,
     dimensions: dict[str, str],
     version: str,
-    source_rng: random.Random,
-    sources: tuple[str, ...],
 ) -> dict[str, Any]:
     return {
         "persona_id": persona_id,
         "version": version,
-        "source": _pick_source(source_rng, sources),
+        "source": SYNTHETIC_SOURCE,
         "dimensions": dimensions,
     }
+
+
+def _dag_sampler(*, seed: int) -> PersonaForwardSampler:
+    root = str(_repo_root())
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    from persona.synthesis.sampler import DEFAULT_GRAPH_PATH, PersonaForwardSampler, SamplingConfig
+
+    return PersonaForwardSampler(DEFAULT_GRAPH_PATH, SamplingConfig(seed=seed))
 
 
 def top_up_strata(
@@ -158,45 +164,34 @@ def top_up_strata(
     *,
     strata: list[dict[str, str]],
     min_per_stratum: int,
-    rng,
-    catalog: dict[str, list[str]],
-    dev_dimension_ids: tuple[str, ...],
-    catalog_path: str,
     persona_version: str = DEFAULT_PERSONA_VERSION,
-    sources: tuple[str, ...] = PERSONA_SOURCES,
-    max_attempts_per_stratum: int = 500,
+    sampler: PersonaForwardSampler | None = None,
+    seed: int = 42,
 ) -> list[dict[str, Any]]:
-    """Append consistent personas until each stratum meets *min_per_stratum*."""
+    """Add synthetic rows until each filter cell has at least ``min_per_stratum`` matches.
+
+    Filter keys are pinned; every other field is still sampled from the DAG.
+    Cells the DAG cannot pin are skipped.
+    """
     if min_per_stratum < 1:
         return personas
 
     out = list(personas)
     next_index = max((int(entry["persona_id"]) for entry in out), default=0) + 1
+    dag = sampler or _dag_sampler(seed=seed)
 
     for stratum in strata:
-        attempts = 0
-        while _count_stratum(out, stratum) < min_per_stratum:
-            attempts += 1
-            if attempts > max_attempts_per_stratum:
-                raise RuntimeError(
-                    f"Could not top up stratum {stratum!r} to {min_per_stratum} "
-                    f"after {max_attempts_per_stratum} attempts"
-                )
-            dimensions = generate_persona_dimensions(
-                rng=rng,
-                catalog=catalog,
-                dev_dimension_ids=dev_dimension_ids,
-                catalog_path=catalog_path,
-                age_bracket=stratum.get("age_bracket"),
-                fixed_dimensions=stratum,
-            )
+        if not dag.assignment_supported(stratum):
+            continue
+        need = min_per_stratum - _count_stratum(out, stratum)
+        if need <= 0:
+            continue
+        for row in dag.sample(need, fixed=stratum):
             out.append(
                 _persona_entry(
                     persona_id=str(next_index).zfill(4),
-                    dimensions=dimensions,
+                    dimensions=dict(row),
                     version=persona_version,
-                    source_rng=rng,
-                    sources=sources,
                 )
             )
             next_index += 1
@@ -219,14 +214,10 @@ def build_filter_strata(
     *,
     max_strata: int = 2048,
 ) -> list[dict[str, str]]:
-    """Cartesian product of multi-value ``dimensionFilters`` → fixed strata cells.
+    """Cartesian product of multi-value ``dimensionFilters`` → one cell per combination.
 
-    Each cell is a ``dict[str, str]`` suitable for ``top_up_strata`` /
-    ``generate_persona_dimensions(fixed_dimensions=…)``. Empty filters yield
-    no strata (caller should require filters when generating from a strategy).
-
-    Callers should pass the result through ``filter_feasible_strata`` when
-    filters may combine constrained dimensions incompatibly (e.g. age × life_stage).
+    Pass the result through ``filter_strata_on_dag`` before pinning cells on the
+    Full DAG. ``filter_feasible_strata`` is a catalog check for existing pools.
     """
     if not dimension_filters:
         return []
@@ -265,10 +256,9 @@ def filter_feasible_strata(
     *,
     catalog_path: str | Path | None = None,
 ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
-    """Keep strata that can produce a consistency-valid persona.
+    """Drop filter cells that combine incompatible constrained dimensions.
 
-    Returns ``(feasible, dropped)``. Dropped cells are usually incompatible
-    constrained-dimension combinations from a cartesian filter expand.
+    Returns ``(kept, dropped)``.
     """
     cat_path = str(catalog_path or DEFAULT_CATALOG_PATH)
     catalog = load_catalog_values(cat_path)
@@ -293,103 +283,191 @@ def filter_feasible_strata(
     return feasible, dropped
 
 
+def filter_strata_on_dag(
+    strata: list[dict[str, str]],
+    *,
+    sampler: PersonaForwardSampler | None = None,
+    seed: int = 42,
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    """Keep filter cells the Full DAG can pin.
+
+    Drops unknown dimension/value pairs and cells that hit a DAG hard mask.
+    Returns ``(kept, dropped)``.
+    """
+    dag = sampler or _dag_sampler(seed=seed)
+    kept: list[dict[str, str]] = []
+    dropped: list[dict[str, str]] = []
+    for stratum in strata:
+        if dag.assignment_supported(stratum):
+            kept.append(stratum)
+        else:
+            dropped.append(stratum)
+    return kept, dropped
+
+
+def stratified_cell_quota(
+    *,
+    allocation: str | None,
+    per_cell: int | None,
+    sample_size: int | None,
+    n_cells: int,
+    default: int = 2,
+) -> int:
+    """Rows per stratify cell so a later Playground draw will not run short.
+
+    Matches Playground stratified sampling:
+
+    * ``perCell`` — ``N`` in every cell (cohort = ``N × #cells``)
+    * ``equalTotal`` — ``ceil(sampleSize / #cells)`` then the draw clips to ``sampleSize``
+    * ``proportional`` — same floor so every cell exists and the pool is ≥ ``sampleSize``
+    """
+    if n_cells < 1:
+        raise ValueError("n_cells must be >= 1")
+    alloc = str(allocation or "").strip()
+    if alloc == "perCell":
+        if not isinstance(per_cell, int) or per_cell < 1:
+            raise ValueError('allocation "perCell" requires perCell >= 1')
+        return per_cell
+    if alloc in {"equalTotal", "proportional"}:
+        if not isinstance(sample_size, int) or sample_size < 1:
+            raise ValueError(f'allocation "{alloc}" requires sampleSize >= 1')
+        if alloc == "equalTotal" and sample_size < n_cells:
+            raise ValueError(
+                f"sampleSize={sample_size} is below the stratified cell count={n_cells} "
+                "(need ≥1 persona per combination)"
+            )
+        return max(1, (sample_size + n_cells - 1) // n_cells)
+    if isinstance(per_cell, int) and per_cell >= 1:
+        return per_cell
+    if isinstance(sample_size, int) and sample_size >= 1:
+        return max(1, (sample_size + n_cells - 1) // n_cells)
+    return default
+
+
+def extend_cells_with_allowed_filters(
+    cells: list[dict[str, str]],
+    extra_filters: dict[str, list[str]],
+    *,
+    sampler: PersonaForwardSampler,
+    max_tries_per_cell: int = 2048,
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    """Pin one allowed value for each extra filter dim so rows survive ``dimensionFilters``."""
+    if not extra_filters:
+        return list(cells), []
+    extra_dims = sorted(extra_filters)
+    extra_values = [list(extra_filters[dim]) for dim in extra_dims]
+    kept: list[dict[str, str]] = []
+    dropped: list[dict[str, str]] = []
+    for cell in cells:
+        found: dict[str, str] | None = None
+        for index, combo in enumerate(itertools.product(*extra_values)):
+            if index >= max_tries_per_cell:
+                break
+            pinned = {**cell, **dict(zip(extra_dims, combo, strict=True))}
+            if sampler.assignment_supported(pinned):
+                found = pinned
+                break
+        if found is None:
+            dropped.append(cell)
+        else:
+            kept.append(found)
+    return kept, dropped
+
+
+def strategy_pin_cells(
+    *,
+    dimension_filters: dict[str, list[str]],
+    stratify_fields: list[str] | None = None,
+    sampler: PersonaForwardSampler | None = None,
+    seed: int = 42,
+    max_strata: int = 2048,
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    """Pin cells Playground will bucket on, plus extra filters so rows still match.
+
+    Stratified draws use ``sampling.fields``. Other ``dimensionFilters`` are still
+    applied first, so each cell is extended with one allowed value per extra dim.
+    """
+    dag = sampler or _dag_sampler(seed=seed)
+    fields = [
+        str(field).removeprefix("dimensions.").strip()
+        for field in (stratify_fields or [])
+        if str(field).strip()
+    ]
+    if fields:
+        axes = {field: list(dimension_filters[field]) for field in fields}
+    else:
+        axes = dict(dimension_filters)
+    cells = build_filter_strata(axes, max_strata=max_strata)
+    cells, dropped = filter_strata_on_dag(cells, sampler=dag)
+    extra = {
+        key: list(values)
+        for key, values in dimension_filters.items()
+        if key not in axes
+    }
+    if extra:
+        cells, dropped_extra = extend_cells_with_allowed_filters(
+            cells, extra, sampler=dag
+        )
+        dropped.extend(dropped_extra)
+    return cells, dropped
+
+
 def generate_persona_pool(
     *,
     count: int,
     seed: int = 42,
-    catalog_path: str | Path | None = None,
     smoke_persona_id: str = "0042",
     stratum_top_up: list[dict[str, str]] | None = None,
     min_per_stratum: int = 0,
     persona_version: str = DEFAULT_PERSONA_VERSION,
-    sources: tuple[str, ...] = PERSONA_SOURCES,
     include_smoke: bool = True,
 ) -> list[dict[str, Any]]:
-    """Build *count* personas with roughly even age_bracket coverage.
+    """Sample ``count`` synthetic personas from the Full DAG.
 
-    ``count`` may be ``0`` when the caller only wants ``stratum_top_up`` cells
-    (e.g. task ``persona_strategy.json`` coverage pools).
+    ``count`` may be ``0`` to only fill ``stratum_top_up`` cells (each DAG-supported
+    cell gets at least ``min_per_stratum`` rows).
     """
     if count < 0:
         raise ValueError("count must be >= 0")
-    cat_path = str(catalog_path or DEFAULT_CATALOG_PATH)
-    catalog = load_catalog_values(cat_path)
-    dev_ids = load_dev_dimension_ids(catalog_path=cat_path)
-    rng = random.Random(seed)
-    ages = catalog["age_bracket"]
-    per_age = count // len(ages) if ages else 0
-    extra = count % len(ages) if ages else 0
-
+    dag = _dag_sampler(seed=seed)
     personas: list[dict[str, Any]] = []
-    persona_index = 1
-    for age_index, age in enumerate(ages):
-        n = per_age + (1 if age_index < extra else 0)
-        for _ in range(n):
-            persona_id = str(persona_index).zfill(4)
-            dimensions = generate_persona_dimensions(
-                rng=rng,
-                catalog=catalog,
-                dev_dimension_ids=dev_ids,
-                catalog_path=cat_path,
-                age_bracket=age,
+    for index, row in enumerate(dag.sample(count) if count else [], start=1):
+        personas.append(
+            _persona_entry(
+                persona_id=str(index).zfill(4),
+                dimensions=dict(row),
+                version=persona_version,
             )
-            personas.append(
-                _persona_entry(
-                    persona_id=persona_id,
-                    dimensions=dimensions,
-                    version=persona_version,
-                    source_rng=rng,
-                    sources=sources,
-                )
-            )
-            persona_index += 1
-
-    if stratum_top_up and min_per_stratum > 0:
-        personas = top_up_strata(
-            personas,
-            strata=stratum_top_up,
-            min_per_stratum=min_per_stratum,
-            rng=rng,
-            catalog=catalog,
-            dev_dimension_ids=dev_ids,
-            catalog_path=cat_path,
-            persona_version=persona_version,
-            sources=sources,
         )
 
-    source_rng = random.Random(seed + 7)
-    for entry in personas:
-        entry["source"] = _pick_source(source_rng, sources)
+    if stratum_top_up and min_per_stratum > 0:
+        kept, _dropped = filter_strata_on_dag(stratum_top_up, sampler=dag)
+        personas = top_up_strata(
+            personas,
+            strata=kept,
+            min_per_stratum=min_per_stratum,
+            persona_version=persona_version,
+            sampler=dag,
+            seed=seed,
+        )
 
     if not include_smoke:
         return personas
 
-    smoke_rng = random.Random(seed + 42)
-    smoke_dims = generate_persona_dimensions(
-        rng=smoke_rng,
-        catalog=catalog,
-        dev_dimension_ids=dev_ids,
-        catalog_path=cat_path,
-    )
+    if any(entry["persona_id"] == smoke_persona_id for entry in personas):
+        return personas
     smoke_entry = _persona_entry(
         persona_id=smoke_persona_id,
-        dimensions=smoke_dims,
+        dimensions=dict(dag.sample(1)[0]),
         version=persona_version,
-        source_rng=source_rng,
-        sources=sources,
     )
-    for index, entry in enumerate(personas):
-        if entry["persona_id"] == smoke_persona_id:
-            personas[index] = smoke_entry
-            return personas
     if not personas:
-        personas.append(smoke_entry)
-        return personas
+        return [smoke_entry]
     smoke_index = int(smoke_persona_id) - 1
     if 0 <= smoke_index < len(personas):
         personas[smoke_index] = smoke_entry
-    else:
-        personas.append(smoke_entry)
+        return personas
+    personas.append(smoke_entry)
     return personas
 
 
@@ -405,11 +483,23 @@ def write_persona_dataset(
     persona_version: str = DEFAULT_PERSONA_VERSION,
     manifest_name: str | None = None,
     manifest_description: str | None = None,
+    on_progress: Callable[[str, dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
+    """Write one YAML per persona + ``manifest.json``.
+
+    ``on_progress(stage, payload)`` is optional. Stages: ``write`` (with
+    ``done``/``total``) and ``manifest``.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
-    dev_ids = load_dev_dimension_ids(catalog_path=catalog_path)
+    if personas:
+        dimension_ids = list(personas[0]["dimensions"])
+    else:
+        dimension_ids = list(load_dev_dimension_ids(catalog_path=catalog_path))
     manifest_personas: list[dict[str, Any]] = []
-    for entry in personas:
+    total = len(personas)
+    # ~40 updates max so large pools stay responsive without flooding the wire.
+    report_every = max(1, total // 40) if total else 1
+    for index, entry in enumerate(personas, start=1):
         persona_id = entry["persona_id"]
         rel_path = f"{out_dir.relative_to(repo_root)}/persona_{persona_id}.yaml"
         payload = {
@@ -429,6 +519,15 @@ def write_persona_dataset(
                 "dimensions": entry["dimensions"],
             }
         )
+        if on_progress and (index == total or index % report_every == 0):
+            on_progress(
+                "write",
+                {
+                    "done": index,
+                    "total": total,
+                    "label": f"Writing personas ({index}/{total})",
+                },
+            )
 
     source_counts: dict[str, int] = {}
     for entry in manifest_personas:
@@ -436,16 +535,19 @@ def write_persona_dataset(
         if source:
             source_counts[source] = source_counts.get(source, 0) + 1
 
+    if on_progress:
+        on_progress("manifest", {"label": "Writing manifest…"})
+
     manifest: dict[str, Any] = {
         "kind": kind,
         "count": len(manifest_personas),
         "seed": seed,
         "schema_version": persona_version,
         "smoke_persona_id": smoke_persona_id,
-        "dimension_ids": list(dev_ids),
-        "dimension_count": len(dev_ids),
+        "dimension_ids": list(dimension_ids),
+        "dimension_count": len(dimension_ids),
         "dimension_categories": "persona/schema/dimension_categories.json",
-        "persona_sources": list(PERSONA_SOURCES),
+        "persona_sources": sorted(source_counts),
         "source_counts": source_counts,
         "personas": manifest_personas,
     }

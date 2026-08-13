@@ -921,6 +921,34 @@ class PersonaPoolSampleRequest(BaseModel):
     includePersonaIds: Optional[bool] = None
 
 
+class PersonaPoolGenerateRequest(BaseModel):
+    """Write a Full-DAG synthetic pool under ``persona/datasets/generated-persona-dev-*``."""
+
+    count: Optional[int] = None
+    seed: int = 42
+    dimensionFilters: Optional[Dict[str, Any]] = None
+    fields: Optional[List[str]] = None
+    perCell: Optional[int] = None
+    allocation: Optional[str] = None
+    sampleSize: Optional[int] = None
+    taskPath: Optional[str] = None
+    """When set, fill that task's ``persona_strategy.json`` (one-time synthesize)."""
+    name: Optional[str] = None
+
+
+class PersonaPoolGenerateResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    pool: str
+    label: str
+    count: int
+    dimensionCount: int = 0
+    source: str = "synthetic"
+    kind: str = "dataset"
+    personaIds: List[str] = Field(default_factory=list)
+    seed: int = 42
+
+
 class TaskPersonaSampling(BaseModel):
     """Unified ``sampling`` block inside ``persona_strategy.json``."""
 

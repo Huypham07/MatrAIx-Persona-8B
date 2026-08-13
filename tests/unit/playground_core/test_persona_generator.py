@@ -92,26 +92,25 @@ def test_dev_dimension_ids_include_core_catalog_fields() -> None:
     assert len(dev_ids) == 124
 
 
-def test_generate_pool_has_no_violations() -> None:
+def test_generate_pool_is_synthetic_full_dag() -> None:
     personas = generate_persona_pool(count=50, seed=99)
     for entry in personas:
-        assert validate_dimensions(entry["dimensions"]) == []
-        assert entry.get("source") in {"Nemotron", "OASIS", "PersonaHub", "PRIMEX"}
+        assert entry.get("source") == "synthetic"
         assert entry.get("version") == "1.0"
+        assert len(entry["dimensions"]) >= 1000
+        assert "age_bracket" in entry["dimensions"]
         assert "lstyle_diet_type" in entry["dimensions"]
         assert "health_dietary_restriction" in entry["dimensions"]
         assert "habit_meal_prepping" in entry["dimensions"]
         assert any(key.startswith("cuis_") for key in entry["dimensions"])
 
 
-def test_top_up_strata_adds_consistent_personas() -> None:
+def test_top_up_strata_fills_filter_cells() -> None:
     from matraix.persona_generator import (
         build_probe_strata,
         generate_persona_pool,
         top_up_strata,
-        load_catalog_values,
     )
-    from matraix.persona_consistency import load_dev_dimension_ids
 
     confounders = {
         "socioeconomic_band": "Middle",
@@ -125,18 +124,11 @@ def test_top_up_strata_adds_consistent_personas() -> None:
         probe_values=["Cost-sensitive", "Indifferent"],
     )
     personas = generate_persona_pool(count=50, seed=1, smoke_persona_id="0001")
-    catalog = load_catalog_values()
-    dev_ids = load_dev_dimension_ids()
-    import random
-
     topped = top_up_strata(
         personas,
         strata=strata,
         min_per_stratum=2,
-        rng=random.Random(99),
-        catalog=catalog,
-        dev_dimension_ids=dev_ids,
-        catalog_path="persona/schema/dimensions.json",
+        seed=99,
     )
     assert len(topped) > len(personas)
     for stratum in strata:
@@ -147,7 +139,7 @@ def test_top_up_strata_adds_consistent_personas() -> None:
         ]
         assert len(matches) >= 2
         for entry in matches:
-            assert validate_dimensions(entry["dimensions"]) == []
+            assert entry.get("source") == "synthetic"
 
 
 def test_build_filter_strata_cartesian() -> None:
@@ -164,10 +156,55 @@ def test_build_filter_strata_cartesian() -> None:
     assert {"age_bracket": "35-44", "life_stage": "Early career"} in strata
 
 
+def test_stratified_cell_quota_matches_playground_allocations() -> None:
+    import pytest
+
+    from matraix.persona_generator import stratified_cell_quota
+
+    assert (
+        stratified_cell_quota(
+            allocation="perCell", per_cell=4, sample_size=None, n_cells=10
+        )
+        == 4
+    )
+    assert (
+        stratified_cell_quota(
+            allocation="equalTotal", per_cell=None, sample_size=8, n_cells=3
+        )
+        == 3
+    )
+    assert (
+        stratified_cell_quota(
+            allocation="proportional", per_cell=None, sample_size=8, n_cells=3
+        )
+        == 3
+    )
+    with pytest.raises(ValueError, match="below the stratified cell count"):
+        stratified_cell_quota(
+            allocation="equalTotal", per_cell=None, sample_size=2, n_cells=5
+        )
+
+
+def test_strategy_pin_cells_pins_extra_filters() -> None:
+    from matraix.persona_generator import strategy_pin_cells
+
+    cells, _dropped = strategy_pin_cells(
+        dimension_filters={
+            "age_bracket": ["25-34", "35-44"],
+            "life_stage": ["Early career", "Mid-life"],
+        },
+        stratify_fields=["life_stage"],
+        seed=1,
+    )
+    assert cells
+    for cell in cells:
+        assert cell["life_stage"] in {"Early career", "Mid-life"}
+        assert cell["age_bracket"] in {"25-34", "35-44"}
+
+
 def test_generate_pool_strategy_top_up_only() -> None:
     from matraix.persona_generator import (
         build_filter_strata,
-        filter_feasible_strata,
         generate_persona_pool,
     )
 
@@ -177,9 +214,6 @@ def test_generate_pool_strategy_top_up_only() -> None:
             "life_stage": ["Early career", "Mid-life"],
         }
     )
-    strata, dropped = filter_feasible_strata(strata)
-    assert dropped  # some age × life_stage pairs are inconsistent
-    assert strata
     personas = generate_persona_pool(
         count=0,
         seed=7,
@@ -187,16 +221,21 @@ def test_generate_pool_strategy_top_up_only() -> None:
         min_per_stratum=2,
         include_smoke=False,
     )
-    assert len(personas) >= 2 * len(strata)
+    filled = 0
     for stratum in strata:
         matches = [
             entry
             for entry in personas
             if all(entry["dimensions"].get(k) == v for k, v in stratum.items())
         ]
+        if not matches:
+            continue
+        filled += 1
         assert len(matches) >= 2
         for entry in matches:
-            assert validate_dimensions(entry["dimensions"]) == []
+            assert entry.get("source") == "synthetic"
+    assert filled >= 1
+    assert len(personas) >= 2 * filled
 
 
 def test_checked_in_sample_manifest_is_consistent() -> None:

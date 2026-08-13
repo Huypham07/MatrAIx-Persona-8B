@@ -361,6 +361,7 @@ function ChatbotEvalCockpit({
     clearBatch,
     cancelBatch,
     cancelBusy,
+    batchCancelled,
     retryFailed,
     retryBusy,
     retryError,
@@ -795,14 +796,24 @@ function ChatbotEvalCockpit({
     batchComplete,
     batchError,
     phase,
+    batchCancelled,
   );
 
   const runProgressPct = batchJobName
-    ? computeBatchProgressPct(
-        batchJobName,
-        batchCompletedTrials,
-        expectedTrialCount,
-      )
+    ? batchCancelled
+      ? Math.max(
+          0,
+          computeBatchProgressPct(
+            batchJobName,
+            batchCompletedTrials,
+            expectedTrialCount,
+          ),
+        )
+      : computeBatchProgressPct(
+          batchJobName,
+          batchCompletedTrials,
+          expectedTrialCount,
+        )
     : pipelinePhase === "done"
       ? 100
       : pipelinePhase === "building"
@@ -811,13 +822,17 @@ function ChatbotEvalCockpit({
           ? maxTurns !== null
             ? Math.min(100, Math.round((turns.length / Math.max(1, maxTurns)) * 100))
             : Math.min(92, 18 + turns.length * 14)
-          : 0;
+          : pipelinePhase === "error" || pipelinePhase === "timeout"
+            ? 100
+            : 0;
 
   const runProgressLabel = batchJobName
-    ? formatBatchProgressLabel(
-        batchCompletedTrials,
-        expectedTrialCount,
-      )
+    ? batchCancelled
+      ? "Batch stopped"
+      : formatBatchProgressLabel(
+          batchCompletedTrials,
+          expectedTrialCount,
+        )
     : pipelinePhase === "building"
       ? "Starting the app…"
       : pipelinePhase === "running"
@@ -827,7 +842,9 @@ function ChatbotEvalCockpit({
         : pipelinePhase === "done"
           ? `Run complete · ${turns.length} turn${turns.length === 1 ? "" : "s"}`
           : pipelinePhase === "error" || pipelinePhase === "timeout"
-            ? error ?? "The run stopped before completing."
+            ? error?.startsWith("Run stopped")
+              ? "Run stopped"
+              : error ?? "The run stopped before completing."
             : undefined;
 
   const cockpitView = (
@@ -947,7 +964,9 @@ function ChatbotEvalCockpit({
             }
             onDownload={!batchJobName ? handleExport : undefined}
             canDownload={canExport}
-            onRetryFailed={batchJobName ? () => void retryFailed() : undefined}
+            onRetryFailed={
+              batchJobName && !batchCancelled ? () => void retryFailed() : undefined
+            }
             failedCount={failedTrials}
             retryBusy={retryBusy}
           />
