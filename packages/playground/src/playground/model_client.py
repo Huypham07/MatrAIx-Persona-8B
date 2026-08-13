@@ -63,7 +63,9 @@ def openrouter_openai_client_kwargs(model: str) -> Dict[str, str]:
             "OPENROUTER_API_KEY is required for persona model {!r}".format(model)
         )
     base_url = (
-        os.environ.get("OPENROUTER_API_BASE") or OPENROUTER_DEFAULT_BASE_URL
+        os.environ.get("OPENROUTER_API_BASE")
+        or os.environ.get("OPENROUTER_BASE_URL")
+        or OPENROUTER_DEFAULT_BASE_URL
     ).strip()
     return {
         "model": openrouter_model_id(model),

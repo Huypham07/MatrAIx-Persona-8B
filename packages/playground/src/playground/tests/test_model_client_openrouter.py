@@ -2,6 +2,7 @@ import pytest
 
 from playground import model_client
 from playground.openai_client import OpenAIChatClient
+from playground.user_sim.tool_client import OpenAIToolStepClient, build_tool_step_client
 
 
 class _FakeOpenAI:
@@ -52,6 +53,7 @@ def test_openrouter_api_base_overrides_default(monkeypatch):
 def test_build_json_client_routes_openrouter_to_openai_compatible(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-openrouter-test")
     monkeypatch.delenv("OPENROUTER_API_BASE", raising=False)
+    monkeypatch.delenv("OPENROUTER_BASE_URL", raising=False)
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
     created: list[dict[str, str]] = []
 
@@ -72,9 +74,79 @@ def test_build_json_client_routes_openrouter_to_openai_compatible(monkeypatch):
     ]
 
 
+def test_build_tool_step_client_routes_openrouter_to_openai_compatible(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-openrouter-test")
+    monkeypatch.delenv("OPENROUTER_API_BASE", raising=False)
+    monkeypatch.delenv("OPENROUTER_BASE_URL", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
+    created: list[dict[str, str]] = []
+
+    def fake_openai(**kwargs):
+        created.append(kwargs)
+        return _FakeOpenAI(**kwargs)
+
+    monkeypatch.setattr("openai.OpenAI", fake_openai)
+
+    client = build_tool_step_client("openrouter/z-ai/glm-4.7")
+    assert isinstance(client, OpenAIToolStepClient)
+    assert client.model == "z-ai/glm-4.7"
+    assert created == [
+        {
+            "api_key": "sk-openrouter-test",
+            "base_url": model_client.OPENROUTER_DEFAULT_BASE_URL,
+        }
+    ]
+
+
+def test_openrouter_base_url_alias_configures_json_client(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-openrouter-test")
+    monkeypatch.delenv("OPENROUTER_API_BASE", raising=False)
+    monkeypatch.setenv("OPENROUTER_BASE_URL", "https://alias.openrouter.test/v1")
+    created: list[dict[str, str]] = []
+
+    def fake_openai(**kwargs):
+        created.append(kwargs)
+        return _FakeOpenAI(**kwargs)
+
+    monkeypatch.setattr("openai.OpenAI", fake_openai)
+
+    client = model_client.build_json_client("openrouter/z-ai/glm-4.7")
+    assert isinstance(client, OpenAIChatClient)
+    assert created == [
+        {
+            "api_key": "sk-openrouter-test",
+            "base_url": "https://alias.openrouter.test/v1",
+        }
+    ]
+
+
+def test_openrouter_api_base_wins_over_alias_for_tool_client(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-openrouter-test")
+    monkeypatch.setenv("OPENROUTER_API_BASE", "https://primary.openrouter.test/v1")
+    monkeypatch.setenv("OPENROUTER_BASE_URL", "https://alias.openrouter.test/v1")
+    created: list[dict[str, str]] = []
+
+    def fake_openai(**kwargs):
+        created.append(kwargs)
+        return _FakeOpenAI(**kwargs)
+
+    monkeypatch.setattr("openai.OpenAI", fake_openai)
+
+    client = build_tool_step_client("openrouter/z-ai/glm-4.7")
+    assert isinstance(client, OpenAIToolStepClient)
+    assert created == [
+        {
+            "api_key": "sk-openrouter-test",
+            "base_url": "https://primary.openrouter.test/v1",
+        }
+    ]
+
+
 def test_openai_base_url_does_not_change_openrouter_routing(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-openrouter-test")
     monkeypatch.delenv("OPENROUTER_API_BASE", raising=False)
+    monkeypatch.delenv("OPENROUTER_BASE_URL", raising=False)
     monkeypatch.setenv("OPENAI_BASE_URL", "https://openai-proxy.test/v1")
     created: list[dict[str, str]] = []
 
