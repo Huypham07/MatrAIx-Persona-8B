@@ -95,12 +95,12 @@ Every run specifies a **persona agent** (the automation harness), a **persona LL
 
 | Agent | Application | Persona model | Example recipe | API key on host |
 |-------|-------------|---------------|-----------------|-----------------|
-| `persona-json-survey` | Survey (**auto**) | Any | generated `*-auto-n*.yaml` | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `DASHSCOPE_API_KEY` |
+| `persona-json-survey` | Survey (**auto**) | Any | generated `*-auto-n*.yaml` | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DASHSCOPE_API_KEY`, or `OPENROUTER_API_KEY` |
 | `persona-user-sim` | Chatbot (**auto**) | Any | generated `*-auto-n*.yaml` | Persona key + often `OPENAI_API_KEY` for SUT |
 | `persona-claude-code` | Survey, Chatbot (`force_docker`) | `anthropic/claude-*` | `appSim-example-survey-local.yaml`, `appSim-example-chat-local.yaml` | `ANTHROPIC_API_KEY` |
 | `persona-gemini-cli` | Survey, Chatbot (`force_docker`) | `google/gemini-*` | `appSim-example-survey-local.yaml` | `GEMINI_API_KEY` |
 | `persona-codex` | Survey, Chatbot (`force_docker`) | `openai/gpt-*` | `appSim-example-survey-local.yaml` | `OPENAI_API_KEY` |
-| `persona-openhands-sdk` | Web (Playwright) | Any | `appSim-example-web-playwright-local.yaml` | `LLM_API_KEY` (or `DASHSCOPE_API_KEY` for DashScope models) |
+| `persona-openhands-sdk` | Web (Playwright) | Any | `appSim-example-web-playwright-local.yaml` | `LLM_API_KEY`, `DASHSCOPE_API_KEY`, or `OPENROUTER_API_KEY` (match the model provider) |
 | `persona-browser-use` | Web (browser automation) | Any | `appSim-example-web-browser-use-local.yaml` | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DASHSCOPE_API_KEY`, or `LLM_API_KEY` |
 | `persona-cocoa` | Web (browser + shell) | Any | `appSim-example-web-cocoa-local.yaml` | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DASHSCOPE_API_KEY`, or `LLM_API_KEY` |
 | `persona-computer-1` | Web / Computer-use (macOS, iOS, Linux) | `anthropic/claude-*` or `dashscope/*` | `appSim-example-computer-use-macos-local.yaml` | `ANTHROPIC_API_KEY`, `DASHSCOPE_API_KEY`, and optionally `USE_COMPUTER_API_KEY` (macOS/iOS) |
@@ -129,7 +129,9 @@ slashes: `openrouter/z-ai/glm-4.7` resolves to the model id `z-ai/glm-4.7`. Only
 the leading `openrouter/` is stripped.
 
 Set `OPENROUTER_API_KEY`. The endpoint defaults to `https://openrouter.ai/api/v1`
-and can be overridden with `OPENROUTER_API_BASE`.
+and can be overridden with `OPENROUTER_API_BASE`. The older
+`OPENROUTER_BASE_URL` name remains a compatibility alias and is used only when
+`OPENROUTER_API_BASE` is unset.
 
 The `openrouter/` prefix deliberately ignores `OPENAI_BASE_URL`. Routing an
 OpenAI-compatible client through OpenRouter by setting `OPENAI_BASE_URL` also
@@ -161,7 +163,7 @@ Set these in your shell before running a job. Each agent reads keys differently:
 
 | Agent | Required keys on host |
 |-------|----------------------|
-| `persona-openhands-sdk` | `LLM_API_KEY` (or `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`DASHSCOPE_API_KEY`; map to `LLM_API_KEY` if needed) |
+| `persona-openhands-sdk` | `LLM_API_KEY` (or `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`DASHSCOPE_API_KEY`/`OPENROUTER_API_KEY`; provider keys map automatically when supported) |
 | `persona-browser-use` | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DASHSCOPE_API_KEY`, or `LLM_API_KEY` |
 | `persona-cocoa` | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DASHSCOPE_API_KEY`, or `LLM_API_KEY` |
 | `persona-computer-1` | `ANTHROPIC_API_KEY` or `DASHSCOPE_API_KEY` (+ `USE_COMPUTER_API_KEY` for macOS/iOS via use.computer) |
@@ -175,6 +177,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 export OPENAI_API_KEY="sk-..."
 export GEMINI_API_KEY="..."
 export DASHSCOPE_API_KEY="..."
+export OPENROUTER_API_KEY="..."
 
 # If using persona-openhands-sdk, map to LLM_API_KEY
 export LLM_API_KEY="${ANTHROPIC_API_KEY}"

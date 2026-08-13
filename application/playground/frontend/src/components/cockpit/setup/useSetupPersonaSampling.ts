@@ -41,6 +41,17 @@ function applyPersonaHandoffToSetup(
   };
 }
 
+const PERSONA_MODEL_PROVIDER_LABELS: Record<string, string> = {
+  anthropic: "Anthropic",
+  dashscope: "DashScope",
+  openai: "OpenAI",
+  openrouter: "OpenRouter",
+};
+
+function personaModelProviderLabel(modelId: string): string | undefined {
+  return PERSONA_MODEL_PROVIDER_LABELS[modelId.split("/", 1)[0]];
+}
+
 export function useSetupPersonaSampling(
   options: ConfigOptionsResponse | null,
   taskKind: HarborCockpitTaskKind,
@@ -346,6 +357,8 @@ export function useSetupPersonaSampling(
     personaModelKnob?.options.map((o) => ({
       value: o.value,
       label: o.label,
+      meta: personaModelProviderLabel(o.value),
+      summary: o.description,
     })) ?? [{ value: personaModel, label: personaModel }];
 
   const togglePersona = useCallback(

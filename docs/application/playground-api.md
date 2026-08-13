@@ -112,7 +112,7 @@ eval surfaces aligned to shipped `application/tasks`.
 `ready` ignores checks marked `optional`.
 
 **Required (blocks `ready`):** Model credentials (any of OpenAI / Anthropic /
-DashScope), plus always-available Survey / Web surface markers.
+DashScope / OpenRouter), plus always-available Survey / Web surface markers.
 
 **Optional (task-specific):** per-provider keys, Docker (survey / web / chat /
 Linux OS-app), use.computer (macOS / iOS), and chat sidecars (OpenBB, meal
