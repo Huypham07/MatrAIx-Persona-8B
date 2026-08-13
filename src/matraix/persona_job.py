@@ -6,7 +6,7 @@ import json
 import random
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import yaml
 
@@ -555,7 +555,16 @@ def should_use_controlled_probe(
     return stratify_fields[0] == probe_dimension
 
 
-def build_job_config(spec: dict[str, Any], *, repo_root: Path) -> dict[str, Any]:
+def build_job_config(
+    spec: dict[str, Any],
+    *,
+    repo_root: Path,
+    on_progress: Callable[[str, str], None] | None = None,
+) -> dict[str, Any]:
+    def emit(stage: str, message: str) -> None:
+        if on_progress is not None:
+            on_progress(stage, message)
+
     probe = spec["probe"]
     probe_dimension = probe["dimension"]
     probe_value = probe.get("value")
@@ -585,7 +594,9 @@ def build_job_config(spec: dict[str, Any], *, repo_root: Path) -> dict[str, Any]
     else:
         stratify_fields = None
 
+    emit("load", f"Loading pool {spec['persona_pool']}…")
     pool = load_manifest(pool_dir, repo_root=repo_root)
+    emit("load", f"Loaded {len(pool)} personas")
     cohort_meta: dict[str, Any] = {"controlled_probe": False, "confounder_probe": False}
     matched = pool
 
@@ -596,6 +607,7 @@ def build_job_config(spec: dict[str, Any], *, repo_root: Path) -> dict[str, Any]
         stratify_fields=stratify_fields,
         probe_dimension=probe_dimension,
     ):
+        emit("sample", "Building confounder-probe cohort…")
         job_slug = spec.get("name", "persona-task-grounding-job")
         chosen, cohort_meta = build_confounder_probe_cohort(
             repo_root=repo_root,
@@ -616,6 +628,7 @@ def build_job_config(spec: dict[str, Any], *, repo_root: Path) -> dict[str, Any]
         controlled_probe=controlled_probe,
         probe_value=str(probe_value) if probe_value is not None else None,
     ):
+        emit("sample", "Building controlled-probe cohort…")
         job_slug = spec.get("name", "persona-task-grounding-job")
         chosen, cohort_meta = build_controlled_probe_cohort(
             repo_root=repo_root,
@@ -627,6 +640,10 @@ def build_job_config(spec: dict[str, Any], *, repo_root: Path) -> dict[str, Any]
         )
         matched = pool
     elif probe_value is not None:
+        emit(
+            "sample",
+            f"Filtering {probe_dimension}={probe_value} then sampling…",
+        )
         matched = filter_personas(
             pool,
             probe_dimension=probe_dimension,
@@ -638,6 +655,11 @@ def build_job_config(spec: dict[str, Any], *, repo_root: Path) -> dict[str, Any]
         )
         chosen = sample_personas(matched, sample_size=total, seed=seed)
     elif stratify_fields:
+        emit(
+            "sample",
+            f"Stratified sample on {', '.join(stratify_fields)} "
+            f"(per cell={per_value_group})…",
+        )
         matched = pool
         chosen = sample_personas_stratified(
             pool,
@@ -647,13 +669,15 @@ def build_job_config(spec: dict[str, Any], *, repo_root: Path) -> dict[str, Any]
             repo_root=repo_root,
         )
     else:
-        matched = pool
         total = int(
             sample_size_total if sample_size_total is not None else per_value_group
         )
+        emit("sample", f"Random sample (n={total})…")
+        matched = pool
         chosen = sample_personas(matched, sample_size=total, seed=seed)
 
     sample_size = len(chosen)
+    emit("sample", f"Selected {sample_size} trials from {len(matched)} matched")
 
     agent_spec = spec["agent"]
     job_spec = spec.get("job", {})
