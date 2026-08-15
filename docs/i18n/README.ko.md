@@ -85,7 +85,7 @@ uv pip install -e packages/rewardkit
 모든 Matraix Playground 명령은 **`uv run harbor …`** 형태로 실행합니다.
 
 GUI 또는 CLI 태스크 실행 전에 사용 중인 제공자에 맞는 모델 API 키를 설정하세요
-(smoke test에는 필요 없음):
+(스모크 테스트에는 필요 없음):
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."   # anthropic/claude-* 모델
@@ -97,7 +97,7 @@ Playground는 `application/playground/.env.local`에서도 키를 로드할 수 
 
 ### Persona 1M 가져오기 (권장)
 
-저장소의 `matraix-persona-dev-sample`(약 200)은 smoke 전용입니다. 실제 cohort / Playground 샘플링에는 공개 1M을 가져오세요:
+저장소의 `matraix-persona-dev-sample`(약 200)은 스모크 테스트 전용입니다. 실제 코호트 / Playground 샘플링에는 공개 1M을 가져오세요:
 
 ```bash
 huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
@@ -110,9 +110,9 @@ Playground: Dataset → **`matraix-persona-1m`**. CLI: `--dataset persona/datase
 
 ## 빠른 시작
 
-### Smoke test
+### 스모크 테스트(smoke test)
 
-API 키 불필요. **Docker 필요**(smoke job은 `environment.type: docker` 사용):
+API 키 불필요. **Docker 필요**(스모크 테스트 job은 `environment.type: docker` 사용):
 
 ```bash
 uv run harbor run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
@@ -132,14 +132,14 @@ VENV=.venv bash application/playground/backend/run_dev.sh
 cd application/playground/frontend && npm ci && npm run dev
 ```
 
-**http://localhost:5173** 열기 → Playground → 페르소나 cohort 선택 →
+**http://localhost:5173** 열기 → Playground → 페르소나 코호트 선택 →
 Survey / Chat / Web / OS app 태스크 선택 → **Lock pipeline** → **Run eval**.
 자세한 내용: [Playground §10](../quickstart.md#10-playground--play-tasks-visually).
 
 ### CLI 태스크 개발 / 실행
 
 **개발** — `application/tasks/` 아래 참고 태스크를 복사한 뒤
-`task.toml` / `instruction.md` / `input/` / verifier를 편집하고 Playground에 등록
+`task.toml` / `instruction.md` / `input/` / 검증기(verifier)를 편집하고 Playground에 등록
 ([task-guide.md](../application/task-guide.md)):
 
 ```bash

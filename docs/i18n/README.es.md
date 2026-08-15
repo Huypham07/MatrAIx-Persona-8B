@@ -90,7 +90,7 @@ uv pip install -e packages/rewardkit
 Todos los comandos de Matraix Playground se ejecutan como **`uv run harbor …`**.
 
 Configura la clave de API del modelo correspondiente a tu proveedor antes de
-ejecutar tareas por GUI o CLI (el smoke test no la necesita):
+ejecutar tareas por GUI o CLI (la prueba de humo no la necesita):
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."   # modelos anthropic/claude-*
@@ -102,7 +102,7 @@ Playground también puede cargar claves desde `application/playground/.env.local
 
 ### Importar Persona 1M (recomendado)
 
-El `matraix-persona-dev-sample` del repo (~200) es solo para smoke tests. Para cohortes reales y muestreo en Playground, importa el 1M público:
+El `matraix-persona-dev-sample` del repo (~200) es solo para pruebas de humo. Para cohortes reales y muestreo en Playground, importa el 1M público:
 
 ```bash
 huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
@@ -115,9 +115,9 @@ Detalles: [Handbook § Persona 1M](../README.md#3-persona-1m-recommended).
 
 ## Inicio rápido
 
-### Smoke test
+### Prueba de humo (smoke test)
 
-No se requiere clave de API. **Requiere Docker** (el smoke job usa
+No se requiere clave de API. **Requiere Docker** (el job de prueba de humo usa
 `environment.type: docker`):
 
 ```bash
@@ -145,7 +145,7 @@ Detalles: [Playground §10](../quickstart.md#10-playground--play-tasks-visually)
 ### Desarrollo / ejecución por CLI
 
 **Desarrollar** — copia una tarea de referencia en `application/tasks/`, edita
-`task.toml` / `instruction.md` / `input/` / verifier y regístrala en Playground
+`task.toml` / `instruction.md` / `input/` / el verificador (verifier) y regístrala en Playground
 ([task-guide.md](../application/task-guide.md)):
 
 ```bash

@@ -75,7 +75,7 @@ uv pip install -e packages/rewardkit
 
 所有 Matraix Playground 命令以 **`uv run harbor …`** 形式运行。
 
-在 GUI 或 CLI 任务运行前，设置与你的提供商匹配的模型 API Key（smoke test 不需要）：
+在 GUI 或 CLI 任务运行前，设置与你的提供商匹配的模型 API Key（冒烟测试不需要）：
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."   # anthropic/claude-* 模型
@@ -87,7 +87,7 @@ Playground 也可从 `application/playground/.env.local` 加载 Key。
 
 ### 导入 Persona 1M（推荐）
 
-仓库内 `matraix-persona-dev-sample`（约 200）仅用于冒烟测试。真实 cohort / Playground 采样请导入公开 1M：
+仓库内 `matraix-persona-dev-sample`（约 200）仅用于冒烟测试。真实群组（cohort）与 Playground 采样请导入公开的 1M 数据集：
 
 ```bash
 huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
@@ -100,9 +100,9 @@ Playground：Dataset → **`matraix-persona-1m`**。CLI：`--dataset persona/dat
 
 ## 快速开始
 
-### Smoke test
+### 冒烟测试（smoke test）
 
-无需 API Key。**需要 Docker**（smoke job 使用 `environment.type: docker`）：
+无需 API Key。**需要 Docker**（冒烟测试 job 使用 `environment.type: docker`）：
 
 ```bash
 uv run harbor run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
@@ -121,14 +121,14 @@ VENV=.venv bash application/playground/backend/run_dev.sh
 cd application/playground/frontend && npm ci && npm run dev
 ```
 
-打开 **http://localhost:5173** → Playground → 选择人格 cohort →
+打开 **http://localhost:5173** → Playground → 选择人格群组 →
 选择 Survey / Chat / Web / OS app 任务 → **Lock pipeline** → **Run eval**。
 详情：[Playground §10](../quickstart.md#10-playground--play-tasks-visually)。
 
 ### CLI 任务开发 / 运行
 
 **开发** — 复制 `application/tasks/` 下的参考任务，编辑
-`task.toml` / `instruction.md` / `input/` / verifier，再注册到 Playground
+`task.toml` / `instruction.md` / `input/` / 验证器（verifier），再注册到 Playground
 （[task-guide.md](../application/task-guide.md)）：
 
 ```bash

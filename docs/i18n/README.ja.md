@@ -85,7 +85,7 @@ uv pip install -e packages/rewardkit
 Matraix Playground のコマンドはすべて **`uv run harbor …`** として実行します。
 
 GUI / CLI タスク実行の前に、プロバイダに合わせたモデル API キーを設定してください
-（smoke test には不要です）：
+（スモークテストには不要です）：
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."   # anthropic/claude-* モデル
@@ -97,7 +97,7 @@ Playground は `application/playground/.env.local` からもキーを読み込�
 
 ### Persona 1M のインポート（推奨）
 
-リポジトリ同梱の `matraix-persona-dev-sample`（約 200）は smoke test 用です。本番相当の cohort / Playground サンプリングには公開 1M をインポートしてください：
+リポジトリ同梱の `matraix-persona-dev-sample`（約 200）はスモークテスト用です。本番相当のコホート / Playground サンプリングには公開 1M をインポートしてください：
 
 ```bash
 huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
@@ -110,9 +110,9 @@ Playground: Dataset → **`matraix-persona-1m`**。CLI: `--dataset persona/datas
 
 ## クイックスタート
 
-### Smoke test
+### スモークテスト（smoke test）
 
-API キー不要。**Docker が必要**（smoke job は `environment.type: docker` を使用）：
+API キー不要。**Docker が必要**（スモークテストの job は `environment.type: docker` を使用）：
 
 ```bash
 uv run harbor run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
@@ -132,14 +132,14 @@ VENV=.venv bash application/playground/backend/run_dev.sh
 cd application/playground/frontend && npm ci && npm run dev
 ```
 
-**http://localhost:5173** を開く → Playground → ペルソナ cohort を選択 →
+**http://localhost:5173** を開く → Playground → ペルソナのコホートを選択 →
 Survey / Chat / Web / OS app タスクを選択 → **Lock pipeline** → **Run eval**。
 詳細: [Playground §10](../quickstart.md#10-playground--play-tasks-visually)。
 
 ### CLI でのタスク開発 / 実行
 
 **開発** — `application/tasks/` 配下の参照タスクをコピーし、
-`task.toml` / `instruction.md` / `input/` / verifier を編集して Playground に登録
+`task.toml` / `instruction.md` / `input/` / 検証スクリプト（verifier）を編集して Playground に登録
 （[task-guide.md](../application/task-guide.md)）：
 
 ```bash
