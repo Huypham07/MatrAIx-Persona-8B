@@ -1,4 +1,28 @@
-# Auto-label PRs
+# Auto-label PRs by module
+
+"persona":
+  - changed-files:
+      - any-glob-to-any-file:
+          - persona/**
+
+"application":
+  - changed-files:
+      - any-glob-to-any-file:
+          - application/**
+
+"environment":
+  - changed-files:
+      - any-glob-to-any-file:
+          - environment/**
+          - src/**
+          - configs/**
+          - apps/**
+          - packages/**
+          - tests/**
+          - .github/**
+          - pyproject.toml
+          - uv.lock
+          - .gitignore
 
 "documentation":
   - changed-files:
