@@ -51,7 +51,7 @@
 에 공개되어 있습니다. 공유 텔레메트리, 태스크 소유 검증, 리포팅이 개별 응답·궤적을
 하위 집단 및 인구 수준의 발견으로 연결합니다.
 
-이름은 *The Matrix*를 가리킵니다. 탐색·스트레스 테스트·가설 생성에 유용한 시뮬레이션
+이름은 *The Matrix*에서 따온 것입니다. 탐색·스트레스 테스트·가설 생성에 유용한 시뮬레이션
 세계이며, **실제 사람으로부터의 증거를 대체하지 않습니다**.
 
 ## 소식
@@ -61,7 +61,7 @@
 - **[2026-08-04]** arXiv 기술 보고서: [MatrAIx: Simulating the World with 8.3 Billion Persona Agents](https://arxiv.org/abs/2608.04205) (`2608.04205`). [Hugging Face Daily Papers](https://huggingface.co/papers/date/2026-08-10)에도 선정([논문 페이지](https://huggingface.co/papers/2608.04205)).
 - **[2026-08-01]** Hugging Face에 [Persona 1M](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release) 공개(약 100만 품질 필터 페르소나).
 - **[2026-07-31]** Playground와 태스크 라이브러리 오픈소스: [MatrAIx-Persona-8B](https://github.com/MatrAIx-ai/MatrAIx-Persona-8B).
-- **[2026-07-29]** 입장문: [From Personas to Simulated Users](https://matraix.ai/research/survey-from-personas-to-simulated-users.html).
+- **[2026-07-29]** 포지션 노트: [From Personas to Simulated Users](https://matraix.ai/research/survey-from-personas-to-simulated-users.html).
 
 ## 요구 사항
 

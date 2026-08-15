@@ -101,7 +101,7 @@ O Playground também pode carregar chaves de `application/playground/.env.local`
 
 ### Importar Persona 1M (recomendado)
 
-O `matraix-persona-dev-sample` do repo (~200) é só para smoke. Para cohorts reais e amostragem no Playground, importe o 1M público:
+O `matraix-persona-dev-sample` do repo (~200) é só para smoke. Para coortes reais e amostragem no Playground, importe o 1M público:
 
 ```bash
 huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
@@ -137,7 +137,7 @@ VENV=.venv bash application/playground/backend/run_dev.sh
 cd application/playground/frontend && npm ci && npm run dev
 ```
 
-Abra **http://localhost:5173** → Playground → escolha uma cohort de personas →
+Abra **http://localhost:5173** → Playground → escolha uma coorte de personas →
 escolha tarefas Survey / Chat / Web / OS app → **Lock pipeline** → **Run eval**.
 Detalhes: [Playground §10](../quickstart.md#10-playground--play-tasks-visually).
 

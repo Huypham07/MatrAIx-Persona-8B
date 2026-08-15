@@ -39,7 +39,7 @@
 
 **MatrAIx** 是一套面向異構模擬使用者的大規模、人格驅動基礎設施，用於評估 AI 系統與互動式產品。它不依賴「通用」或可互換的使用者假設，而是將抽樣得到的人格記錄實例化為 LLM Agent，並在四類環境中以可重現任務驅動執行 —— **Survey（問卷）**、**AI Chatbot（對話）**、**Web**，以及 **App**（原生桌面與行動裝置，含 macOS 與 iOS）。
 
-其基礎是一套共用的 **1,290 個類別維度** 人格 Schema，涵蓋背景、心理、能力與行為。人格結合依賴感知的合成生成與證據感知的人類 grounding；經確定性、品質過濾的 **百萬人格** 共集（coreset）已在
+其基礎是一套共用的 **1,290 個類別維度** 人格 Schema，涵蓋背景、心理、能力與行為。人格結合依賴感知的合成生成與證據感知的人類 grounding；經確定性、品質過濾的 **百萬人格** 核心集（coreset）已在
 [Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release)
 公開發布，供研究使用。共用遙測、任務自有驗證與報告能力，將個體回應與軌跡連接到子群體與總體層面的發現。
 
@@ -48,7 +48,7 @@
 ## 動態
 
 - **[2026-08-11]** 學術評論：Mayank Kejriwal（[*AI Scientist*](https://aiscientist.substack.com/)）撰寫 [*Can we simulate the world?*](https://aiscientist.substack.com/p/can-we-simulate-the-world)。
-- **[2026-08-10]** 登上 [X Trending Story](https://x.com/i/trending/2086626337561911419)：*Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*。科技媒體亦有報導，包括 [新智元](https://www.36kr.com/p/3932853833759876) / [36Kr](https://eu.36kr.com/en/p/3932853833759876)、[Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html)、[Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/)、[AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824)、[CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/)、[Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) 等。亦有 Cisco VP & CTO [Gianpaolo Barozzi](https://lnkd.in/p/gE9cV2nw) 的討論。
+- **[2026-08-10]** 登上 [X Trending Story](https://x.com/i/trending/2086626337561911419)：*Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*。科技媒體亦有報導，包括 [36氪](https://www.36kr.com/p/3932853833759876)（[英文版](https://eu.36kr.com/en/p/3932853833759876)）、[Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html)、[Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/)、[AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824)、[CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/)、[Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) 等。亦有 Cisco VP & CTO [Gianpaolo Barozzi](https://lnkd.in/p/gE9cV2nw) 的討論。
 - **[2026-08-04]** 技術報告發布於 arXiv：[MatrAIx: Simulating the World with 8.3 Billion Persona Agents](https://arxiv.org/abs/2608.04205)（`2608.04205`）。亦登上 [Hugging Face Daily Papers](https://huggingface.co/papers/date/2026-08-10)（[論文頁](https://huggingface.co/papers/2608.04205)）。
 - **[2026-08-01]** 在 Hugging Face 發布 [Persona 1M](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release)（約 100 萬條品質過濾人格）。
 - **[2026-07-31]** 開源 Playground 與任務庫：[MatrAIx-Persona-8B](https://github.com/MatrAIx-ai/MatrAIx-Persona-8B)。
@@ -87,7 +87,7 @@ Playground 也可從 `application/playground/.env.local` 載入 Key。
 
 ### 匯入 Persona 1M（建議）
 
-倉庫內 `matraix-persona-dev-sample`（約 200）僅用於冒煙。真實 cohort / Playground 取樣請匯入公開 1M：
+倉庫內 `matraix-persona-dev-sample`（約 200）僅用於冒煙測試。真實 cohort / Playground 取樣請匯入公開 1M：
 
 ```bash
 huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
