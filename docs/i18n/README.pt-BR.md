@@ -46,12 +46,12 @@ em tarefas reproduzíveis em quatro ambientes — **Survey**, **AI Chatbot**,
 **Web** e **App** (desktop e mobile nativos, incluindo macOS e iOS).
 
 Na base há um schema compartilhado de **1.290 dimensões categóricas** que
-cobrem background, psicologia, capacidade e comportamento. As personas combinam
+cobrem histórico, psicologia, capacidade e comportamento. As personas combinam
 geração sintética sensível a dependências com grounding humano baseado em
 evidências; um coreset determinístico e filtrado por qualidade de **um milhão de
 personas** é publicado para pesquisa no
 [Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release).
-Telemetria compartilhada, verificação pertencente à tarefa e relatórios conectam
+Telemetria compartilhada, verificação própria de cada tarefa e relatórios conectam
 respostas e trajetórias individuais a achados em nível de subgrupo e população.
 
 O nome remete a *The Matrix*: um mundo simulado útil para exploração, testes de
@@ -101,7 +101,7 @@ O Playground também pode carregar chaves de `application/playground/.env.local`
 
 ### Importar Persona 1M (recomendado)
 
-O `matraix-persona-dev-sample` do repo (~200) é só para smoke. Para coortes reais e amostragem no Playground, importe o 1M público:
+O `matraix-persona-dev-sample` do repo (~200) destina-se apenas a smoke tests. Para coortes reais e amostragem no Playground, importe o 1M público:
 
 ```bash
 huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
@@ -223,7 +223,7 @@ Datasets grandes gerados ficam fora do git (veja o release no Hugging Face acima
 [![Google Form](https://img.shields.io/badge/Google%20Form-join%20MatrAIx-4285F4?style=for-the-badge&logo=googleforms&logoColor=white)](https://forms.gle/hwEHng5HGWRqcJue9)
 
 1. Entre no Discord — nickname **`Full Name - Affiliation`**. Preencha o Google Form
-   (background, interesses, autoria / agradecimentos em papers).
+   (histórico, interesses, autoria / agradecimentos em papers).
 2. Diga oi! Gostamos de conectar pessoas com interesses ou experiências em comum!
 3. Participe da comunidade de pesquisa MatrAIx para colaboração ou contribuição!
 

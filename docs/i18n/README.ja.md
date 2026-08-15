@@ -45,19 +45,19 @@
 （macOS / iOS を含むネイティブのデスクトップおよびモバイル）— で再現可能なタスクを実行します。
 
 基盤は、背景・心理・能力・行動を網羅する **1,290 のカテゴリ次元** からなる共有スキーマです。
-ペルソナは依存関係を考慮した合成生成と、証拠に基づく人間 grounding を組み合わせます。
-決定的で品質フィルタされた **100 万ペルソナ** のコリセットが研究用に
+ペルソナは、依存関係を考慮した合成生成と、エビデンスに基づく人間データのグラウンディングを組み合わせて構築されます。
+決定的で品質フィルタ済みの **100 万ペルソナ** のコアセットが研究用に
 [Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release)
 で公開されています。共有テレメトリ、タスク所有の検証、レポートにより、個々の応答と軌跡を
 サブグループおよび人口レベルの知見につなぎます。
 
-名前は *The Matrix* に由来します。探索・ストレステスト・仮説生成に有用なシミュレート世界であり、
-**実在の人々からの証拠の代替ではありません**。
+名前は *The Matrix* に由来します。探索・ストレステスト・仮説生成に有用なシミュレーション世界であり、
+**実在の人々から得られるエビデンスの代替ではありません**。
 
 ## ニュース
 
 - **[2026-08-11]** 学術コメント: Mayank Kejriwal（[*AI Scientist*](https://aiscientist.substack.com/)）による [*Can we simulate the world?*](https://aiscientist.substack.com/p/can-we-simulate-the-world)。
-- **[2026-08-10]** [X Trending Story](https://x.com/i/trending/2086626337561911419) に掲載: *Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*。テックメディアでも取り上げられ、[36Kr](https://eu.36kr.com/en/p/3932853833759876)、[Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html)、[Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/)、[AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824)、[CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/)、[Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) などが含まれます。Cisco VP & CTO [Gianpaolo Barozzi](https://lnkd.in/p/gE9cV2nw) も言及しています。
+- **[2026-08-10]** [X Trending Story](https://x.com/i/trending/2086626337561911419) に掲載: *Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*。[36Kr](https://eu.36kr.com/en/p/3932853833759876)、[Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html)、[Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/)、[AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824)、[CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/)、[Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) などのテックメディアでも報じられました。Cisco VP & CTO の [Gianpaolo Barozzi](https://lnkd.in/p/gE9cV2nw) も言及しています。
 - **[2026-08-04]** arXiv 技術レポート: [MatrAIx: Simulating the World with 8.3 Billion Persona Agents](https://arxiv.org/abs/2608.04205) (`2608.04205`)。[Hugging Face Daily Papers](https://huggingface.co/papers/date/2026-08-10) にも掲載（[論文ページ](https://huggingface.co/papers/2608.04205)）。
 - **[2026-08-01]** Hugging Face で [Persona 1M](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release) を公開（約 100 万件の品質フィルタ済みペルソナ）。
 - **[2026-07-31]** Playground とタスクライブラリをオープンソース化: [MatrAIx-Persona-8B](https://github.com/MatrAIx-ai/MatrAIx-Persona-8B)。
@@ -97,7 +97,7 @@ Playground は `application/playground/.env.local` からもキーを読み込�
 
 ### Persona 1M のインポート（推奨）
 
-リポジトリ同梱の `matraix-persona-dev-sample`（約 200）は smoke 用です。本番相当の cohort / Playground サンプリングには公開 1M を入れてください：
+リポジトリ同梱の `matraix-persona-dev-sample`（約 200）は smoke test 用です。本番相当の cohort / Playground サンプリングには公開 1M をインポートしてください：
 
 ```bash
 huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
@@ -219,8 +219,8 @@ MatrAIx/
 
 1. Discord に参加 — ニックネームは **`Full Name - Affiliation`**。Google Form に記入
    （背景、興味、論文の著者 / 謝辞）。
-2. あいさつしてください！共通の関心や経験でつなぎたいです。
-3. MatrAIx 研究コミュニティに参加して、コラボや貢献を！
+2. ぜひごあいさつください！共通の関心や経験をもとに、メンバー同士をおつなぎします。
+3. MatrAIx 研究コミュニティでのコラボレーションや貢献をお待ちしています！
 
 ## 引用
 

@@ -44,9 +44,9 @@
 **Survey**, **AI Chatbot**, **Web**, **App**(macOS·iOS를 포함한 네이티브 데스크톱·모바일) —
 에서 재현 가능한 태스크로 실행합니다.
 
-기반은 배경·심리·역량·행동을 아우르는 **1,290개의 범주형 차원** 공유 스키마입니다.
-페르소나는 의존성을 고려한 합성 생성과 증거 기반의 인간 grounding을 결합합니다.
-결정적이며 품질 필터링된 **백만 페르소나** 코어셋이 연구용으로
+기반은 배경·심리·역량·행동을 아우르는 **1,290개의 범주형 차원**으로 구성된 공유 스키마입니다.
+페르소나는 의존성을 고려한 합성 생성과 증거에 기반한 인간 데이터 그라운딩을 결합해 구축됩니다.
+결정적이며 품질 필터링을 거친 **백만 페르소나** 코어셋이 연구용으로
 [Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release)
 에 공개되어 있습니다. 공유 텔레메트리, 태스크 소유 검증, 리포팅이 개별 응답·궤적을
 하위 집단 및 인구 수준의 발견으로 연결합니다.
@@ -57,7 +57,7 @@
 ## 소식
 
 - **[2026-08-11]** 학술 코멘터리: Mayank Kejriwal([*AI Scientist*](https://aiscientist.substack.com/))의 [*Can we simulate the world?*](https://aiscientist.substack.com/p/can-we-simulate-the-world).
-- **[2026-08-10]** [X Trending Story](https://x.com/i/trending/2086626337561911419)에 선정: *Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*. 테크 미디어에서도 다뤄졌으며, [36Kr](https://eu.36kr.com/en/p/3932853833759876), [Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html), [Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/), [AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824), [CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/), [Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) 등이 포함됩니다. Cisco VP & CTO [Gianpaolo Barozzi](https://lnkd.in/p/gE9cV2nw)의 논의도 있습니다.
+- **[2026-08-10]** [X Trending Story](https://x.com/i/trending/2086626337561911419)에 선정: *Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*. 테크 미디어에서도 다뤄졌으며, [36Kr](https://eu.36kr.com/en/p/3932853833759876), [Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html), [Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/), [AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824), [CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/), [Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) 등이 포함됩니다. Cisco VP & CTO [Gianpaolo Barozzi](https://lnkd.in/p/gE9cV2nw)도 이를 언급했습니다.
 - **[2026-08-04]** arXiv 기술 보고서: [MatrAIx: Simulating the World with 8.3 Billion Persona Agents](https://arxiv.org/abs/2608.04205) (`2608.04205`). [Hugging Face Daily Papers](https://huggingface.co/papers/date/2026-08-10)에도 선정([논문 페이지](https://huggingface.co/papers/2608.04205)).
 - **[2026-08-01]** Hugging Face에 [Persona 1M](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release) 공개(약 100만 품질 필터 페르소나).
 - **[2026-07-31]** Playground와 태스크 라이브러리 오픈소스: [MatrAIx-Persona-8B](https://github.com/MatrAIx-ai/MatrAIx-Persona-8B).
@@ -219,7 +219,7 @@ MatrAIx/
 
 1. Discord 가입 — 닉네임 **`Full Name - Affiliation`**. Google Form 작성
    (배경, 관심사, 논문 저자 / 사사).
-2. 인사해 주세요! 공통 관심사나 경험으로 연결하고 싶습니다.
+2. 인사해 주세요! 공통 관심사나 경험을 바탕으로 여러분을 연결해 드리겠습니다.
 3. MatrAIx 연구 커뮤니티에 참여해 협업하거나 기여하세요!
 
 ## 인용
