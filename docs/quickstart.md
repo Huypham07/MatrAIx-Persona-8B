@@ -29,6 +29,26 @@ persona **`0042`**). **Recommended** for real cohorts: import **Persona 1M** —
 
 ---
 
+## 0. Windows users: set up WSL2 first
+
+Everything below assumes a Linux/macOS shell. On Windows, use
+[WSL2](https://learn.microsoft.com/windows/wsl/install) — it takes ~5 minutes
+and then every command in this guide works exactly as written:
+
+1. Open **PowerShell as Administrator** and run `wsl --install` (installs
+   Ubuntu). Reboot if prompted, then create your Linux username/password.
+2. Install [Docker Desktop](https://docs.docker.com/get-docker/) and enable
+   **Settings → Resources → WSL integration** for your Ubuntu distro.
+3. Do all remaining steps **inside the Ubuntu terminal** (search “Ubuntu” in
+   the Start menu). Clone the repo into the WSL filesystem — e.g. `~/MatrAIx`,
+   **not** `/mnt/c/…` — Windows-mounted paths are dramatically slower and can
+   cause file-watching issues with the Playground dev server.
+
+Native PowerShell/cmd is not supported: task verifiers and dev scripts
+require `bash`.
+
+---
+
 ## 1. Install Docker and confirm it works
 
 1. Install [Docker Desktop](https://docs.docker.com/get-docker/) (or Docker Engine on Linux).

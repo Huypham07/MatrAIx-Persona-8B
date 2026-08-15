@@ -74,6 +74,15 @@ reais**.
 - Node.js 20+ (apenas frontends do Playground / viewer)
 - Chaves de API de modelo para exemplos de agentes de persona — veja [agents.md](../environment/agents.md)
 
+> **Usuários de Windows**: execute tudo dentro do
+> [WSL2](https://learn.microsoft.com/windows/wsl/install) — abra o PowerShell,
+> execute `wsl --install` (instala o Ubuntu), depois clone este repositório
+> **dentro do sistema de arquivos do WSL** (ex.: `~/MatrAIx`, não `/mnt/c/…`,
+> que é muito mais lento) e ative a *WSL integration* em Docker Desktop →
+> Settings → Resources. A partir daí, todos os comandos deste README funcionam
+> exatamente como estão. PowerShell/cmd nativo não é suportado (os
+> verificadores de tarefas exigem `bash`).
+
 ## Instalação
 
 ```bash

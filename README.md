@@ -74,6 +74,14 @@ people**.
 - Node.js 20+ (Playground / viewer frontends only)
 - Model API keys for persona-agent examples — see [agents.md](docs/environment/agents.md)
 
+> **Windows users**: run everything inside
+> [WSL2](https://learn.microsoft.com/windows/wsl/install) — open PowerShell,
+> run `wsl --install` (installs Ubuntu), then clone this repo **inside the WSL
+> filesystem** (e.g. `~/MatrAIx`, not `/mnt/c/…`, which is much slower) and
+> enable *WSL integration* in Docker Desktop → Settings → Resources. Every
+> command in this README then works exactly as written. Native
+> PowerShell/cmd is not supported (the task verifiers require `bash`).
+
 ## Installation
 
 ```bash

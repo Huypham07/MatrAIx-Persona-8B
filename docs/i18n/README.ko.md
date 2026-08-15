@@ -70,6 +70,14 @@
 - Node.js 20+ (Playground / viewer 프론트엔드만)
 - 페르소나 에이전트 예제용 모델 API 키 — [agents.md](../environment/agents.md) 참고
 
+> **Windows 사용자**: 모든 명령은
+> [WSL2](https://learn.microsoft.com/windows/wsl/install) 안에서 실행하세요.
+> PowerShell에서 `wsl --install`을 실행하면 Ubuntu가 설치됩니다. 그다음 저장소를
+> **WSL 파일시스템 안**(예: `~/MatrAIx`, `/mnt/c/…`는 훨씬 느리므로 피하세요)에
+> clone하고, Docker Desktop → Settings → Resources에서 *WSL integration*을
+> 활성화하세요. 이후 이 README의 모든 명령이 그대로 동작합니다. 네이티브
+> PowerShell/cmd는 지원하지 않습니다(작업 검증 스크립트가 `bash`를 필요로 합니다).
+
 ## 설치
 
 ```bash

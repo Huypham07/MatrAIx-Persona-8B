@@ -70,6 +70,15 @@
 - Node.js 20+（Playground / viewer フロントエンドのみ）
 - ペルソナエージェント例用のモデル API キー — [agents.md](../environment/agents.md) を参照
 
+> **Windows をお使いの方へ**：すべてのコマンドは
+> [WSL2](https://learn.microsoft.com/windows/wsl/install) 内で実行してください。
+> PowerShell で `wsl --install` を実行（Ubuntu がインストールされます）した後、
+> リポジトリは **WSL ファイルシステム内**（例：`~/MatrAIx`。`/mnt/c/…` は大幅に
+> 遅くなるため避けてください）に clone し、Docker Desktop → Settings → Resources
+> で *WSL integration* を有効にしてください。以降、本 README のコマンドは
+> そのまま動作します。ネイティブの PowerShell/cmd はサポートしていません
+> （タスク検証スクリプトが `bash` を必要とするため）。
+
 ## インストール
 
 ```bash

@@ -61,6 +61,13 @@
 - Node.js 20+（仅 Playground / viewer 前端需要）
 - 人格 Agent 示例所需的模型 API Key —— 见 [agents.md](../environment/agents.md)
 
+> **Windows 用户**：请在
+> [WSL2](https://learn.microsoft.com/windows/wsl/install) 中运行全部命令——打开
+> PowerShell 执行 `wsl --install`（会安装 Ubuntu），然后把仓库 clone 到 **WSL
+> 文件系统内**（如 `~/MatrAIx`，不要放在 `/mnt/c/…`，后者慢得多），并在 Docker
+> Desktop → Settings → Resources 中开启 *WSL integration*。之后本 README 中的所有
+> 命令均可原样运行。不支持原生 PowerShell/cmd（任务验证脚本依赖 `bash`）。
+
 ## 安装
 
 ```bash
