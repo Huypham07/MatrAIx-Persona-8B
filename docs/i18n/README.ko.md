@@ -44,24 +44,24 @@
 **Survey**, **AI Chatbot**, **Web**, **App**(macOS·iOS를 포함한 네이티브 데스크톱·모바일) —
 에서 재현 가능한 태스크로 실행합니다.
 
-기반은 배경·심리·역량·행동을 아우르는 **1,290개의 범주형 차원** 공유 스키마입니다.
-페르소나는 의존성을 고려한 합성 생성과 증거 기반의 인간 grounding을 결합합니다.
-결정적이며 품질 필터링된 **백만 페르소나** 코어셋이 연구용으로
+기반은 배경·심리·역량·행동을 아우르는 **1,290개의 범주형 차원**으로 구성된 공유 스키마입니다.
+페르소나는 의존성을 고려한 합성 생성과 증거에 기반한 인간 데이터 그라운딩을 결합해 구축됩니다.
+결정적이며 품질 필터링을 거친 **백만 페르소나** 코어셋이 연구용으로
 [Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release)
 에 공개되어 있습니다. 공유 텔레메트리, 태스크 소유 검증, 리포팅이 개별 응답·궤적을
 하위 집단 및 인구 수준의 발견으로 연결합니다.
 
-이름은 *The Matrix*를 가리킵니다. 탐색·스트레스 테스트·가설 생성에 유용한 시뮬레이션
+이름은 *The Matrix*에서 따온 것입니다. 탐색·스트레스 테스트·가설 생성에 유용한 시뮬레이션
 세계이며, **실제 사람으로부터의 증거를 대체하지 않습니다**.
 
 ## 소식
 
 - **[2026-08-11]** 학술 코멘터리: Mayank Kejriwal([*AI Scientist*](https://aiscientist.substack.com/))의 [*Can we simulate the world?*](https://aiscientist.substack.com/p/can-we-simulate-the-world).
-- **[2026-08-10]** [X Trending Story](https://x.com/i/trending/2086626337561911419)에 선정: *Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*. 테크 미디어에서도 다뤄졌으며, [36Kr](https://eu.36kr.com/en/p/3932853833759876), [Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html), [Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/), [AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824), [CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/), [Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) 등이 포함됩니다. Cisco VP & CTO [Gianpaolo Barozzi](https://lnkd.in/p/gE9cV2nw)의 논의도 있습니다.
+- **[2026-08-10]** [X Trending Story](https://x.com/i/trending/2086626337561911419)에 선정: *Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*. 테크 미디어에서도 다뤄졌으며, [36Kr](https://eu.36kr.com/en/p/3932853833759876), [Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html), [Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/), [AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824), [CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/), [Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) 등이 포함됩니다. Cisco VP & CTO [Gianpaolo Barozzi](https://lnkd.in/p/gE9cV2nw)도 이를 언급했습니다.
 - **[2026-08-04]** arXiv 기술 보고서: [MatrAIx: Simulating the World with 8.3 Billion Persona Agents](https://arxiv.org/abs/2608.04205) (`2608.04205`). [Hugging Face Daily Papers](https://huggingface.co/papers/date/2026-08-10)에도 선정([논문 페이지](https://huggingface.co/papers/2608.04205)).
 - **[2026-08-01]** Hugging Face에 [Persona 1M](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release) 공개(약 100만 품질 필터 페르소나).
 - **[2026-07-31]** Playground와 태스크 라이브러리 오픈소스: [MatrAIx-Persona-8B](https://github.com/MatrAIx-ai/MatrAIx-Persona-8B).
-- **[2026-07-29]** 입장문: [From Personas to Simulated Users](https://matraix.ai/research/survey-from-personas-to-simulated-users.html).
+- **[2026-07-29]** 포지션 노트: [From Personas to Simulated Users](https://matraix.ai/research/survey-from-personas-to-simulated-users.html).
 
 ## 요구 사항
 
@@ -85,7 +85,7 @@ uv pip install -e packages/rewardkit
 모든 Matraix Playground 명령은 **`uv run harbor …`** 형태로 실행합니다.
 
 GUI 또는 CLI 태스크 실행 전에 사용 중인 제공자에 맞는 모델 API 키를 설정하세요
-(smoke test에는 필요 없음):
+(스모크 테스트에는 필요 없음):
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."   # anthropic/claude-* 모델
@@ -97,7 +97,7 @@ Playground는 `application/playground/.env.local`에서도 키를 로드할 수 
 
 ### Persona 1M 가져오기 (권장)
 
-저장소의 `matraix-persona-dev-sample`(약 200)은 smoke 전용입니다. 실제 cohort / Playground 샘플링에는 공개 1M을 가져오세요:
+저장소의 `matraix-persona-dev-sample`(약 200)은 스모크 테스트 전용입니다. 실제 코호트 / Playground 샘플링에는 공개 1M을 가져오세요:
 
 ```bash
 huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
@@ -110,9 +110,9 @@ Playground: Dataset → **`matraix-persona-1m`**. CLI: `--dataset persona/datase
 
 ## 빠른 시작
 
-### Smoke test
+### 스모크 테스트(smoke test)
 
-API 키 불필요. **Docker 필요**(smoke job은 `environment.type: docker` 사용):
+API 키 불필요. **Docker 필요**(스모크 테스트 job은 `environment.type: docker` 사용):
 
 ```bash
 uv run harbor run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
@@ -132,14 +132,14 @@ VENV=.venv bash application/playground/backend/run_dev.sh
 cd application/playground/frontend && npm ci && npm run dev
 ```
 
-**http://localhost:5173** 열기 → Playground → 페르소나 cohort 선택 →
+**http://localhost:5173** 열기 → Playground → 페르소나 코호트 선택 →
 Survey / Chat / Web / OS app 태스크 선택 → **Lock pipeline** → **Run eval**.
 자세한 내용: [Playground §10](../quickstart.md#10-playground--play-tasks-visually).
 
 ### CLI 태스크 개발 / 실행
 
 **개발** — `application/tasks/` 아래 참고 태스크를 복사한 뒤
-`task.toml` / `instruction.md` / `input/` / verifier를 편집하고 Playground에 등록
+`task.toml` / `instruction.md` / `input/` / 검증기(verifier)를 편집하고 Playground에 등록
 ([task-guide.md](../application/task-guide.md)):
 
 ```bash
@@ -219,7 +219,7 @@ MatrAIx/
 
 1. Discord 가입 — 닉네임 **`Full Name - Affiliation`**. Google Form 작성
    (배경, 관심사, 논문 저자 / 사사).
-2. 인사해 주세요! 공통 관심사나 경험으로 연결하고 싶습니다.
+2. 인사해 주세요! 공통 관심사나 경험을 바탕으로 여러분을 연결해 드리겠습니다.
 3. MatrAIx 연구 커뮤니티에 참여해 협업하거나 기여하세요!
 
 ## 인용

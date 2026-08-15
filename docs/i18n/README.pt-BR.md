@@ -46,12 +46,12 @@ em tarefas reproduzíveis em quatro ambientes — **Survey**, **AI Chatbot**,
 **Web** e **App** (desktop e mobile nativos, incluindo macOS e iOS).
 
 Na base há um schema compartilhado de **1.290 dimensões categóricas** que
-cobrem background, psicologia, capacidade e comportamento. As personas combinam
+cobrem histórico, psicologia, capacidade e comportamento. As personas combinam
 geração sintética sensível a dependências com grounding humano baseado em
 evidências; um coreset determinístico e filtrado por qualidade de **um milhão de
 personas** é publicado para pesquisa no
 [Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release).
-Telemetria compartilhada, verificação pertencente à tarefa e relatórios conectam
+Telemetria compartilhada, verificação própria de cada tarefa e relatórios conectam
 respostas e trajetórias individuais a achados em nível de subgrupo e população.
 
 O nome remete a *The Matrix*: um mundo simulado útil para exploração, testes de
@@ -89,7 +89,7 @@ uv pip install -e packages/rewardkit
 Todos os comandos do Matraix Playground rodam como **`uv run harbor …`**.
 
 Defina a chave de API do modelo correspondente ao seu provedor antes de executar
-tarefas via GUI ou CLI (o smoke test não precisa de chave):
+tarefas via GUI ou CLI (o teste de fumaça não precisa de chave):
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."   # modelos anthropic/claude-*
@@ -101,7 +101,7 @@ O Playground também pode carregar chaves de `application/playground/.env.local`
 
 ### Importar Persona 1M (recomendado)
 
-O `matraix-persona-dev-sample` do repo (~200) é só para smoke. Para cohorts reais e amostragem no Playground, importe o 1M público:
+O `matraix-persona-dev-sample` do repo (~200) destina-se apenas a testes de fumaça. Para coortes reais e amostragem no Playground, importe o 1M público:
 
 ```bash
 huggingface-cli download MatrAIx2026/MatrAIx_Persona_1M_Public_Release \
@@ -114,9 +114,9 @@ Detalhes: [Handbook § Persona 1M](../README.md#3-persona-1m-recommended).
 
 ## Início rápido
 
-### Smoke test
+### Teste de fumaça (smoke test)
 
-Nenhuma chave de API necessária. **Requer Docker** (o smoke job usa
+Nenhuma chave de API necessária. **Requer Docker** (o job de teste de fumaça usa
 `environment.type: docker`):
 
 ```bash
@@ -137,14 +137,14 @@ VENV=.venv bash application/playground/backend/run_dev.sh
 cd application/playground/frontend && npm ci && npm run dev
 ```
 
-Abra **http://localhost:5173** → Playground → escolha uma cohort de personas →
+Abra **http://localhost:5173** → Playground → escolha uma coorte de personas →
 escolha tarefas Survey / Chat / Web / OS app → **Lock pipeline** → **Run eval**.
 Detalhes: [Playground §10](../quickstart.md#10-playground--play-tasks-visually).
 
 ### Desenvolvimento / execução via CLI
 
 **Desenvolver** — copie uma tarefa de referência em `application/tasks/`, edite
-`task.toml` / `instruction.md` / `input/` / verifier e registre-a no Playground
+`task.toml` / `instruction.md` / `input/` / o verificador (verifier) e registre-a no Playground
 ([task-guide.md](../application/task-guide.md)):
 
 ```bash
@@ -223,7 +223,7 @@ Datasets grandes gerados ficam fora do git (veja o release no Hugging Face acima
 [![Google Form](https://img.shields.io/badge/Google%20Form-join%20MatrAIx-4285F4?style=for-the-badge&logo=googleforms&logoColor=white)](https://forms.gle/hwEHng5HGWRqcJue9)
 
 1. Entre no Discord — nickname **`Full Name - Affiliation`**. Preencha o Google Form
-   (background, interesses, autoria / agradecimentos em papers).
+   (histórico, interesses, autoria / agradecimentos em papers).
 2. Diga oi! Gostamos de conectar pessoas com interesses ou experiências em comum!
 3. Participe da comunidade de pesquisa MatrAIx para colaboração ou contribuição!
 
