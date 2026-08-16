@@ -23,6 +23,7 @@ import {
   type PersonaPoolPersonaCard,
   type TaskPersonaStrategy,
 } from "@/lib/types";
+import { runHarnessSelectOptions, type RunHarnessId } from "@/lib/personaAgentCatalog";
 import {
   formatPersonaSampleError,
   isPersonaPoolCoverageError,
@@ -499,6 +500,9 @@ export interface PersonaSamplingRailProps {
   personaModel: string;
   onPersonaModelChange: (model: string) => void;
   personaModelOptions: CockpitSelectOption[];
+  /** Run harness (survey / chatbot): API-direct or a Docker CLI agent. */
+  harness?: RunHarnessId;
+  onHarnessChange?: (harness: RunHarnessId) => void;
   mode: PersonaSamplingMode;
   onModeChange: (mode: PersonaSamplingMode) => void;
   selectedPersonaIds: string[];
@@ -538,6 +542,8 @@ export function PersonaSamplingRail({
   personaModel,
   onPersonaModelChange,
   personaModelOptions,
+  harness,
+  onHarnessChange,
   mode,
   onModeChange,
   selectedPersonaIds,
@@ -1142,6 +1148,18 @@ export function PersonaSamplingRail({
               onChange={onPersonaModelChange}
             />
           )}
+          {harness !== undefined && onHarnessChange && (
+            <CockpitSelect
+              label="Harness"
+              inlineLabel
+              labelClassName="w-[4.25rem]"
+              value={harness}
+              options={runHarnessSelectOptions()}
+              disabled={disabled}
+              showSelectedMeta={false}
+              onChange={(next) => onHarnessChange(next as RunHarnessId)}
+            />
+          )}
         </div>
 
         <div className="cockpit-segment cockpit-segment--grid mb-2 grid-cols-2">
@@ -1337,8 +1355,7 @@ export function PersonaSamplingRail({
         ) : (
         <>
         <div className="mb-2">
-        <CockpitSelect
-            label="Dataset"
+        <CockpitSelect            label="Dataset"
             inlineLabel
             labelClassName="w-[4.25rem]"
             value={sourcePool}
