@@ -90,7 +90,7 @@ uv pip install -e packages/harbor-langsmith
 uv pip install -e packages/rewardkit
 ```
 
-모든 Matraix Playground 명령은 **`uv run harbor …`** 형태로 실행합니다.
+잡과 태스크는 **`uv run matraix run …`** 으로 실행합니다. 이 명령은 전체 실행 환경을 구성한 뒤 Harbor 런타임에 위임합니다. 런타임 유틸리티(`harbor view`, `harbor upload` 등)는 계속 **`uv run harbor …`** 로 사용합니다.
 
 GUI 또는 CLI 태스크 실행 전에 사용 중인 제공자에 맞는 모델 API 키를 설정하세요
 (스모크 테스트에는 필요 없음):
@@ -123,7 +123,7 @@ Playground: Dataset → **`matraix-persona-1m`**. CLI: `--dataset persona/datase
 API 키 불필요. **Docker 필요**(스모크 테스트 job은 `environment.type: docker` 사용):
 
 ```bash
-uv run harbor run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
+uv run matraix run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
 ```
 
 ### GUI 태스크 실행
@@ -172,7 +172,7 @@ uv run python application/scripts/generate_application_job.py \
   --model-name anthropic/claude-sonnet-4-6
 
 # 스크립트가 출력하는 export 줄과 recipe 경로를 사용, 예:
-uv run harbor run -c configs/jobs/application-task-job-recipe/example-survey-product-feedback-auto-n1.yaml
+uv run matraix run -c configs/jobs/application-task-job-recipe/example-survey-product-feedback-auto-n1.yaml
 ```
 
 배치(`--sample-size N`), 필터, chat / web / os-app 예제:

@@ -1,0 +1,178 @@
+"""Product-facing ``matraix`` CLI.
+
+``matraix run`` wraps ``harbor run`` with the same launch environment the
+Playground injects (``PYTHONPATH`` plus ``MATRIX_*`` task exports), so the
+command printed by the job generator works from a clean documented setup
+without hand-crafted environment exports (issue #78). Harbor remains
+available directly as the underlying runtime.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+from matraix.launch_env import (
+    find_repo_root,
+    merge_pythonpath,
+    required_pythonpath_entries,
+)
+
+# Matches the export lines the job generator writes into the YAML header,
+# e.g. "#   export MATRIX_SURVEY_TASK_PATH=application/tasks/...".
+_HEADER_EXPORT_RE = re.compile(r"^#\s*export\s+(MATRIX_[A-Z0-9_]+)=(\S+)\s*$")
+
+
+def _task_env_from_sidecar(config_path: Path) -> dict[str, str]:
+    """Derive ``MATRIX_*`` task exports from the generator's ``.meta.json``."""
+    sidecar = config_path.with_suffix(".meta.json")
+    if not sidecar.is_file():
+        return {}
+    try:
+        meta = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(meta, dict):
+        return {}
+    task_path = meta.get("task")
+    trial_profile = meta.get("trial_profile")
+    if not task_path or not isinstance(task_path, str):
+        return {}
+    if trial_profile == "json_survey":
+        return {"MATRIX_SURVEY_TASK_PATH": task_path}
+    if trial_profile == "user_sim_chat":
+        return {"MATRIX_CHATBOT_TASK_PATH": task_path}
+    return {}
+
+
+def _task_env_from_header(config_path: Path) -> dict[str, str]:
+    """Fallback: parse ``export MATRIX_*`` comment lines from the YAML header."""
+    env: dict[str, str] = {}
+    try:
+        with config_path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if not line.startswith("#"):
+                    break
+                match = _HEADER_EXPORT_RE.match(line.strip())
+                if match:
+                    env[match.group(1)] = match.group(2)
+    except OSError:
+        return {}
+    return env
+
+
+def resolve_run_invocation(
+    config_path: Path | None,
+    repo_root: Path,
+    passthrough: list[str] | None = None,
+) -> tuple[list[str], dict[str, str]]:
+    """Return ``harbor`` argv and the env updates for a ``matraix run`` call.
+
+    Environment variables already exported by the user always win over
+    values derived from the generated job files.
+    """
+    env_updates: dict[str, str] = {}
+    config_args: list[str] = []
+    if config_path is not None:
+        task_env = _task_env_from_header(config_path)
+        task_env.update(_task_env_from_sidecar(config_path))
+        env_updates = {
+            name: value for name, value in task_env.items() if name not in os.environ
+        }
+        try:
+            config_arg = str(config_path.relative_to(repo_root))
+        except ValueError:
+            config_arg = str(config_path)
+        config_args = ["-c", config_arg]
+    env_updates["PYTHONPATH"] = merge_pythonpath(
+        os.environ.get("PYTHONPATH"), repo_root
+    )
+    argv = ["run", *config_args, *(passthrough or [])]
+    return argv, env_updates
+
+
+def _pop_positional_config(passthrough: list[str]) -> tuple[str | None, list[str]]:
+    """Allow ``matraix run <job.yaml>`` by sniffing a YAML path from the args."""
+    for index, extra in enumerate(passthrough):
+        if not extra.startswith("-") and extra.endswith((".yaml", ".yml")):
+            return extra, passthrough[:index] + passthrough[index + 1 :]
+    return None, passthrough
+
+
+def _cmd_run(args: argparse.Namespace, passthrough: list[str]) -> None:
+    raw_config = args.config_opt
+    if raw_config is None:
+        raw_config, passthrough = _pop_positional_config(passthrough)
+
+    config_path: Path | None = None
+    if raw_config is not None:
+        config_path = Path(raw_config).expanduser()
+        if not config_path.is_absolute():
+            config_path = Path.cwd() / config_path
+        config_path = config_path.resolve()
+        if not config_path.is_file():
+            sys.exit(f"matraix run: job config not found: {config_path}")
+
+    repo_root = (
+        Path(args.repo_root).resolve()
+        if args.repo_root
+        else find_repo_root(config_path.parent if config_path else None)
+    )
+    argv, env_updates = resolve_run_invocation(config_path, repo_root, passthrough)
+    os.environ.update(env_updates)
+    for name, value in env_updates.items():
+        if name != "PYTHONPATH":
+            print(f"matraix run: {name}={value} (from generated job)", file=sys.stderr)
+    # Make the injected paths visible to this process too, since Harbor loads
+    # agent modules in-process before spawning trial workers.
+    for entry in reversed(required_pythonpath_entries(repo_root)):
+        if entry not in sys.path:
+            sys.path.insert(0, entry)
+    os.chdir(repo_root)
+    print(f"matraix run: harbor {' '.join(argv)} (cwd {repo_root})", file=sys.stderr)
+
+    from harbor.cli.main import app as harbor_app
+
+    harbor_app(args=argv, prog_name="harbor")
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        prog="matraix",
+        description="MatrAIx product CLI. Harbor stays available as the underlying runtime.",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    run_parser = subparsers.add_parser(
+        "run",
+        help="Run a job with the complete MatrAIx launch environment.",
+        description=(
+            "Runs `harbor run` with the same PYTHONPATH and MATRIX_* task exports "
+            "the Playground injects. All other arguments (e.g. -p/-a for ad-hoc "
+            "task runs) are passed through to harbor run."
+        ),
+    )
+    run_parser.add_argument(
+        "-c",
+        "--config",
+        dest="config_opt",
+        default=None,
+        help="Path to a generated job YAML (may also be passed positionally)",
+    )
+    run_parser.add_argument(
+        "--repo-root",
+        default=None,
+        help="MatrAIx repository root (default: discovered from the config path)",
+    )
+
+    args, passthrough = parser.parse_known_args(argv)
+    if args.command == "run":
+        _cmd_run(args, passthrough)
+
+
+if __name__ == "__main__":
+    main()

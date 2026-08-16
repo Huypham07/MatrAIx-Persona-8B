@@ -75,7 +75,7 @@ def _format_run_env_comment(exports: list[tuple[str, str]]) -> str:
         lines.append("#   export OPENAI_API_KEY=...   # user-sim engine default")
     for name, value in exports:
         lines.append(f"#   export {name}={value}")
-    lines.append("#   uv run harbor run -c <this-file>")
+    lines.append("#   uv run matraix run -c <this-file>")
     lines.append("#")
     return "\n".join(lines) + "\n"
 
@@ -421,7 +421,7 @@ def main() -> None:
         print("  export OPENAI_API_KEY=...   # user-sim engine default")
     for name, value in run_env_exports:
         print(f"  export {name}={value}")
-    print(f"  uv run harbor run -c {_display_path(out_path)}")
+    print(f"  uv run matraix run -c {_display_path(out_path)}")
 
 
 if __name__ == "__main__":

@@ -96,7 +96,7 @@ uv pip install -e packages/harbor-langsmith
 uv pip install -e packages/rewardkit
 ```
 
-Todos los comandos de Matraix Playground se ejecutan como **`uv run harbor …`**.
+Ejecuta jobs y tareas con **`uv run matraix run …`**: configura el entorno de lanzamiento completo y delega en el runtime Harbor. Las utilidades del runtime (p. ej. `harbor view`, `harbor upload`) siguen bajo **`uv run harbor …`**.
 
 Configura la clave de API del modelo correspondiente a tu proveedor antes de
 ejecutar tareas por GUI o CLI (la prueba de humo no la necesita):
@@ -130,7 +130,7 @@ No se requiere clave de API. **Requiere Docker** (el job de prueba de humo usa
 `environment.type: docker`):
 
 ```bash
-uv run harbor run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
+uv run matraix run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
 ```
 
 ### Ejecuciones de tareas por GUI
@@ -179,7 +179,7 @@ uv run python application/scripts/generate_application_job.py \
   --model-name anthropic/claude-sonnet-4-6
 
 # Usa las líneas de export + la ruta del recipe que imprime el script, p. ej.:
-uv run harbor run -c configs/jobs/application-task-job-recipe/example-survey-product-feedback-auto-n1.yaml
+uv run matraix run -c configs/jobs/application-task-job-recipe/example-survey-product-feedback-auto-n1.yaml
 ```
 
 Lotes (`--sample-size N`), filtros y ejemplos chat / web / os-app:
