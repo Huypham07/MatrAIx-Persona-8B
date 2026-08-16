@@ -119,14 +119,17 @@ Playground: Dataset → **`matraix-persona-1m`**。CLI: `--dataset persona/datas
 
 ## クイックスタート
 
-### スモークテスト（smoke test）
+### スモークテスト（smoke tests）
 
-API キー不要。**Docker が必要**（スモークテストの job は `environment.type: docker` を使用）：
+インストール後に、次の 2 つのチェックを実行してください（API キー不要）。
+あわせて Survey / Chat / Web / OS-app のデフォルト実行パスが使えることを確認できます：
 
-```bash
-uv run matraix run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
-```
+| チェック | 確認できること | コマンド |
+|----------|----------------|----------|
+| **Docker なし** | Survey と Chat | `uv run matraix smoke application/tasks/example-survey_product-feedback` |
+| **Docker あり** | Web と OS-app | `uv run matraix run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml` |
 
+1 つ目は数秒で `Smoke: ok` と表示されます。2 つ目は初回にローカルイメージをビルドします（数分）。成功時の出力は `jobs/harbor-smoke-local/`。手順: [quickstart §3](../quickstart.md#3-smoke-tests-two-lanes)。
 ### GUI でのタスク実行
 
 Playground はタスク選択・ペルソナサンプリングを行い、CLI auto モードと同じ
