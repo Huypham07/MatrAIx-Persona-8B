@@ -381,16 +381,40 @@ After a job finishes:
 
 ```text
 jobs/<job_name>/
-├── result.json           # Summary stats
+├── result.json           # Job summary stats (tokens/cost when recorded)
 ├── job.log
 └── <trial_name>/
-    ├── results.json      # Reward / verifier outcome
+    ├── result.json       # Trial reward / verifier outcome + agent usage
     ├── persona_meta.json # Which persona was used (if persona agent)
     └── artifacts/
         └── app/output/   # The agent's submission JSON
+            # Survey: survey_result.json
 ```
 
-Open the submission JSON to read what that simulated user chose.
+Summarize a finished job from the CLI (no extra LLM call). The same command works
+for Survey, Chat, Web, and OS-app jobs:
+
+```bash
+uv run matraix results jobs/<job_name>
+uv run matraix results <job_name> --format json,csv -o /tmp/matraix-exports/
+# Optional persona cuts when dimensions are present:
+# uv run matraix results <job_name> --group-by life_stage --format json
+```
+
+`matraix results` prints a deterministic ledger (coverage, usage/cost, rewards,
+trial index, artifact paths) plus a thin type-aware outcome lens (question mixes,
+choice mixes, task-outcome mixes). JSON export uses schema `MatraixJobResults.v1`.
+It does **not** call another model and does **not** replace Playground or Harbor
+debug surfaces:
+
+| Surface | Job | Audience |
+|---------|-----|----------|
+| `matraix results` | Deterministic ledger + export | CLI / scripts / CI |
+| Playground **Runs** + **Download PDF** | Persona narrative + rich aggregation | Interactive product |
+| `harbor view` | Trajectory / logs / debugger | Runtime debug |
+
+Open the submission JSON under `artifacts/app/output/` to read what that
+simulated user chose.
 
 Refresh batch reporting:
 
@@ -412,7 +436,9 @@ uv run harbor view jobs --build
 ```
 
 Opens a local web UI listing jobs and trials — transcripts, artifacts, verifier
-logs. Use this to compare personas side by side.
+logs. Use this to compare personas side by side. Prefer `matraix results` when
+you need a scriptable summary; use `harbor view` when you need to step through
+trajectories and logs.
 
 To explore without spending API credits, browse checked-in examples under `jobs/`
 if present, or run the no-key smoke recipe from step 3.
@@ -580,6 +606,8 @@ Full task checklist: [tasks/README.md](../application/tasks/README.md).
 |------|------|--------|
 | Explore / debug visually | Playground (Mode **auto**) | `jobs/` |
 | Any of 4 types (terminal, single or batch) | `generate_application_job.py --execution-mode auto` + `matraix run -c` | `jobs/<job_name>/` |
+| Deterministic job summary / export | `matraix results <job>` | text / JSON / CSV |
+| Persona narrative batch PDF | Playground **Runs** → **Download PDF** | UI PDF |
 | Validate Docker/Matraix Playground only | `harbor-smoke-local.yaml` | smoke task image |
 | Docker CLI harness (survey/chat) | `--execution-mode force_docker` or `appSim-*-local.yaml` | Docker trials |
 | Browse trajectories | `harbor view` or Playground **Runs** | local viewer |

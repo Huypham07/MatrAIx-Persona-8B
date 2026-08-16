@@ -1,10 +1,8 @@
 """Product-facing ``matraix`` CLI.
 
-``matraix run`` wraps ``harbor run`` with the same launch environment the
-Playground injects (``PYTHONPATH`` plus ``MATRIX_*`` task exports), so the
-command printed by the job generator works from a clean documented setup
-without hand-crafted environment exports (issue #78). Harbor remains
-available directly as the underlying runtime.
+``matraix run`` wraps ``harbor run`` with the complete launch environment so
+commands printed by the job generator work from a clean documented setup.
+Harbor remains available directly as the underlying runtime.
 """
 
 from __future__ import annotations
@@ -20,6 +18,14 @@ from matraix.launch_env import (
     find_repo_root,
     merge_pythonpath,
     required_pythonpath_entries,
+)
+from matraix.job_results import (
+    collect_job_results,
+    format_csv_report,
+    format_json_report,
+    format_text_report,
+    parse_formats,
+    resolve_job_dir,
 )
 
 # Matches the export lines the job generator writes into the YAML header,
@@ -148,6 +154,63 @@ def _cmd_run(args: argparse.Namespace, passthrough: list[str]) -> None:
     harbor_app(args=argv, prog_name="harbor")
 
 
+def _cmd_results(args: argparse.Namespace) -> None:
+    repo_root = (
+        Path(args.repo_root).resolve()
+        if args.repo_root
+        else find_repo_root(Path.cwd())
+    )
+    try:
+        job_dir = resolve_job_dir(args.job, repo_root=repo_root)
+        formats = parse_formats(args.format)
+    except (FileNotFoundError, ValueError) as exc:
+        sys.exit(f"matraix results: {exc}")
+
+    group_by = [part.strip() for part in (args.group_by or "").split(",") if part.strip()]
+    report = collect_job_results(job_dir, group_by=group_by or None)
+
+    writers = {
+        "text": format_text_report,
+        "json": format_json_report,
+        "csv": format_csv_report,
+    }
+
+    if args.output == "-":
+        for index, fmt in enumerate(formats):
+            if len(formats) > 1:
+                print(f"===== {fmt} =====")
+            sys.stdout.write(writers[fmt](report))
+        return
+
+    if args.output:
+        output_path = Path(args.output).expanduser()
+        if not output_path.is_absolute():
+            output_path = (Path.cwd() / output_path).resolve()
+        else:
+            output_path = output_path.resolve()
+        single_file = len(formats) == 1 and (
+            output_path.suffix.lower() in {".txt", ".md", ".json", ".csv"}
+            or not output_path.exists()
+        )
+        if single_file and not output_path.is_dir():
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(writers[formats[0]](report), encoding="utf-8")
+            print(f"matraix results: wrote {output_path}", file=sys.stderr)
+            return
+        output_path.mkdir(parents=True, exist_ok=True)
+        for fmt in formats:
+            suffix = {"text": "txt", "json": "json", "csv": "csv"}[fmt]
+            target = output_path / f"{report.job_name}.results.{suffix}"
+            target.write_text(writers[fmt](report), encoding="utf-8")
+            print(f"matraix results: wrote {target}", file=sys.stderr)
+        return
+
+    for index, fmt in enumerate(formats):
+        if len(formats) > 1:
+            print(f"===== {fmt} =====")
+        sys.stdout.write(writers[fmt](report))
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="matraix",
@@ -189,9 +252,55 @@ def main(argv: list[str] | None = None) -> None:
         ),
     )
 
+    results_parser = subparsers.add_parser(
+        "results",
+        help="Summarize and export a finished job without another LLM call.",
+        description=(
+            "Deterministic job ledger + type-aware outcome lens for Survey, "
+            "Chat, Web, and OS-app jobs. Reads jobs/<job>/ result.json, "
+            "verifier/structured_output.json, and known artifacts. Default "
+            "path never calls another model. Use --format json,csv for export."
+        ),
+    )
+    results_parser.add_argument(
+        "job",
+        help="Job name under jobs/ or a path to a job directory",
+    )
+    results_parser.add_argument(
+        "--format",
+        default="text",
+        help="Comma-separated formats: text,json,csv (default: text)",
+    )
+    results_parser.add_argument(
+        "--group-by",
+        default=None,
+        help=(
+            "Comma-separated persona fields for cuts "
+            "(e.g. life_stage). Reads persona_meta / persona YAML dimensions."
+        ),
+    )
+    results_parser.add_argument(
+        "-o",
+        "--output",
+        default=None,
+        help=(
+            "Write export(s) to a file (single format) or directory "
+            "(multiple formats). Use - for stdout."
+        ),
+    )
+    results_parser.add_argument(
+        "--repo-root",
+        default=None,
+        help="MatrAIx repository root (default: discovered from cwd)",
+    )
+
     args, passthrough = parser.parse_known_args(argv)
     if args.command == "run":
         _cmd_run(args, passthrough)
+    elif args.command == "results":
+        if passthrough:
+            sys.exit(f"matraix results: unrecognized arguments: {' '.join(passthrough)}")
+        _cmd_results(args)
 
 
 if __name__ == "__main__":
