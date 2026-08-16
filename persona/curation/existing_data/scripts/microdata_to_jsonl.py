@@ -33,7 +33,6 @@ import argparse
 import gzip
 import io
 import json
-import os
 import sys
 import zipfile
 from pathlib import Path
@@ -375,7 +374,7 @@ def main(argv=None):
                     written += 1
                 if report and report.rows < args.check_sample:
                     room = args.check_sample - report.rows
-                    report.add(json.loads(l) for l in payload.splitlines()[:room])
+                    report.add(json.loads(row) for row in payload.splitlines()[:room])
                 if args.limit and written >= args.limit:
                     break
     except Exception:
