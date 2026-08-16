@@ -66,7 +66,7 @@ def _task_env_from_header(config_path: Path) -> dict[str, str]:
 
 
 def resolve_run_invocation(
-    config_path: Path,
+    config_path: Path | None,
     repo_root: Path,
     passthrough: list[str] | None = None,
 ) -> tuple[list[str], dict[str, str]]:
@@ -75,39 +75,52 @@ def resolve_run_invocation(
     Environment variables already exported by the user always win over
     values derived from the generated job files.
     """
-    task_env = _task_env_from_header(config_path)
-    task_env.update(_task_env_from_sidecar(config_path))
-    env_updates = {
-        name: value for name, value in task_env.items() if name not in os.environ
-    }
+    env_updates: dict[str, str] = {}
+    config_args: list[str] = []
+    if config_path is not None:
+        task_env = _task_env_from_header(config_path)
+        task_env.update(_task_env_from_sidecar(config_path))
+        env_updates = {
+            name: value for name, value in task_env.items() if name not in os.environ
+        }
+        try:
+            config_arg = str(config_path.relative_to(repo_root))
+        except ValueError:
+            config_arg = str(config_path)
+        config_args = ["-c", config_arg]
     env_updates["PYTHONPATH"] = merge_pythonpath(
         os.environ.get("PYTHONPATH"), repo_root
     )
-    try:
-        config_arg = str(config_path.relative_to(repo_root))
-    except ValueError:
-        config_arg = str(config_path)
-    argv = ["run", "-c", config_arg, *(passthrough or [])]
+    argv = ["run", *config_args, *(passthrough or [])]
     return argv, env_updates
 
 
+def _pop_positional_config(passthrough: list[str]) -> tuple[str | None, list[str]]:
+    """Allow ``matraix run <job.yaml>`` by sniffing a YAML path from the args."""
+    for index, extra in enumerate(passthrough):
+        if not extra.startswith("-") and extra.endswith((".yaml", ".yml")):
+            return extra, passthrough[:index] + passthrough[index + 1 :]
+    return None, passthrough
+
+
 def _cmd_run(args: argparse.Namespace, passthrough: list[str]) -> None:
-    raw_config = args.config_opt or args.config
-    if not raw_config:
-        sys.exit("matraix run: missing job config (matraix run -c <job.yaml>)")
-    if args.config_opt and args.config:
-        sys.exit("matraix run: pass the job config either positionally or via -c, not both")
-    config_path = Path(raw_config).expanduser()
-    if not config_path.is_absolute():
-        config_path = Path.cwd() / config_path
-    config_path = config_path.resolve()
-    if not config_path.is_file():
-        sys.exit(f"matraix run: job config not found: {config_path}")
+    raw_config = args.config_opt
+    if raw_config is None:
+        raw_config, passthrough = _pop_positional_config(passthrough)
+
+    config_path: Path | None = None
+    if raw_config is not None:
+        config_path = Path(raw_config).expanduser()
+        if not config_path.is_absolute():
+            config_path = Path.cwd() / config_path
+        config_path = config_path.resolve()
+        if not config_path.is_file():
+            sys.exit(f"matraix run: job config not found: {config_path}")
 
     repo_root = (
         Path(args.repo_root).resolve()
         if args.repo_root
-        else find_repo_root(config_path.parent)
+        else find_repo_root(config_path.parent if config_path else None)
     )
     argv, env_updates = resolve_run_invocation(config_path, repo_root, passthrough)
     os.environ.update(env_updates)
@@ -136,19 +149,19 @@ def main(argv: list[str] | None = None) -> None:
 
     run_parser = subparsers.add_parser(
         "run",
-        help="Run a generated job YAML with the complete MatrAIx launch environment.",
+        help="Run a job with the complete MatrAIx launch environment.",
         description=(
             "Runs `harbor run` with the same PYTHONPATH and MATRIX_* task exports "
-            "the Playground injects. Extra arguments are passed through to harbor."
+            "the Playground injects. All other arguments (e.g. -p/-a for ad-hoc "
+            "task runs) are passed through to harbor run."
         ),
     )
-    run_parser.add_argument("config", nargs="?", help="Path to the generated job YAML")
     run_parser.add_argument(
         "-c",
         "--config",
         dest="config_opt",
         default=None,
-        help="Path to the generated job YAML (same as the positional argument)",
+        help="Path to a generated job YAML (may also be passed positionally)",
     )
     run_parser.add_argument(
         "--repo-root",

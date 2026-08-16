@@ -80,7 +80,7 @@ uv pip install -e packages/harbor-langsmith
 uv pip install -e packages/rewardkit
 ```
 
-所有 Matraix Playground 命令以 **`uv run harbor …`** 形式运行。
+作业与任务统一用 **`uv run matraix run …`** 运行——它会自动配置完整的启动环境，并委托给 Harbor 运行时执行。运行时工具（如 `harbor view`、`harbor upload`）仍使用 **`uv run harbor …`**。
 
 在 GUI 或 CLI 任务运行前，设置与你的提供商匹配的模型 API Key（冒烟测试不需要）：
 
@@ -112,7 +112,7 @@ Playground：Dataset → **`matraix-persona-1m`**。CLI：`--dataset persona/dat
 无需 API Key。**需要 Docker**（冒烟测试 job 使用 `environment.type: docker`）：
 
 ```bash
-uv run harbor run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
+uv run matraix run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
 ```
 
 ### GUI 任务运行
@@ -160,7 +160,7 @@ uv run python application/scripts/generate_application_job.py \
   --model-name anthropic/claude-sonnet-4-6
 
 # 使用脚本打印的 export 行与 recipe 路径，例如：
-uv run harbor run -c configs/jobs/application-task-job-recipe/example-survey-product-feedback-auto-n1.yaml
+uv run matraix run -c configs/jobs/application-task-job-recipe/example-survey-product-feedback-auto-n1.yaml
 ```
 
 批量（`--sample-size N`）、过滤条件，以及 chat / web / os-app 示例见：

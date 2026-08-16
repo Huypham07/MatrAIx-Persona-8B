@@ -90,7 +90,7 @@ uv sync
 Check the CLI:
 
 ```bash
-uv run harbor --help
+uv run matraix --help
 ```
 
 ---
@@ -101,7 +101,7 @@ Confirms Docker and Matraix Playground with the upstream **hello-world** task (r
 solution, no LLM call):
 
 ```bash
-uv run harbor run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
+uv run matraix run -c configs/jobs/example-job-recipe/harbor-smoke-local.yaml
 ```
 
 First run builds the Docker image (several minutes).
@@ -160,7 +160,7 @@ person.
 
 **Step 6 vs 7:** Step 6 = **one persona** (`--persona-ids`). Step 7 =
 `generate_application_job.py` **samples N personas** (seed + pool) into a job
-YAML, then you `harbor run -c` that file once.
+YAML, then you `matraix run -c` that file once.
 
 **Terminal vs Playground:** Steps 6–9 use the terminal (good for CI and smoke).
 [Section 10](#10-playground-play-tasks-visually) uses the Playground UI —
@@ -180,7 +180,7 @@ uv run python application/scripts/generate_application_job.py \
   --persona-ids 0042 \
   --model-name anthropic/claude-sonnet-4-6
 # Then run the printed export lines and:
-# uv run harbor run -c configs/jobs/application-task-job-recipe/<generated>-auto-n1.yaml
+# uv run matraix run -c configs/jobs/application-task-job-recipe/<generated>-auto-n1.yaml
 ```
 
 | Type | Auto picks | Runs on | Example `--task` |
@@ -203,9 +203,11 @@ uv run python application/scripts/generate_application_job.py \
   --persona-ids 0042
 
 export ANTHROPIC_API_KEY="sk-ant-..."
-export MATRIX_SURVEY_TASK_PATH=application/tasks/example-survey_product-feedback
-uv run harbor run -c configs/jobs/application-task-job-recipe/example-survey-product-feedback-auto-n1.yaml
+uv run matraix run -c configs/jobs/application-task-job-recipe/example-survey-product-feedback-auto-n1.yaml
 ```
+
+`matraix run` reads the `MATRIX_*` task exports from the generated job files —
+you only export your model API key.
 
 ### Chat (auto)
 
@@ -216,8 +218,7 @@ uv run python application/scripts/generate_application_job.py \
   --persona-ids 0042
 
 export ANTHROPIC_API_KEY="sk-ant-..."
-# Use the MATRIX_CHATBOT_* export lines the script prints, then:
-uv run harbor run -c configs/jobs/application-task-job-recipe/<generated>-auto-n1.yaml
+uv run matraix run -c configs/jobs/application-task-job-recipe/<generated>-auto-n1.yaml
 ```
 
 ### Web / OS-app (auto still uses Docker or use.computer)
@@ -230,7 +231,7 @@ uv run python application/scripts/generate_application_job.py \
   --persona-ids 0042
 
 export LLM_API_KEY="$ANTHROPIC_API_KEY"
-uv run harbor run -c configs/jobs/application-task-job-recipe/example-web-playwright-quote-choice-auto-n1.yaml
+uv run matraix run -c configs/jobs/application-task-job-recipe/example-web-playwright-quote-choice-auto-n1.yaml
 
 # Linux computer-use (macOS/iOS need USE_COMPUTER_API_KEY)
 uv run python application/scripts/generate_application_job.py \
@@ -261,8 +262,8 @@ survey/chat). They are **not** Mode auto. Prefer the generator above unless you
 intentionally want the CLI harness in Docker:
 
 ```bash
-uv run harbor run -c configs/jobs/example-job-recipe/appSim-example-survey-local.yaml
-uv run harbor run -c configs/jobs/example-job-recipe/appSim-example-web-playwright-local.yaml
+uv run matraix run -c configs/jobs/example-job-recipe/appSim-example-survey-local.yaml
+uv run matraix run -c configs/jobs/example-job-recipe/appSim-example-web-playwright-local.yaml
 ```
 
 To force Docker CLI agents from the generator: `--execution-mode force_docker`.
@@ -354,8 +355,7 @@ Run the generated job (paths are also in the YAML header):
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
-export MATRIX_SURVEY_TASK_PATH=application/tasks/example-survey_product-feedback
-uv run harbor run -c configs/jobs/application-task-job-recipe/example-survey-product-feedback-auto-n10.yaml
+uv run matraix run -c configs/jobs/application-task-job-recipe/example-survey-product-feedback-auto-n10.yaml
 ```
 
 **What a job means here:** one **task**, **N trials** — each trial uses a
@@ -572,7 +572,7 @@ Full task checklist: [tasks/README.md](../application/tasks/README.md).
 | Goal | Tool | Output |
 |------|------|--------|
 | Explore / debug visually | Playground (Mode **auto**) | `jobs/` |
-| Any of 4 types (terminal, single or batch) | `generate_application_job.py --execution-mode auto` + `harbor run -c` | `jobs/<job_name>/` |
+| Any of 4 types (terminal, single or batch) | `generate_application_job.py --execution-mode auto` + `matraix run -c` | `jobs/<job_name>/` |
 | Validate Docker/Matraix Playground only | `harbor-smoke-local.yaml` | smoke task image |
 | Docker CLI harness (survey/chat) | `--execution-mode force_docker` or `appSim-*-local.yaml` | Docker trials |
 | Browse trajectories | `harbor view` or Playground **Runs** | local viewer |

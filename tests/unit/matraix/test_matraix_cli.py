@@ -145,3 +145,66 @@ def test_main_run_missing_config_exits_with_message(tmp_path: Path) -> None:
     with pytest.raises(SystemExit) as excinfo:
         cli.main(["run", "-c", str(tmp_path / "missing.yaml")])
     assert "not found" in str(excinfo.value)
+
+
+def _fake_checkout(tmp_path: Path) -> Path:
+    root = tmp_path / "checkout"
+    (root / "environment" / "runtime" / "harbor").mkdir(parents=True)
+    (root / "pyproject.toml").write_text("[project]\nname='x'\n", encoding="utf-8")
+    return root
+
+
+def _stub_harbor(monkeypatch) -> dict[str, object]:
+    calls: dict[str, object] = {}
+
+    def fake_app(*, args: list[str], prog_name: str) -> None:
+        calls["args"] = args
+        calls["pythonpath"] = os.environ.get("PYTHONPATH", "")
+
+    stub = types.ModuleType("harbor.cli.main")
+    stub.app = fake_app
+    monkeypatch.setitem(sys.modules, "harbor.cli.main", stub)
+    monkeypatch.delenv("PYTHONPATH", raising=False)
+    return calls
+
+
+def test_main_run_accepts_positional_config(tmp_path: Path, monkeypatch) -> None:
+    root = _fake_checkout(tmp_path)
+    config = _write_job(
+        root,
+        sidecar={"task": "application/tasks/foo", "trial_profile": "json_survey"},
+    )
+    calls = _stub_harbor(monkeypatch)
+    monkeypatch.delenv("MATRIX_SURVEY_TASK_PATH", raising=False)
+
+    original_cwd = Path.cwd()
+    original_sys_path = list(sys.path)
+    try:
+        cli.main(["run", str(config), "--yes"])
+    finally:
+        os.chdir(original_cwd)
+        sys.path[:] = original_sys_path
+
+    assert calls["args"] == [
+        "run",
+        "-c",
+        "configs/jobs/application-task-job-recipe/example-survey-auto-n1.yaml",
+        "--yes",
+    ]
+
+
+def test_main_run_without_config_passes_args_through(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = _fake_checkout(tmp_path)
+    calls = _stub_harbor(monkeypatch)
+    monkeypatch.chdir(root)
+
+    original_sys_path = list(sys.path)
+    try:
+        cli.main(["run", "-p", "application/tasks/foo", "-a", "oracle"])
+    finally:
+        sys.path[:] = original_sys_path
+
+    assert calls["args"] == ["run", "-p", "application/tasks/foo", "-a", "oracle"]
+    assert str(calls["pythonpath"]).split(os.pathsep)[0] == str(root.resolve())
