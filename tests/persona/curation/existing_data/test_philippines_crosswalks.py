@@ -136,11 +136,49 @@ def test_ndhs_ph_rejects_dhs_missing_codes(allowed):
     for dim in ("age_bracket", "gender_identity", "urbanicity", "highest_education", "socioeconomic_band"):
         assert dim not in obs, dim
 
-    # v130 / v131 are country-specific code lists, so bare numbers are not labels
-    numeric = ndhs_ph.flatten({"hv105": 30, "v130": 1, "v131": 2})
-    obs2 = apply_crosswalk(numeric, ndhs_ph.CROSSWALK, allowed)[0]
+    # codes with no schema home stay unobserved (v130 96 "Other",
+    # v131 88 "Other Nationality")
+    unplaceable = ndhs_ph.flatten({"hv105": 30, "v130": 96, "v131": 88})
+    obs2 = apply_crosswalk(unplaceable, ndhs_ph.CROSSWALK, allowed)[0]
     assert "demo_religion_affiliation" not in obs2
     assert "demo_ethnicity_broad" not in obs2
+
+
+def test_ndhs_ph_uses_verified_ph2022_code_lists(allowed):
+    """Numeric maps come from the PH-2022 DDI codebook, not the DHS generic defaults."""
+    row = ndhs_ph.flatten(
+        {"hv105": 30, "hv024": 13, "hv025": 1, "v130": 5, "v131": 2, "v045c": 2}
+    )
+    obs = apply_crosswalk(row, ndhs_ph.CROSSWALK, allowed)[0]
+    assert obs["urbanicity"] == "Dense urban"  # hv024 13 = National Capital Region
+    assert obs["demo_religion_affiliation"] == "Muslim"  # v130 5 = Islam
+    assert obs["demo_ethnicity_broad"] == "Southeast Asian"  # v131 2 = Cebuano
+    assert obs["lang_tagalog"] == "Native"  # v045c 2 = Tagalog
+
+
+def test_ndhs_ph_marital_codes_differ_between_files(allowed):
+    """hv115 and v501 assign different meanings to code 4.
+
+    PH-2022 hv115 code 4 is the combined "Divorced/annulled/separated" and has
+    no code 5; divorce is not available in the Philippines. v501 code 4 is a
+    clean "Divorced". Sharing one map between them mislabels the household file.
+    """
+    hh = ndhs_ph.flatten({"hv105": 40, "hv115": 4})
+    assert apply_crosswalk(hh, ndhs_ph.CROSSWALK, allowed)[0]["demo_marital_status"] == "Separated"
+
+    ind = ndhs_ph.flatten({"v012": 40, "v501": 4})
+    assert apply_crosswalk(ind, ndhs_ph.CROSSWALK, allowed)[0]["demo_marital_status"] == "Divorced"
+
+    sep = ndhs_ph.flatten({"v012": 40, "v501": 5})
+    assert apply_crosswalk(sep, ndhs_ph.CROSSWALK, allowed)[0]["demo_marital_status"] == "Separated"
+
+
+def test_ndhs_ph_interview_language_is_not_native_language(allowed):
+    """v045b is the language the interview was conducted in, not v045c native language."""
+    row = ndhs_ph.flatten({"hv105": 30, "v045b": 2})
+    obs = apply_crosswalk(row, ndhs_ph.CROSSWALK, allowed)[0]
+    assert "lang_tagalog" not in obs
+    assert "english_proficiency" not in obs
 
 
 def test_wvs_and_psa_selftests():

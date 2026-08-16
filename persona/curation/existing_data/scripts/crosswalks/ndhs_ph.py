@@ -11,11 +11,31 @@ every household member of both sexes at all ages, which is what makes NDHS
 usable for `highest_education` and `socioeconomic_band` targets.
 
 DHS recode names are standardised across every DHS survey worldwide, so this
-module is written against the standard variables and accepts both the PR
-(``hv*``) and IR/MR (``v*``) spellings. Confirm against the PH-2022 codebook on
-arrival — the country-specific items (religion ``v130``, ethnicity ``v131``)
-carry per-country code lists, so those are matched on decoded labels only and
-never on raw numbers.
+module accepts both the PR (``hv*``) and IR/MR (``v*``) spellings. The
+country-specific code lists here were **verified against the PH-2022 DDI
+codebook** (``PHL_2022_DHS_v01_M.xml``), which is why ``v130`` religion,
+``v131`` ethnicity and ``v045c`` language are mapped from raw numbers at all.
+Do not copy those numeric maps to another country's DHS — they are per-survey.
+
+Two things that verification changed, both easy to get wrong:
+
+* ``hv115`` and ``v501`` do **not** share a code list. In PH-2022 ``hv115`` has
+  no code 5 and its code 4 is "Divorced/annulled/separated" — a combined
+  category. Divorce is not available in the Philippines, so that maps to
+  Separated, whereas ``v501`` code 4 is a clean "Divorced".
+* ``v045c`` is the respondent's *native* language; ``v045b`` is the language the
+  interview happened to be conducted in. Only the former is read here.
+
+**If you have the raw REC distribution rather than the merged PR recode**, the
+fields this module needs are spread across files and must be joined first:
+
+    RECH1  (129,724 members)  hvidx hv104 hv105 hv106 hv109 hv115
+    RECH0  (35,470 households) hv024 hv025 hv005
+    RECH2                      hv270
+
+Join RECH1 to RECH0 and RECH2 on ``hhid`` before converting, or region,
+urbanicity, wealth and the sample weight will all be missing. The standard
+``PHPR*FL.DTA`` recode already has them merged and needs no join.
 
     python persona/curation/existing_data/scripts/microdata_to_jsonl.py \\
       --src persona/curation/existing_data/raw/ndhs_ph/PHPR82FL.DTA \\
@@ -43,12 +63,15 @@ urbanicity cannot reach Suburban the way ``psa_ph.py`` does. Run
 
 from __future__ import annotations
 
+# hv024/v024 in PH-2022: 13 = National Capital Region (verified against the
+# PHL_2022_DHS_v01_M DDI codebook). Without the numeric code, a file read with
+# convert_categoricals=False would never resolve NCR at all.
 NCR_TOKENS = {
     "ncr",
+    "13",
     "national capital region",
     "metro manila",
     "metropolitan manila",
-    "manila",
 }
 
 # DHS reserves the top of each numeric range for "don't know" / missing. On
@@ -147,11 +170,16 @@ def _alias_src_fields(row):
         # informative than the hv106/v106 level items, so they win.
         "EDUC": ("hv109", "HV109", "v149", "V149", "hv106", "HV106", "v106", "V106"),
         "WEALTH": ("hv270", "HV270", "v190", "V190"),
-        "MSTAT": ("hv115", "HV115", "v501", "V501"),
+        # hv115 and v501 do NOT share a code list — see _marital.
+        "MSTAT_HH": ("hv115", "HV115"),
+        "MSTAT_IND": ("v501", "V501"),
         "CHILDREN": ("v218", "V218"),
         "RELIGION": ("v130", "V130", "sh_religion", "religion"),
         "ETHNICITY": ("v131", "V131", "ethnicity"),
-        "LANGUAGE": ("v045c", "V045C", "v045b", "V045B", "language"),
+        # v045c is the respondent's *native* language. v045b is the language the
+        # interview happened to be conducted in, which is not the same thing and
+        # must not stand in for it.
+        "LANGUAGE": ("v045c", "V045C", "language"),
         "WEIGHT": ("hv005", "HV005", "v005", "V005"),
     }
     for dest, sources in aliases.items():
@@ -328,13 +356,77 @@ def _children(row):
     return "3+ children"
 
 
+def _marital(row):
+    """hv115 and v501 use different code lists — do not merge them.
+
+    PH-2022 hv115: 0 never married, 1 married or living together, 2 living
+    together, 3 widowed, 4 divorced/annulled/separated. There is no code 5, and
+    code 4 is a *combined* category. Divorce is not available in the
+    Philippines, so that group is overwhelmingly annulled or separated and maps
+    to Separated — reading it as Divorced (the standard DHS meaning of 4) would
+    be wrong for this country.
+
+    v501 is the regular recode: 4 divorced, 5 no longer living together.
+    """
+    household = _token(row, "MSTAT_HH")
+    if household is not None:
+        return {
+            "0": "Single",
+            "never married": "Single",
+            "1": "Married",
+            "married or living together": "Married",
+            "married": "Married",
+            "2": "Domestic partnership",
+            "living together": "Domestic partnership",
+            "3": "Widowed",
+            "widowed": "Widowed",
+            "4": "Separated",
+            "divorced/annulled/separated": "Separated",
+        }.get(household)
+    individual = _token(row, "MSTAT_IND")
+    if individual is None:
+        return None
+    return {
+        "0": "Single",
+        "never in union": "Single",
+        "never married": "Single",
+        "1": "Married",
+        "married": "Married",
+        "2": "Domestic partnership",
+        "living with partner": "Domestic partnership",
+        "living together": "Domestic partnership",
+        "3": "Widowed",
+        "widowed": "Widowed",
+        "4": "Divorced",
+        "divorced": "Divorced",
+        "5": "Separated",
+        "separated": "Separated",
+        "no longer living together/separated": "Separated",
+    }.get(individual)
+
+
+# PH-2022 v130 (verified against the DDI codebook): 1 Roman Catholic,
+# 2 Protestant, 3 Iglesia ni Cristo, 4 Aglipay, 5 Islam, 6 Other Christian,
+# 95 No religion, 96 Other. Numeric codes are safe *because* they were checked
+# against this survey; do not copy this map to another country's DHS.
+V130_NUMERIC = {
+    "1": "Christian",
+    "2": "Christian",
+    "3": "Christian",
+    "4": "Christian",
+    "5": "Muslim",
+    "6": "Christian",
+    "95": "None",
+}
+
+
 def _religion(row):
     token = _token(row, "RELIGION")
     if token is None:
         return None
-    # v130 codes are country-specific, so only decoded labels are trusted here.
     if token.isdigit():
-        return None
+        # 96 "Other" is intentionally absent: it cannot be placed in the schema.
+        return V130_NUMERIC.get(token)
     if token in {"no religion", "none", "atheist"}:
         return "None"
     if token in {"islam", "muslim"}:
@@ -352,19 +444,34 @@ def _religion(row):
 
 def _ethnicity(row):
     token = _token(row, "ETHNICITY")
-    if token is None or token.isdigit():
+    if token is None:
         return None
+    if token.isdigit():
+        # PH-2022 v131: codes 1-87 are Filipino ethnolinguistic groups;
+        # 88 "Other Nationality" and 96 "Other" are not placeable.
+        n = int(token)
+        return "Southeast Asian" if 1 <= n <= 87 else None
     if "chinese" in token:
         return "East Asian"
+    if token in {"other", "other nationality"}:
+        return None
     return "Southeast Asian" if token in SEA_ETHNICITY else None
 
 
+# PH-2022 v045c native language: 1 English, 2 Tagalog, 3 Ilocano, 4 Bikol,
+# 5 Waray, 6 Hiligaynon, 7 Cebuano, 96 Other.
 def _lang_tagalog(row):
-    return "Native" if _token(row, "LANGUAGE") in TAGALOG_HOME else None
+    token = _token(row, "LANGUAGE")
+    if token is None:
+        return None
+    return "Native" if token == "2" or token in TAGALOG_HOME else None
 
 
 def _english_proficiency(row):
-    return "Native" if _token(row, "LANGUAGE") == "english" else None
+    token = _token(row, "LANGUAGE")
+    if token is None:
+        return None
+    return "Native" if token in {"1", "english"} else None
 
 
 CROSSWALK = {
@@ -379,27 +486,7 @@ CROSSWALK = {
     "urbanicity": {"compute": _urbanicity, "prov": "observed"},
     "highest_education": {"compute": _education, "prov": "observed"},
     "socioeconomic_band": {"compute": _socioeconomic_band, "prov": "observed"},
-    "demo_marital_status": {
-        "src": "MSTAT",
-        "map": {
-            "0": "Single",
-            "never married": "Single",
-            "never in union": "Single",
-            "1": "Married",
-            "married": "Married",
-            "2": "Domestic partnership",
-            "living together": "Domestic partnership",
-            "living with partner": "Domestic partnership",
-            "3": "Widowed",
-            "widowed": "Widowed",
-            "4": "Divorced",
-            "divorced": "Divorced",
-            "5": "Separated",
-            "separated": "Separated",
-            "no longer living together/separated": "Separated",
-        },
-        "prov": "observed",
-    },
+    "demo_marital_status": {"compute": _marital, "prov": "observed"},
     "demo_children_count": {"compute": _children, "prov": "observed"},
     "demo_religion_affiliation": {"compute": _religion, "prov": "observed"},
     "demo_ethnicity_broad": {"compute": _ethnicity, "prov": "observed"},
@@ -486,11 +573,29 @@ def _selftest():
     assert "highest_education" not in obs3
     assert "socioeconomic_band" not in obs3
 
-    # country-specific numeric codes must never be read as labels
-    numeric = flatten({"hv105": 30, "v130": 1, "v131": 2})
+    # PH-2022 numeric code lists, verified against the DDI codebook
+    numeric = flatten({"hv105": 30, "hv024": 13, "hv025": 1, "v130": 5, "v131": 2, "v045c": 2})
     obs4, _, _ = apply_crosswalk(numeric, CROSSWALK, allowed)
-    assert "demo_religion_affiliation" not in obs4
-    assert "demo_ethnicity_broad" not in obs4
+    assert obs4["demo_religion_affiliation"] == "Muslim", obs4  # v130 5 = Islam
+    assert obs4["demo_ethnicity_broad"] == "Southeast Asian"  # v131 2 = Cebuano
+    assert obs4["lang_tagalog"] == "Native"  # v045c 2 = Tagalog
+    assert obs4["urbanicity"] == "Dense urban"  # hv024 13 = NCR
+    # codes that cannot be placed in the schema stay unobserved
+    unplaceable = flatten({"hv105": 30, "v130": 96, "v131": 88})
+    obs5, _, _ = apply_crosswalk(unplaceable, CROSSWALK, allowed)
+    assert "demo_religion_affiliation" not in obs5
+    assert "demo_ethnicity_broad" not in obs5
+
+    # hv115 and v501 disagree on what 4 means; PH has no legal divorce
+    hh4 = flatten({"hv105": 40, "hv115": 4})
+    assert apply_crosswalk(hh4, CROSSWALK, allowed)[0]["demo_marital_status"] == "Separated"
+    ind4 = flatten({"v012": 40, "v501": 4})
+    assert apply_crosswalk(ind4, CROSSWALK, allowed)[0]["demo_marital_status"] == "Divorced"
+    ind5 = flatten({"v012": 40, "v501": 5})
+    assert apply_crosswalk(ind5, CROSSWALK, allowed)[0]["demo_marital_status"] == "Separated"
+    # interview language must not be read as native language
+    interview_only = flatten({"hv105": 30, "v045b": 2})
+    assert "lang_tagalog" not in apply_crosswalk(interview_only, CROSSWALK, allowed)[0]
 
     # urban outside NCR is Small town; Suburban is unreachable from DHS
     urban = flatten({"hv105": 30, "hv024": "Calabarzon", "hv025": 1})

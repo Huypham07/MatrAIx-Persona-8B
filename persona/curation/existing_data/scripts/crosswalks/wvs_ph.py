@@ -17,8 +17,25 @@ unobserved rather than guessing another country. Tagalog/Filipino is not a
 only. Urban vs rural is too coarse for Dense urban / Suburban / Small town, so
 urban stays null unless a town-size field can place it.
 
-Source fields accept numeric WV7 codes or decoded labels (pandas
-``convert_categoricals=True``). Run ``python crosswalks/wvs_ph.py --selftest``.
+Source fields accept numeric WV7 codes or decoded labels.
+
+Practical notes from the PH v5.1 release:
+
+* pandas cannot decode that file's value labels at all ("buffer is smaller than
+  requested size"), so the Stata file reads as numeric codes. That is fine —
+  the country-specific code lists for ``Q272`` (language), ``Q289``
+  (denomination) and ``Q290`` (ethnicity) were verified by joining the Stata
+  codes to the text export on ``D_INTERVIEW`` and are mapped directly.
+* ``Q272`` is "Language at home". ``Q266`` is the respondent's *country of
+  birth*; reading it as language silently zeroes both language dimensions,
+  because every PH respondent answers it "Philippines".
+* The text export (``..._CsvText_...csv``) is semicolon-separated, ships headers
+  as ``CODE Label``, and ends every data row with a trailing separator. Convert
+  it with ``--sep ';' --header-code --encoding utf-8-sig``. It decodes the
+  categorical items but leaves the scale items (education, income, politics) as
+  text the maps do not take, so the Stata file remains the better default.
+
+Run ``python crosswalks/wvs_ph.py --selftest``.
 """
 
 from __future__ import annotations
@@ -119,7 +136,7 @@ def render(row):
     sex = _token(row, "Q260", "q260", "sex")
     if sex:
         bits.append(str(sex))
-    lang = _token(row, "Q266", "q266", "language", "home_language")
+    lang = _home_language(row)
     if lang:
         bits.append(f"home language {lang}")
     return ", ".join(bits) + "."
@@ -176,24 +193,77 @@ def _cult_philippines(row):
     return None
 
 
+def _wvs_label(token):
+    """Normalise a WV7 text label.
+
+    Released text files use ``Long descriptive label{canonical short}`` — e.g.
+    ``Do not belong to a denomination{No religion}``. The braced form is the one
+    worth matching. Country items are also prefixed with the ISO code, as in
+    ``PH: Tagalog``.
+    """
+    if token is None:
+        return None
+    if "{" in token and token.endswith("}"):
+        token = token[token.index("{") + 1 : -1].strip()
+    if ":" in token:
+        head, _, tail = token.partition(":")
+        if len(head) <= 3 and tail.strip():  # "ph: tagalog", not "note: ..."
+            token = tail.strip()
+    return token or None
+
+
+# Verified against the PH v5.1 release by joining the Stata codes to the text
+# export on D_INTERVIEW. Q272 uses 4-digit language codes; 1360 is
+# Filipino/Pilipino (Tagalog). English is a valid code but no PH respondent
+# reported it as the language at home, so english_proficiency stays unobserved
+# here rather than being invented.
+Q272_TAGALOG_CODES = {"1360"}
+Q272_ENGLISH_CODES = {"1270"}
+
+
+def _home_language(row):
+    # Q272 is "Language at home". Q266 is the respondent's country of birth and
+    # must not be read as language — doing so silently zeroes both language
+    # dimensions, since every PH respondent answers it "Philippines".
+    return _wvs_label(_token(row, "Q272", "q272", "language", "home_language"))
+
+
+def _language_parts(token):
+    """WV7 language labels bundle synonyms: 'Filipino; Pilipino', 'Bikol; Bicolano'."""
+    if token is None:
+        return set()
+    parts = {token}
+    for sep in (";", "/", ","):
+        parts = {p.strip() for chunk in parts for p in chunk.split(sep)}
+    return {p for p in parts if p}
+
+
 def _lang_tagalog(row):
-    home = _token(row, "Q266", "q266", "language", "home_language")
-    if home in TAGALOG_HOME:
+    home = _home_language(row)
+    if home is None:
+        return None
+    if home in Q272_TAGALOG_CODES or _language_parts(home) & TAGALOG_HOME:
         return "Native"
     return None
 
 
 def _english_proficiency(row):
-    home = _token(row, "Q266", "q266", "language", "home_language")
-    if home in {"english"}:
+    home = _home_language(row)
+    if home is None:
+        return None
+    if home in Q272_ENGLISH_CODES or "english" in _language_parts(home):
         return "Native"
     return None
 
 
 def _ethnicity(row):
-    eth = _token(row, "Q290", "q290", "ethnic", "ethnicity")
+    eth = _wvs_label(_token(row, "Q290", "q290", "ethnic", "ethnicity"))
     if not eth:
         return None
+    # Q290 is coded <ISO numeric country><group>, so every Philippine ethnic
+    # group is 608xxx. Verified against the PH v5.1 release.
+    if eth.isdigit():
+        return "Southeast Asian" if eth.startswith("608") else None
     if eth in {"chinese", "filipino chinese", "chinese-filipino"}:
         return "East Asian"
     if eth in TAGALOG_HOME or eth in {
@@ -313,11 +383,25 @@ def _income_band(row):
     return "High income"
 
 
+# Q289 denomination codes are per-country. Verified for PH v5.1: 0 no
+# denomination, 1 Catholic, 2 Protestant, 5 Muslim, 8 Other Christian, 9 Other.
+# 9 is intentionally absent — "Other" has no schema home.
+Q289_PH_CODES = {
+    "0": "None",
+    "1": "Christian",
+    "2": "Christian",
+    "5": "Muslim",
+    "8": "Christian",
+}
+
+
 def _religion(row):
-    token = _token(row, "Q289", "q289", "religion")
+    token = _wvs_label(_token(row, "Q289", "q289", "religion"))
     if token is None:
         return None
-    if token in {"none", "no religion", "not a member", "0"}:
+    if token in Q289_PH_CODES:
+        return Q289_PH_CODES[token]
+    if token in {"none", "no religion", "not a member", "do not belong to a denomination"}:
         return "None"
     if token in {"atheist", "agnostic"}:
         return "Atheist / agnostic"
@@ -559,7 +643,7 @@ def _selftest():
         "Q262": 38,
         "Q260": 2,
         "Q263": 1,
-        "Q266": "Tagalog",
+        "Q272": "Tagalog",
         "Q290": "Tagalog",
         "H_URBRURAL": 2,
         "Q273": 1,
@@ -601,7 +685,7 @@ def _selftest():
         "Q262": 22,
         "Q260": "Male",
         "H_URBRURAL": "Urban",
-        "Q266": "English",
+        "Q272": "English",
         "Q263": 2,
         "Q289": "Other",
     })

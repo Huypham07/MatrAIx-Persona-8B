@@ -41,9 +41,15 @@ from pathlib import Path
 SCRIPTS_DIR = Path(__file__).resolve().parent
 
 # WV7 columns the wvs_ph crosswalk reads, plus identifiers/country filter.
+# Q272 is "Language at home"; Q266 is country of birth. Both are kept, but they
+# are not interchangeable — see _home_language in crosswalks/wvs_ph.py.
+#
+# W_WEIGHT is the within-country weight and must be kept: WV7 quota-samples sex
+# (the PH release is exactly 600 men / 600 women), so an unweighted margin
+# reports the sample design rather than the country.
 WVS_KEEP = [
-    "D_INTERVIEW", "B_COUNTRY_ALPHA", "B_COUNTRY",
-    "Q262", "Q260", "Q263", "Q266", "Q290", "H_URBRURAL",
+    "D_INTERVIEW", "B_COUNTRY_ALPHA", "B_COUNTRY", "W_WEIGHT", "PWGHT",
+    "Q262", "Q260", "Q263", "Q266", "Q272", "Q290", "H_URBRURAL",
     "Q273", "Q274", "Q275", "Q288", "Q279", "Q289",
     "Q173", "Q164", "Q199", "Q57",
 ]
@@ -84,34 +90,44 @@ def _resolve_zip_member(path, member):
         return chosen.filename, io.BytesIO(zf.read(chosen))
 
 
-def _read_stata(src, chunksize):
+def _stata_frames(src, chunksize, categoricals=None):
+    """Yield Stata chunks, falling back to numeric codes if labels will not decode.
+
+    Real PSA/WVS releases carry value-label blocks pandas cannot parse (the WVS
+    Wave 7 PH v5.1 file raises "buffer is smaller than requested size"). The
+    failure surfaces while *iterating*, not when the reader is constructed, so
+    guarding only construction misses it. The crosswalks accept raw codes just
+    as well as decoded labels, so dropping to numeric loses nothing.
+    """
     import pandas as pd
 
-    # Stata files from PSA/WVS frequently carry duplicate or malformed value
-    # labels; decoding then fails outright. Fall back to raw codes, which the
-    # crosswalks accept just as well as decoded labels.
-    for categoricals in (True, False):
+    modes = (True, False) if categoricals is None else (categoricals,)
+    for mode in modes:
+        emitted = False
         try:
-            return pd.read_stata(src, convert_categoricals=categoricals, chunksize=chunksize), categoricals
+            if hasattr(src, "seek"):
+                src.seek(0)
+            reader = pd.read_stata(src, convert_categoricals=mode, chunksize=chunksize)
+            with reader:
+                for frame in reader:
+                    if not emitted:
+                        _log(f"  stata: value labels {'decoded' if mode else 'kept as numeric codes'}")
+                    emitted = True
+                    yield frame
+            return
         except ValueError as exc:
-            if categoricals and "unique" in str(exc).lower():
-                _log(f"  value labels not decodable ({exc}); re-reading with numeric codes")
-                if hasattr(src, "seek"):
-                    src.seek(0)
-                continue
-            raise
-    raise SystemExit("unreachable")
+            # Restarting after rows were handed out would duplicate them.
+            if mode is False or emitted:
+                raise
+            _log(f"  value labels unreadable ({exc}); re-reading with numeric codes")
 
 
-def _iter_frames(src, suffix, chunksize, encoding):
+def _iter_frames(src, suffix, chunksize, encoding, categoricals=None, sep=None):
     """Yield DataFrames. Chunked for Stata/CSV so a census-sized file streams."""
     import pandas as pd
 
     if suffix == ".dta":
-        reader, decoded = _read_stata(src, chunksize)
-        _log(f"  stata: value labels {'decoded' if decoded else 'kept as numeric codes'}")
-        with reader:
-            yield from reader
+        yield from _stata_frames(src, chunksize, categoricals)
     elif suffix == ".sav":
         try:
             import pyreadstat  # noqa: F401
@@ -125,23 +141,34 @@ def _iter_frames(src, suffix, chunksize, encoding):
         yield pd.read_spss(src, convert_categoricals=True)
     else:
         # .txt PUFs use an unadvertised delimiter; sniffing needs the python engine.
-        kwargs = {"sep": None, "engine": "python"} if suffix == ".txt" else {
-            "sep": "\t" if suffix == ".tsv" else ","
-        }
+        if sep:
+            kwargs = {"sep": sep}
+        elif suffix == ".txt":
+            kwargs = {"sep": None, "engine": "python"}
+        else:
+            kwargs = {"sep": "\t" if suffix == ".tsv" else ","}
         try:
-            reader = pd.read_csv(src, chunksize=chunksize, encoding=encoding, **kwargs)
+            # index_col=False is essential, not cosmetic: a trailing delimiter
+            # makes data rows one field wider than the header (the WVS text
+            # export does this), and pandas then silently promotes the first
+            # column to an index, shifting every value one column left.
+            reader = pd.read_csv(
+                src, chunksize=chunksize, encoding=encoding, index_col=False, **kwargs
+            )
         except UnicodeDecodeError:
             _log(f"  {encoding} decode failed; retrying as latin-1")
             if hasattr(src, "seek"):
                 src.seek(0)
-            reader = pd.read_csv(src, chunksize=chunksize, encoding="latin-1", **kwargs)
+            reader = pd.read_csv(
+                src, chunksize=chunksize, encoding="latin-1", index_col=False, **kwargs
+            )
         if chunksize is None:
             yield reader
         else:
             yield from reader
 
 
-def read_source(path, member=None, chunksize=200_000, encoding="utf-8"):
+def read_source(path, member=None, chunksize=200_000, encoding="utf-8", categoricals=None, sep=None):
     path = Path(path)
     if not path.exists():
         raise SystemExit(f"source not found: {path}")
@@ -153,14 +180,14 @@ def read_source(path, member=None, chunksize=200_000, encoding="utf-8"):
                 "pandas cannot read .sav from memory — unzip first:\n"
                 f"  unzip -j {path} '{name}' -d {path.parent}"
             )
-        return _iter_frames(buf, suffix, chunksize, encoding)
+        return _iter_frames(buf, suffix, chunksize, encoding, categoricals, sep)
     suffix = path.suffix.lower()
     if suffix == ".gz":
         inner = Path(path.stem).suffix.lower() or ".csv"
-        return _iter_frames(gzip.open(path, "rb"), inner, chunksize, encoding)
+        return _iter_frames(gzip.open(path, "rb"), inner, chunksize, encoding, categoricals, sep)
     if suffix not in DATA_SUFFIXES:
         raise SystemExit(f"unsupported extension {suffix!r} (want .dta/.sav/.csv/.tsv/.zip/.gz)")
-    return _iter_frames(str(path), suffix, chunksize, encoding)
+    return _iter_frames(str(path), suffix, chunksize, encoding, categoricals, sep)
 
 
 # --------------------------------------------------------------------------
@@ -269,6 +296,12 @@ def main(argv=None):
     ap.add_argument("--limit", type=int, help="stop after N output rows (smoke tests)")
     ap.add_argument("--chunksize", type=int, default=200_000, help="rows per read chunk")
     ap.add_argument("--encoding", default="utf-8")
+    ap.add_argument("--sep", help="column separator (WVS text exports use ';')")
+    ap.add_argument("--header-code", action="store_true",
+                    help="use the first token of each header as the column name "
+                         "(WVS text exports ship headers like 'Q272 Language at home')")
+    ap.add_argument("--numeric-codes", action="store_true",
+                    help="skip Stata value-label decoding (crosswalks accept raw codes)")
     ap.add_argument("--columns-only", action="store_true", help="print column names and exit")
     args = ap.parse_args(argv)
 
@@ -285,7 +318,11 @@ def main(argv=None):
     out_path.parent.mkdir(parents=True, exist_ok=True)
     _log(f"reading {args.src}")
 
-    frames = read_source(args.src, args.member, args.chunksize, args.encoding)
+    frames = read_source(
+        args.src, args.member, args.chunksize, args.encoding,
+        categoricals=False if args.numeric_codes else None,
+        sep=args.sep,
+    )
     report = CoverageReport(args.check) if args.check else None
 
     opener = gzip.open if out_path.suffix == ".gz" else open
@@ -294,6 +331,8 @@ def main(argv=None):
     try:
         with opener(out_path, "wt", encoding="utf-8") as fh:
             for frame in frames:
+                if args.header_code:
+                    frame = frame.rename(columns=lambda c: str(c).split(" ")[0].strip())
                 if seen_cols is None:
                     seen_cols = list(frame.columns)
                     _log(f"  {len(seen_cols)} columns")
