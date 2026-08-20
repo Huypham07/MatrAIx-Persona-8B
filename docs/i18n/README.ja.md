@@ -54,11 +54,17 @@
 名前は *The Matrix* に由来します。探索・ストレステスト・仮説生成に有用なシミュレーション世界であり、
 **実在の人々から得られるエビデンスの代替ではありません**。
 
-## ニュース
+## ニュース & 注目
 
-- **[2026-08-11]** 学術コメント: Mayank Kejriwal（[*AI Scientist*](https://aiscientist.substack.com/)）による [*Can we simulate the world?*](https://aiscientist.substack.com/p/can-we-simulate-the-world)。
-- **[2026-08-10]** [X Trending Story](https://x.com/i/trending/2086626337561911419) に掲載: *Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*。[36Kr](https://eu.36kr.com/en/p/3932853833759876)、[Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html)、[Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/)、[AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824)、[CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/)、[Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) などのテックメディアでも報じられました。Cisco VP & CTO の [Gianpaolo Barozzi](https://lnkd.in/p/gE9cV2nw) も言及しています。
-- **[2026-08-04]** arXiv 技術レポート: [MatrAIx: Simulating the World with 8.3 Billion Persona Agents](https://arxiv.org/abs/2608.04205) (`2608.04205`)。[Hugging Face Daily Papers](https://huggingface.co/papers/date/2026-08-10) にも掲載（[論文ページ](https://huggingface.co/papers/2608.04205)）。
+- **学術コメント** — [*Can We Simulate the World?*](https://aiscientist.substack.com/p/can-we-simulate-the-world) — Mayank Kejriwal（[*AI Scientist*](https://aiscientist.substack.com/)）
+- **研究ディスカバリー** — [Hugging Face Papers](https://huggingface.co/papers/2608.04205) に掲載（[Daily Papers, 2026-08-10](https://huggingface.co/papers/date/2026-08-10)）
+- **メディア** — [36Kr](https://www.36kr.com/p/3932853833759876) · [Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html) · [Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/) · [AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824) · [Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) · [Forbes Türkiye](https://www.forbes.com.tr/saglik/hastaya-dokunmadan-once-8-3-milyar-kez-denemek-sagligin-yeni-test-dunyasi-matraix) · [WIRED Czech](https://www.wired.cz/news-beat/harvard-a-mit-vytvorily-ai-simulaci-obsahujici-83-miliardy-virtualnich-lidi)
+- **業界コメント** — Cisco VP & CTO [Gianpaolo Barozzi](https://lnkd.in/p/gE9cV2nw) が言及
+- **ソーシャル** — [X Trending Story](https://x.com/i/trending/2086626337561911419) に掲載
+
+## リリース
+
+- **[2026-08-04]** arXiv 技術レポート: [MatrAIx: Simulating the World with 8.3 Billion Persona Agents](https://arxiv.org/abs/2608.04205) (`2608.04205`)。
 - **[2026-08-01]** Hugging Face で [Persona 1M](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release) を公開（約 100 万件の品質フィルタ済みペルソナ）。
 - **[2026-07-31]** Playground とタスクライブラリをオープンソース化: [MatrAIx-Persona-8B](https://github.com/MatrAIx-ai/MatrAIx-Persona-8B)。
 - **[2026-07-29]** ポジションノート: [From Personas to Simulated Users](https://matraix.ai/research/survey-from-personas-to-simulated-users.html)。

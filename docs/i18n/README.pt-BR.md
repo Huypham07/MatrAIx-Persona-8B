@@ -58,11 +58,17 @@ O nome remete a *The Matrix*: um mundo simulado útil para exploração, testes 
 estresse e geração de hipóteses — **não um substituto para evidências de pessoas
 reais**.
 
-## Novidades
+## Novidades & reconhecimento
 
-- **[2026-08-11]** Comentário acadêmico: [*Can we simulate the world?*](https://aiscientist.substack.com/p/can-we-simulate-the-world) por Mayank Kejriwal ([*AI Scientist*](https://aiscientist.substack.com/)).
-- **[2026-08-10]** Destaque como [X Trending Story](https://x.com/i/trending/2086626337561911419): *Harvard and MIT Unveil MatrAIx with 8.3 Billion Virtual Personas*. Também coberto pela mídia de tecnologia, incluindo [36Kr](https://eu.36kr.com/en/p/3932853833759876), [Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html), [Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/), [AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824), [CryptoBriefing](https://cryptobriefing.com/matraix-simulation-harvard-mit-ai-personas/) e [Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/), entre outros. Também discutido pelo VP e CTO da Cisco [Gianpaolo Barozzi](https://lnkd.in/p/gE9cV2nw).
-- **[2026-08-04]** Relatório técnico no arXiv: [MatrAIx: Simulating the World with 8.3 Billion Persona Agents](https://arxiv.org/abs/2608.04205) (`2608.04205`). Também em destaque no [Hugging Face Daily Papers](https://huggingface.co/papers/date/2026-08-10) ([página do paper](https://huggingface.co/papers/2608.04205)).
+- **Comentário acadêmico** — [*Can We Simulate the World?*](https://aiscientist.substack.com/p/can-we-simulate-the-world) — Mayank Kejriwal ([*AI Scientist*](https://aiscientist.substack.com/))
+- **Descoberta em pesquisa** — Destaque no [Hugging Face Papers](https://huggingface.co/papers/2608.04205) ([Daily Papers, 2026-08-10](https://huggingface.co/papers/date/2026-08-10))
+- **Mídia** — [36Kr](https://www.36kr.com/p/3932853833759876) · [Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html) · [Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/) · [AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824) · [Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) · [Forbes Türkiye](https://www.forbes.com.tr/saglik/hastaya-dokunmadan-once-8-3-milyar-kez-denemek-sagligin-yeni-test-dunyasi-matraix) · [WIRED Czech](https://www.wired.cz/news-beat/harvard-a-mit-vytvorily-ai-simulaci-obsahujici-83-miliardy-virtualnich-lidi)
+- **Comentário da indústria** — Discutido pelo VP e CTO da Cisco [Gianpaolo Barozzi](https://lnkd.in/p/gE9cV2nw)
+- **Social** — Destaque como [X Trending Story](https://x.com/i/trending/2086626337561911419)
+
+## Lançamentos
+
+- **[2026-08-04]** Relatório técnico no arXiv: [MatrAIx: Simulating the World with 8.3 Billion Persona Agents](https://arxiv.org/abs/2608.04205) (`2608.04205`).
 - **[2026-08-01]** Publicado o [Persona 1M](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release) no Hugging Face (~1M personas filtradas por qualidade).
 - **[2026-07-31]** Playground e biblioteca de tarefas em código aberto: [MatrAIx-Persona-8B](https://github.com/MatrAIx-ai/MatrAIx-Persona-8B).
 - **[2026-07-29]** Nota de posição: [From Personas to Simulated Users](https://matraix.ai/research/survey-from-personas-to-simulated-users.html).
