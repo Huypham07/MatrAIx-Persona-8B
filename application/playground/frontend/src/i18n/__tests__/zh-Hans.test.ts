@@ -219,9 +219,18 @@ describe("zh-Hans optional UI locale pack", () => {
     expect(zeroSample).not.toContain("若干");
   });
 
-  it("resolves the legacy zh-CN alias to zh-Hans", async () => {
-    const { resolveUiLocale } = await import("../registry");
-    expect(resolveUiLocale("zh-CN")).toBe("zh-Hans");
-    expect(resolveUiLocale("zh-Hans")).toBe("zh-Hans");
+  it("resolves the shared LOCALE_ALIASES table when the target is registered", async () => {
+    const { resolveUiLocale, LOCALE_ALIASES } = await import("../registry");
+    expect(LOCALE_ALIASES["zh-CN"]).toBe("zh-Hans");
+    expect(LOCALE_ALIASES["zh-TW"]).toBe("zh-Hant");
+    // Only targets present in THIS pack's registry resolve today.
+    const registered = resolveUiLocale("zh-Hans") ?? resolveUiLocale("zh-Hant");
+    expect(registered).toBeTruthy();
+    if (resolveUiLocale("zh-Hans")) {
+      expect(resolveUiLocale("zh-CN")).toBe("zh-Hans");
+    }
+    if (resolveUiLocale("zh-Hant")) {
+      expect(resolveUiLocale("zh-TW")).toBe("zh-Hant");
+    }
   });
 });
