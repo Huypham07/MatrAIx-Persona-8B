@@ -2162,6 +2162,7 @@ export function PersonaSamplingRail({
         onFieldsChange={
           filterTarget === "generation" ? setGenFields : onFieldsChange
         }
+        personaModel={personaModel}
         onClose={() => setFilterOpen(false)}
         onConfirm={(next) => {
           if (filterTarget === "generation") {

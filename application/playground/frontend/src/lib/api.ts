@@ -246,15 +246,27 @@ export const api = {
     request<PersonaPoolCatalog>(
       `/api/persona-pool/catalog?${new URLSearchParams({ pool }).toString()}`,
     ),
-  matchPersonaAttributes: (prompt: string, useLlm = false) =>
-    request<PersonaMatchAttributesResponse>("/api/persona-pool/match-attributes", {
-      method: "POST",
-      body: JSON.stringify({ prompt, useLlm }),
-    }),
   getPersonaDimensionLabels: (locale: string) =>
     request<PersonaDimensionLabels>(
       `/api/persona-pool/dimension-labels?${new URLSearchParams({ locale }).toString()}`,
     ),
+  matchPersonaAttributes: (
+    prompt: string,
+    options?: {
+      searchMode?: "keyword" | "keyword_and_embed" | "keyword_and_embed_and_llm";
+      locale?: string;
+      personaModel?: string;
+    },
+  ) =>
+    request<PersonaMatchAttributesResponse>("/api/persona-pool/match-attributes", {
+      method: "POST",
+      body: JSON.stringify({
+        prompt,
+        searchMode: options?.searchMode ?? "keyword",
+        ...(options?.locale ? { locale: options.locale } : {}),
+        ...(options?.personaModel ? { personaModel: options.personaModel } : {}),
+      }),
+    }),
   getPersonaPoolCards: async (input?: {
     pool?: string;
     limit?: number;
