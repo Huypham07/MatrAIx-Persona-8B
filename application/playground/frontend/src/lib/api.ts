@@ -10,6 +10,7 @@ import type {
   HarborJobStatusResponse,
   HarborTrialEventsResponse,
   PersonaDatasetListResponse,
+  PersonaDimensionLabels,
   PersonaMatchAttributesResponse,
   PersonaPoolCatalog,
   PersonaPoolCardsResponse,
@@ -250,6 +251,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ prompt, useLlm }),
     }),
+  getPersonaDimensionLabels: (locale: string) =>
+    request<PersonaDimensionLabels>(
+      `/api/persona-pool/dimension-labels?${new URLSearchParams({ locale }).toString()}`,
+    ),
   getPersonaPoolCards: async (input?: {
     pool?: string;
     limit?: number;

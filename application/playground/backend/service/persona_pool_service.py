@@ -56,6 +56,8 @@ _RESERVED_DATASET_SLUGS = frozenset(
     }
 )
 DIMENSION_CATEGORIES_PATH = "persona/schema/dimension_categories.json"
+DIMENSION_LABELS_DIR = "persona/schema/labels"
+_LABEL_LOCALE_RE = re.compile(r"^[A-Za-z0-9-]{1,32}$")
 # Soft guard for stratify cell cartesian products from dimensionFilters.
 MAX_FILTER_STRATA = 2048
 # UI keeps a full personaId list only at or below this size; larger cohorts are ref-based.
@@ -367,6 +369,33 @@ class PersonaPoolService:
             **summary,
             "dimensionCategoriesPath": "persona/schema/dimensions.json",
             "dimensionCategories": categories,
+        }
+
+    def get_dimension_labels(self, locale: str) -> dict[str, Any]:
+        """Display-label overlay for one locale (English fallback when absent).
+
+        Packs live in ``persona/schema/labels/dimensions.labels.<locale>.json``
+        and only carry translated labels/values keyed by canonical English
+        ids — they never replace the catalog served by :meth:`get_catalog`.
+        """
+        token = (locale or "").strip()
+        if not _LABEL_LOCALE_RE.match(token):
+            raise ValueError(f"invalid locale token: {locale!r}")
+        path = self.repo_root / DIMENSION_LABELS_DIR / f"dimensions.labels.{token}.json"
+        if not path.is_file():
+            return {
+                "locale": token,
+                "available": False,
+                "reviewStatus": None,
+                "dimensions": {},
+            }
+        payload = self._read_json(path)
+        dimensions = payload.get("dimensions")
+        return {
+            "locale": token,
+            "available": True,
+            "reviewStatus": payload.get("reviewStatus"),
+            "dimensions": dimensions if isinstance(dimensions, dict) else {},
         }
 
     def _is_persona_dataset_dir(self, path: Path) -> bool:
