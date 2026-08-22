@@ -41,29 +41,6 @@ export function isUiLocale(value: unknown): value is UiLocale {
 }
 
 
-/**
- * Alternate tags → canonical `UiLocale` codes in `LOCALE_REGISTRY`.
- *
- * Aliases never appear in the locale popover. Use this for:
- * - legacy region tags (`zh-CN` / `zh-TW`) → script tags (`zh-Hans` / `zh-Hant`)
- * - common short forms once a pack ships (e.g. `pt` → `pt-BR`, `zh` → `zh-Hans`)
- *
- * Resolution only succeeds when the *target* is already registered — so this
- * full table can ship before every target locale exists.
- */
-export const LOCALE_ALIASES: Readonly<Record<string, string>> = {
-  "zh-CN": "zh-Hans",
-  "zh-TW": "zh-Hant",
-};
-
-export function resolveUiLocale(value: unknown): UiLocale | null {
-  if (typeof value !== "string") return null;
-  if (isUiLocale(value)) return value;
-  const canonical = LOCALE_ALIASES[value];
-  if (canonical && isUiLocale(canonical)) return canonical;
-  return null;
-}
-
 
 export function getLocaleDefinition(locale: UiLocale): LocaleDefinition<UiLocale> {
   const definition = LOCALE_REGISTRY.find((candidate) => candidate.code === locale);
