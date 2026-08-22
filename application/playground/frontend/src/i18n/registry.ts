@@ -31,6 +31,15 @@ export const LOCALE_REGISTRY = [
     fallback: SOURCE_LOCALE,
     load: async () => (await import("./messages/zh-Hans.json")).default,
   },
+  {
+    code: "zh-Hant",
+    nativeName: "繁體中文",
+    englishName: "Traditional Chinese",
+    translationStatus: "machine-assisted",
+    dir: "ltr",
+    fallback: SOURCE_LOCALE,
+    load: async () => (await import("./messages/zh-Hant.json")).default,
+  },
 ] as const satisfies readonly LocaleDefinition[];
 
 /** Adding a registry entry extends the UI-locale union automatically. */
