@@ -388,14 +388,17 @@ class PersonaPoolService:
                 "available": False,
                 "reviewStatus": None,
                 "dimensions": {},
+                "taxonomy": {},
             }
         payload = self._read_json(path)
         dimensions = payload.get("dimensions")
+        taxonomy = payload.get("taxonomy")
         return {
             "locale": token,
             "available": True,
             "reviewStatus": payload.get("reviewStatus"),
             "dimensions": dimensions if isinstance(dimensions, dict) else {},
+            "taxonomy": taxonomy if isinstance(taxonomy, dict) else {},
         }
 
     def _is_persona_dataset_dir(self, path: Path) -> bool:

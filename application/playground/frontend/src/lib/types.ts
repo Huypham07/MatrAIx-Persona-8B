@@ -986,6 +986,8 @@ export interface PersonaDimensionLabels {
   available: boolean;
   reviewStatus?: string | null;
   dimensions: Record<string, PersonaDimensionLabelEntry>;
+  /** Layer-1 / Layer-2 filter accordion titles (Background, Demographics, …). */
+  taxonomy?: Record<string, string>;
 }
 
 export interface PersonaDatasetOption {

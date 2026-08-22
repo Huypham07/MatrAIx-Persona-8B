@@ -839,6 +839,7 @@ def test_get_dimension_labels_missing_pack_reports_unavailable(tmp_path):
         "available": False,
         "reviewStatus": None,
         "dimensions": {},
+        "taxonomy": {},
     }
 
 
