@@ -6,6 +6,7 @@ export interface LocaleDefinition<Code extends string = string> {
   /** Native-script label shown in the locale popover. */
   nativeName: string;
   englishName: string;
+  translationStatus?: "source" | "machine-assisted" | "human-reviewed";
   dir: TextDirection;
   fallback: Code | null;
   load: () => Promise<MessageCatalog>;
@@ -16,9 +17,19 @@ export const LOCALE_REGISTRY = [
     code: SOURCE_LOCALE,
     nativeName: "English",
     englishName: "English",
+    translationStatus: "source",
     dir: "ltr",
     fallback: null,
     load: async () => SOURCE_MESSAGES,
+  },
+  {
+    code: "zh-CN",
+    nativeName: "简体中文",
+    englishName: "Simplified Chinese",
+    translationStatus: "machine-assisted",
+    dir: "ltr",
+    fallback: SOURCE_LOCALE,
+    load: async () => (await import("./messages/zh-CN.json")).default,
   },
 ] as const satisfies readonly LocaleDefinition[];
 
