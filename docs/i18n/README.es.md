@@ -7,12 +7,12 @@
   </p>
   <p>
     <a href="../../README.md">English</a> |
-    <a href="README.ko.md">한국어</a> |
     <a href="README.zh-CN.md">简体中文</a> |
     <a href="README.zh-TW.md">繁體中文</a> |
+    <a href="README.ko.md">한국어</a> |
     <a href="README.ja.md">日本語</a> |
-    <a href="README.pt-BR.md">Português</a> |
-    <strong>Español</strong>
+    <strong>Español</strong> |
+    <a href="README.pt-BR.md">Português</a>
   </p>
   <p>
     <a href="https://matraix.ai/"><img alt="Website" src="https://img.shields.io/badge/Website-matraix.ai-4f7cff?style=for-the-badge"></a>
