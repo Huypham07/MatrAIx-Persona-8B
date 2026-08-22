@@ -631,39 +631,33 @@ export function PersonaStoreContent({
                 aria-label={t("personaSetup.filters.searchTier")}
                 className="inline-flex h-9 overflow-hidden rounded-lg border border-outline/40 bg-surface/50"
               >
-                {(
-                  [
-                    ["keyword", "personaSetup.filters.searchKeyword"],
-                    [
-                      "keyword_and_embed",
-                      "personaSetup.filters.searchSmart",
-                    ],
-                  ] as const
-                ).map(([tier, labelKey]) => {
-                  const active = searchTier === tier;
-                  return (
-                    <button
-                      key={tier}
-                      type="button"
-                      title={
-                        tier === "keyword_and_embed"
-                          ? t("personaSetup.filters.searchSmartHint")
-                          : t("personaSetup.filters.searchKeywordHint")
-                      }
-                      onClick={() => {
-                        setSearchTier(tier);
-                        if (tier === "keyword") setDeepMatch(false);
-                      }}
-                      className={`px-2.5 text-[12px] transition ${FOCUS_RING} ${
-                        active
-                          ? "bg-primary/15 font-medium text-primary"
-                          : "text-text-variant hover:bg-surface-high"
-                      }`}
-                    >
-                      {t(labelKey)}
-                    </button>
-                  );
-                })}
+                <button
+                  type="button"
+                  title={t("personaSetup.filters.searchKeywordHint")}
+                  onClick={() => {
+                    setSearchTier("keyword");
+                    setDeepMatch(false);
+                  }}
+                  className={`px-2.5 text-[12px] transition ${FOCUS_RING} ${
+                    searchTier === "keyword"
+                      ? "bg-primary/15 font-medium text-primary"
+                      : "text-text-variant hover:bg-surface-high"
+                  }`}
+                >
+                  {t("personaSetup.filters.searchKeyword")}
+                </button>
+                <button
+                  type="button"
+                  title={t("personaSetup.filters.searchSmartHint")}
+                  onClick={() => setSearchTier("keyword_and_embed")}
+                  className={`px-2.5 text-[12px] transition ${FOCUS_RING} ${
+                    searchTier === "keyword_and_embed"
+                      ? "bg-primary/15 font-medium text-primary"
+                      : "text-text-variant hover:bg-surface-high"
+                  }`}
+                >
+                  {t("personaSetup.filters.searchSmart")}
+                </button>
               </div>
               {searchTier === "keyword_and_embed" ? (
                 <label
