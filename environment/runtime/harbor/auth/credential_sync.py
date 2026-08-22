@@ -1,4 +1,6 @@
 """Detect external changes to ~/.harbor/credentials.json (e.g. CLI login)."""
+from __future__ import annotations
+
 
 import hashlib
 

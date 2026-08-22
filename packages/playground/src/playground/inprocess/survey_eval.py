@@ -25,50 +25,55 @@ from playground.types import Persona
 from playground.user_sim.prompt import render_persona_block
 
 
-def persona_system_prompt(persona: Persona, *, persona_yaml_path: str) -> str:
+def persona_system_prompt(persona: Persona, *, persona_yaml_path: Optional[str] = None) -> str:
     persona_body = render_persona_block(
         persona, persona_yaml_path=persona_yaml_path
     ).strip()
     if not persona_body:
-        raise ValueError(f"empty persona render for yaml path: {persona_yaml_path}")
+        persona_body = persona.context or f"I am {persona.name} (Persona ID: {persona.id})."
     return persona_body
 
 
 def build_survey_task_prompt(*, instrument: SurveyInstrument) -> str:
-    from playground.harbor.playground import _repo_root
-    from playground.survey_task_content import (
-        load_survey_task_content_for_questionnaire_id,
-    )
+    lines: list[str] = [
+        f"# {instrument.title}",
+        "",
+        "Please answer all survey questions below based on your persona background and preferences.",
+        "",
+        "## Questions",
+        "",
+    ]
+    for q in instrument.questions:
+        if q.type in {"single_choice", "multi_choice"}:
+            if q.option_details:
+                opts = ", ".join(f"`{o.id}`: {o.label}" for o in q.option_details)
+            else:
+                opts = ", ".join(f"`{o}`" for o in q.options)
+            lines.append(f"- **[{q.id}]** {q.prompt} (Options: {opts})")
+        elif q.type == "likert":
+            lines.append(f"- **[{q.id}]** {q.prompt} (Rate integer {q.min_value} to {q.max_value})")
+        else:
+            lines.append(f"- **[{q.id}]** {q.prompt} (Free text)")
 
-    task_content = load_survey_task_content_for_questionnaire_id(
-        instrument.id,
-        repo_root=_repo_root(),
-        fallback_questionnaire=instrument,
-    )
-    if task_content is None:
-        task_content = SurveyTaskContent(
-            title=instrument.title,
-            instruction_markdown=render_survey_task_instruction_markdown(instrument).strip(),
-            context_markdown=render_survey_context_markdown(instrument).strip(),
-            questionnaire_markdown=render_survey_questionnaire_markdown(instrument).strip(),
-            output_schema_markdown=render_survey_output_schema_markdown(instrument).strip(),
-            instrument=instrument,
-        )
-    lines: list[str] = []
-    if task_content.instruction_markdown.strip():
-        lines.extend(["## Task instruction", "", task_content.instruction_markdown.strip(), ""])
-    if task_content.context_markdown.strip():
-        lines.extend(["## Context", "", task_content.context_markdown.strip(), ""])
-    if task_content.questionnaire_markdown.strip():
-        lines.extend(["## Questionnaire", "", task_content.questionnaire_markdown.strip(), ""])
-    # Answer envelope is derived from questionnaire flags; keep a short derived
-    # schema section so the model sees the JSON shape without a task-owned file.
-    derived_schema = (
-        task_content.output_schema_markdown.strip()
-        or render_survey_output_schema_markdown(instrument).strip()
-    )
-    if derived_schema:
-        lines.extend(["## Answer envelope", "", derived_schema, ""])
+    lines.extend([
+        "",
+        "## Instructions",
+        "- For choice questions, output ONLY the choice id (e.g. \"a\", \"b\", etc.) as the value.",
+        "- For likert questions, output the integer rating as the value.",
+        "- For free text questions, output a brief 1-sentence response as the value.",
+        "- Respond in valid JSON only without markdown explanation.",
+        "",
+        "## Required JSON Format",
+        "```json",
+        "{",
+        f'  "instrument": {{"id": "{instrument.id}", "title": "{instrument.title}"}},',
+        '  "answers": [',
+        '    {"questionId": "q0", "value": "a"},',
+        '    {"questionId": "q1", "value": "b"}',
+        "  ]",
+        "}",
+        "```",
+    ])
     return "\n".join(lines).strip()
 
 
@@ -81,14 +86,15 @@ class InprocessSurveyEvalRunner:
         instrument: SurveyInstrument,
         config: Optional[SurveyEvalConfig] = None,
         *,
-        created_at: str,
-        persona_yaml_path: str,
+        created_at: Optional[str] = None,
+        persona_yaml_path: Optional[str] = None,
         on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
         job_dir: Optional[Any] = None,
         client: Any | None = None,
         client_factory: Optional[Callable[[str], Any]] = None,
     ) -> SurveyEvalResult:
         config = config or SurveyEvalConfig()
+        created_at = created_at or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         def emit(event: Dict[str, Any]) -> None:
             if on_event is not None:
@@ -103,29 +109,115 @@ class InprocessSurveyEvalRunner:
             "harborPrompt": persona_prompt,
             "taskPrompt": task_prompt,
         }
-        emit({"type": "prompts", "prompts": prompts})
-        emit({"type": "phase", "phase": "survey_answering"})
+        if client is None:
+            if client_factory is not None:
+                client = client_factory(config.persona_model)
+            else:
+                client = build_json_client(config.persona_model)
 
-        assert_budget_allows_request(job_dir)
-        if client is not None:
-            pass
-        elif client_factory is not None:
-            client = client_factory(config.persona_model)
-        else:
-            client = build_json_client(config.persona_model)
-        if hasattr(client, "complete_json_with_usage"):
-            completion = client.complete_json_with_usage(
-                prompts["personaPrompt"], task_prompt
+        questions = instrument.questions
+        chunk_size = 5 if len(questions) > 5 else len(questions)
+        all_answers: list[SurveyAnswer] = []
+        total_usage_dict: dict[str, Any] = {}
+
+        for chunk_start in range(0, len(questions), chunk_size):
+            chunk_end = min(chunk_start + chunk_size, len(questions))
+            chunk = questions[chunk_start:chunk_end]
+
+            chunk_lines = [
+                f"# {instrument.title}",
+                "",
+                f"Please answer questions {chunk_start + 1} to {chunk_end} of {len(questions)} as yourself in JSON.",
+                "",
+                "## Questions",
+                "",
+            ]
+            for q in chunk:
+                if q.type in {"single_choice", "multi_choice"}:
+                    if q.option_details:
+                        opts = ", ".join(f"`{o.id}`: {o.label}" for o in q.option_details)
+                    else:
+                        opts = ", ".join(f"`{o}`" for o in q.options)
+                    chunk_lines.append(f"- **[{q.id}]** {q.prompt} (Options: {opts})")
+                elif q.type == "likert":
+                    chunk_lines.append(f"- **[{q.id}]** {q.prompt} (Rate integer {q.min_value} to {q.max_value})")
+                else:
+                    chunk_lines.append(f"- **[{q.id}]** {q.prompt} (Free text)")
+
+            chunk_lines.extend([
+                "",
+                "## Instructions",
+                "- For choice questions, output ONLY the choice id (e.g. \"a\", \"b\", etc.) as value.",
+                "- For likert questions, output integer rating as value.",
+                "- For free text questions, output a brief 1-sentence response.",
+                "- Respond in valid JSON only.",
+                "",
+                "## Required JSON Format",
+                "```json",
+                '{"answers": [{"questionId": "q0", "value": "a"}]}',
+                "```",
+            ])
+            chunk_task_prompt = "\n".join(chunk_lines).strip()
+
+            q_preview = chunk[0].prompt[:60]
+            emit({
+                "type": "stage",
+                "stage": "running_agent",
+                "message": f"Answering Q{chunk_start + 1}-Q{chunk_end}/{len(questions)}: {q_preview}...",
+            })
+            emit({"type": "phase", "phase": "survey_answering"})
+
+            assert_budget_allows_request(job_dir)
+            if hasattr(client, "complete_json_with_usage"):
+                completion = client.complete_json_with_usage(
+                    prompts["personaPrompt"], chunk_task_prompt
+                )
+                raw = completion.data
+                usage = completion.usage
+            else:
+                raw = client.complete_json(prompts["personaPrompt"], chunk_task_prompt)
+                usage = None
+
+            if usage is not None:
+                record_trial_cost(job_dir, usage.cost_usd)
+                total_usage_dict = usage.to_dict()
+
+            chunk_instrument = SurveyInstrument(
+                id=instrument.id,
+                title=instrument.title,
+                questions=chunk,
+                description=instrument.description,
             )
-            raw = completion.data
-            usage = completion.usage
-        else:
-            raw = client.complete_json(prompts["personaPrompt"], task_prompt)
-            usage = None
-        if usage is not None:
-            record_trial_cost(job_dir, usage.cost_usd)
-            emit({"type": "usage", "usage": usage.to_dict()})
-        answers = _normalize_answers(raw.get("answers"), instrument)
+            raw_answers = raw.get("answers") if isinstance(raw, dict) else None
+            chunk_norm_answers = _normalize_answers(raw_answers, chunk_instrument)
+            for ans in chunk_norm_answers:
+                all_answers.append(ans)
+                emit({
+                    "type": "survey_answer",
+                    "questionId": ans.question_id,
+                    "value": ans.value,
+                    "progress": f"{len(all_answers)}/{len(questions)}",
+                    "message": f"Answered [{ans.question_id}]: {ans.value}",
+                })
+
+            intermediate_result = SurveyEvalResult(
+                config=config,
+                persona=persona,
+                instrument=instrument,
+                answers=list(all_answers),
+                trajectory=_build_trajectory(instrument, all_answers, created_at),
+                metrics=_metrics(all_answers, instrument),
+                created_at=created_at,
+                prompts=prompts,
+                usage=total_usage_dict or None,
+            )
+            emit({
+                "type": "survey_progress",
+                "progress": f"{len(all_answers)}/{len(questions)}",
+                "result": intermediate_result.to_dict(),
+            })
+
+        answers = all_answers
         metrics = _metrics(answers, instrument)
         trajectory = _build_trajectory(instrument, answers, created_at)
         result = SurveyEvalResult(
@@ -137,8 +229,13 @@ class InprocessSurveyEvalRunner:
             metrics=metrics,
             created_at=created_at,
             prompts=prompts,
-            usage=usage.to_dict() if usage is not None else None,
+            usage=total_usage_dict or None,
         )
+        emit({
+            "type": "stage",
+            "stage": "completed",
+            "message": f"All {len(answers)} questions answered successfully.",
+        })
         emit({"type": "done", "result": result.to_dict()})
         return result
 

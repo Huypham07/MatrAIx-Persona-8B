@@ -374,7 +374,7 @@ function contextPriority(context: AggregationContext, category: ReportingCategor
 }
 
 function trialStatus(trial: HarborTrialRow): "done" | "failed" | "running" | "pending" {
-  if (trial.error || trial.succeeded === false) return "failed";
+  if (trial.error || (trial.completed && trial.succeeded === false)) return "failed";
   if (trial.completed) return "done";
   if (trial.completed === false) return "running";
   return "pending";
@@ -5748,7 +5748,7 @@ export function HarborJobDetail({ jobName, onBack, onOpenTrial }: HarborJobDetai
       const trials = ctx.state.data?.trials ?? [];
       const pending = trials.some((trial) => !trial.completed);
       if (launch?.status === "running" || launch?.status === "queued" || pending) {
-        return 3000;
+        return 1500;
       }
       return false;
     },
@@ -5791,7 +5791,9 @@ export function HarborJobDetail({ jobName, onBack, onOpenTrial }: HarborJobDetai
 
   const progress = useMemo(() => {
     const done = trials.filter((trial) => trial.completed && trial.succeeded !== false && !trial.error).length;
-    const failed = trials.filter((trial) => trial.error || trial.succeeded === false).length;
+    const failed = trials.filter(
+      (trial) => trial.error || (trial.completed && trial.succeeded === false),
+    ).length;
     const running = trials.filter((trial) => !trial.completed).length;
     return { done, failed, running, total: trials.length };
   }, [trials]);

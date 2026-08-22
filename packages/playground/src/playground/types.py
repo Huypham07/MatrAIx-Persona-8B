@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 _DECISIONS = {"continue", "satisfied", "give_up"}
-DEFAULT_PERSONA_MODEL = "anthropic/claude-haiku-4-5"
+DEFAULT_PERSONA_MODEL = "local/qwen3-14b"
 
 
 @dataclass
@@ -36,19 +36,33 @@ class Persona:
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "Persona":
-        # Back-compat: tolerate an old "domain" key by ignoring it.
+        pid = str(d.get("id") or d.get("persona_id") or "unknown")
+        name = str(d.get("name") or d.get("display_name") or d.get("persona_id") or pid)
+        summary = str(d.get("summary") or "")
+        context = str(d.get("context") or "")
+        if not context and isinstance(d.get("dimensions"), dict):
+            dims = d["dimensions"]
+            active_dims = [
+                f"{k}: {v}"
+                for k, v in dims.items()
+                if v is not None
+                and str(v).strip().lower() not in {"none", "null", "not applicable", "false", "0", ""}
+            ]
+            clean_profile = summary or f"Persona {name}"
+            traits_str = "\n- ".join(active_dims[:35])
+            context = f"Name: {name}\nProfile: {clean_profile}\nKey Attributes:\n- {traits_str}"
         return cls(
-            id=d["id"],
-            name=d["name"],
-            summary=d.get("summary", ""),
-            context=d.get("context", ""),
-            source=d.get("source", ""),
+            id=pid,
+            name=name,
+            summary=summary,
+            context=context,
+            source=str(d.get("source") or ""),
             preferences=list(d.get("preferences", [])),
             dislikes=list(d.get("dislikes", [])),
             constraints=list(d.get("constraints", [])),
-            goal=d.get("goal", ""),
-            communication_style=d.get(
-                "communicationStyle", d.get("communication_style", "")
+            goal=str(d.get("goal") or ""),
+            communication_style=str(
+                d.get("communicationStyle", d.get("communication_style", ""))
             ),
         )
 

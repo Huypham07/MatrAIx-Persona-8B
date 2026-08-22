@@ -1,4 +1,6 @@
 """OpenClaw installed agent (Harbor integration)."""
+from __future__ import annotations
+
 
 import copy
 import inspect

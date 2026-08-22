@@ -3,6 +3,8 @@
 This adapter allows running the OpenHands Software Agent SDK inside
 Harbor-managed containers for benchmarking and evaluation.
 """
+from __future__ import annotations
+
 
 import json
 import shlex

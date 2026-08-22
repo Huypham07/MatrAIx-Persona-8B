@@ -1,6 +1,8 @@
 """
 Utility functions for template rendering with Jinja2 support.
 """
+from __future__ import annotations
+
 
 from pathlib import Path
 from typing import Any

@@ -81,7 +81,7 @@ const STORAGE_KEY = "playground.cockpitPersonaSetupByTaskPath";
 const LEGACY_STORAGE_KEY = "playground.cockpitPersonaSetupByTask";
 const MODEL_MIGRATION_KEY = "playground.cockpitModelMigrated_v2";
 const OLD_DEFAULT_MODEL = "anthropic/claude-sonnet-4-6";
-const NEW_DEFAULT_MODEL = "anthropic/claude-haiku-4-5";
+const NEW_DEFAULT_MODEL = "local/qwen3-14b";
 
 /**
  * One-shot migration: replace the old os-app default (Sonnet 4.6) with

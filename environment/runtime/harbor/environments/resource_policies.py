@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from harbor.environments.capabilities import EnvironmentResourceCapabilities
 from harbor.models.trial.config import ResourceMode
 

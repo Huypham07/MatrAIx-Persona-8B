@@ -1,4 +1,6 @@
 """Harbor add command — add tasks or datasets to a dataset.toml manifest."""
+from __future__ import annotations
+
 
 from dataclasses import dataclass, field
 from pathlib import Path

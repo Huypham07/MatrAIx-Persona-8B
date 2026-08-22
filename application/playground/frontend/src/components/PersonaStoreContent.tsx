@@ -76,7 +76,7 @@ function PersonaSearchField({
 }: {
   value: string;
   onDebouncedChange: (value: string) => void;
-  inputRef?: React.RefObject<HTMLInputElement>;
+  inputRef?: React.Ref<HTMLInputElement>;
   placeholder: string;
 }) {
   const { t } = useI18n();

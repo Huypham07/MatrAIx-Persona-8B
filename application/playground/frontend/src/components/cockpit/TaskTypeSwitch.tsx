@@ -29,7 +29,6 @@ const OPTIONS: ReadonlyArray<{ value: PlaygroundTaskType; icon: string }> = [
   { value: "survey", icon: "fact_check" },
   { value: "chatbot", icon: "forum" },
   { value: "web", icon: "language" },
-  { value: "os-app", icon: "apps" },
 ];
 
 type Translate = ReturnType<typeof useI18n>["t"];

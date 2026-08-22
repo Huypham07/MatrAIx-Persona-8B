@@ -6,6 +6,8 @@ task.toml), the step level (``[[steps]].artifacts``), and the trial level
 single collection pass operates on. These helpers validate a collection set
 and define the canonical mapping from entries to host paths.
 """
+from __future__ import annotations
+
 
 import re
 import warnings

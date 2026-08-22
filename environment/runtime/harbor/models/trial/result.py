@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import traceback
 from datetime import datetime
 from uuid import UUID, uuid4

@@ -135,7 +135,12 @@ export function RunDetail({ harborTrial, onBack }: RunDetailProps) {
     ],
     queryFn: () =>
       api.getHarborTrialDebrief(harborTrial.jobName, harborTrial.trialName),
-    staleTime: 60_000,
+    refetchInterval: (q) => {
+      const data = q.state.data;
+      if (!data || data.completed === false) return 1500;
+      return false;
+    },
+    staleTime: 1_000,
   });
 
   const run = useMemo(

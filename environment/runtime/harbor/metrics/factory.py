@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from harbor.metrics.base import BaseMetric
 from harbor.metrics.max import Max
 from harbor.metrics.mean import Mean

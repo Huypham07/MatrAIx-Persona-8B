@@ -412,7 +412,7 @@ def _map_failed_trial_debrief(
 def _detect_application_type(output_dir: Path) -> str:
     if (output_dir / "transcript.json").is_file():
         return "chatbot"
-    if (output_dir / "survey_result.json").is_file():
+    if (output_dir / "survey_result.json").is_file() or (output_dir / "structured_output.json").is_file():
         return "survey"
     if (output_dir / "survey_responses.json").is_file():
         return "survey"
@@ -932,6 +932,21 @@ def _map_survey_debrief(
             created_at=created_at,
         )
         result_view = survey_result_view(result)
+    elif (output_dir / "structured_output.json").is_file():
+        raw = _read_json(output_dir / "structured_output.json")
+        instrument = _resolve_survey_instrument(
+            repo_root=repo_root,
+            trial_dir=trial_dir,
+            payload=raw,
+        )
+        result = build_survey_eval_result_from_artifacts(
+            output_dir=output_dir,
+            config=SurveyEvalConfig(mode="harbor_persona_survey"),
+            persona=persona,
+            instrument=instrument,
+            created_at=created_at,
+        )
+        result_view = survey_result_view(result)
     else:
         responses_path = output_dir / "survey_responses.json"
         if not responses_path.is_file():
@@ -1311,6 +1326,20 @@ def _map_web_debrief(
                         ).to_dict()
                     except ValueError:
                         web_result = None
+    if web_result is None and (output_dir / "web_result.json").is_file():
+        try:
+            web_result = _read_json(output_dir / "web_result.json")
+        except Exception:  # noqa: BLE001
+            pass
+    if web_result is None and (output_dir / "decision.json").is_file():
+        try:
+            web_result = _web_result_from_decision_artifact(
+                _read_json(output_dir / "decision.json"),
+                created_at=created_at,
+                user_feedback=feedback,
+            )
+        except Exception:  # noqa: BLE001
+            pass
     return {
         "id": "harbor-trial",
         "applicationType": "web",

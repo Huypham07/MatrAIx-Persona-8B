@@ -29,7 +29,8 @@ pyarrow>=7
 
 # In-process Matraix Playground runners call model/provider SDKs from this backend process.
 openai>=1.5
-openai-agents>=0.17.6
+httpx>=0.24.0
+tomli>=1.0.0
 
 # PDF report downloads for batch / trial debriefs.
 fpdf2>=2.7.0

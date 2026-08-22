@@ -2,6 +2,8 @@
 
 Devin CLI is installed via ``curl -fsSL https://cli.devin.ai/install.sh | bash``
 """
+from __future__ import annotations
+
 
 import json
 import os

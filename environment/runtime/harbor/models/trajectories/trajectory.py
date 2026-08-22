@@ -1,4 +1,6 @@
 """Trajectory model for ATIF (Agent Trajectory Interchange Format)."""
+from __future__ import annotations
+
 
 from typing import Any, Literal
 

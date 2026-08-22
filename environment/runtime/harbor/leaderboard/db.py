@@ -1,4 +1,6 @@
 """Supabase access for leaderboard submissions."""
+from __future__ import annotations
+
 
 from typing import Any, cast, TYPE_CHECKING
 from uuid import UUID, uuid4

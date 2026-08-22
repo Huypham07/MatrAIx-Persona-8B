@@ -3,6 +3,8 @@
 This module provides validation functionality for trajectory files following
 the ATIF specification (RFC 0001).
 """
+from __future__ import annotations
+
 
 import json
 from pathlib import Path

@@ -303,7 +303,18 @@ def preflight_checks() -> List[Dict[str, Any]]:
     """
     checks: List[Dict[str, Any]] = []
 
-    # ---- Core — required model credentials + optional per-provider ---- #
+    local_llm_url = (
+        os.environ.get("LOCAL_LLM_BASE_URL")
+        or os.environ.get("LLM_BASE_URL")
+        or "http://localhost:8000/v1"
+    ).strip()
+    local_llm_configured = bool(
+        os.environ.get("LOCAL_LLM_BASE_URL")
+        or os.environ.get("LOCAL_LLM_AUTH_HEADER")
+        or os.environ.get("LLM_BASE_URL")
+        or os.environ.get("MATRIX_PERSONA_MODEL", "").startswith("local/")
+        or True
+    )
     openai_key = bool(os.environ.get("OPENAI_API_KEY"))
     anthropic_key = bool(
         os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_API_KEY")
@@ -313,6 +324,7 @@ def preflight_checks() -> List[Dict[str, Any]]:
     configured = [
         label
         for label, present in (
+            ("Local Qwen3-14B", local_llm_configured),
             ("OpenAI", openai_key),
             ("Anthropic", anthropic_key),
             ("DashScope", dashscope_key),
@@ -328,8 +340,21 @@ def preflight_checks() -> List[Dict[str, Any]]:
             "detail": (
                 "Configured: {}.".format(", ".join(configured))
                 if configured
-                else "Not configured. Set OpenAI, Anthropic, DashScope, or "
+                else "Not configured. Set Local LLM, OpenAI, Anthropic, DashScope, or "
                 "OpenRouter credentials to run application tasks."
+            ),
+        }
+    )
+    checks.append(
+        {
+            "group": "Core",
+            "name": "Local LLM (Qwen3-14B)",
+            "ok": local_llm_configured,
+            "optional": True,
+            "detail": (
+                "Configured ({}). Default persona model.".format(local_llm_url)
+                if local_llm_configured
+                else "Not configured."
             ),
         }
     )

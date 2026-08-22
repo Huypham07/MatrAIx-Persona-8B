@@ -5,6 +5,8 @@ Replaces semantic versioning with three reference types:
 - Revisions: auto-incrementing integers (e.g., "3")
 - Digests: content hash prefixes (e.g., "sha256:abc123")
 """
+from __future__ import annotations
+
 
 import re
 from enum import Enum

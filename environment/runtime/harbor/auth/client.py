@@ -2,6 +2,8 @@
 
 Provides a singleton async client that shares credentials with the AuthHandler.
 """
+from __future__ import annotations
+
 
 import asyncio
 from typing import TYPE_CHECKING

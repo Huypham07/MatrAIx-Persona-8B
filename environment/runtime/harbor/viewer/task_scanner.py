@@ -1,4 +1,6 @@
 """Scanner for discovering task definitions in a folder."""
+from __future__ import annotations
+
 
 from pathlib import Path
 

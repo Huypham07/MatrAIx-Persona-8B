@@ -44,7 +44,13 @@ def _utc_now() -> str:
 
 
 def trial_evaluation_artifact_path(trial_dir: Path) -> Path:
-    return trial_dir / "verifier" / TRIAL_EVAL_FILENAME
+    p1 = trial_dir / "verifier" / TRIAL_EVAL_FILENAME
+    if p1.is_file():
+        return p1
+    p2 = trial_dir / "artifacts" / "app" / "output" / "structured_output.json"
+    if p2.is_file():
+        return p2
+    return p1
 
 
 def job_aggregation_artifact_path(job_dir: Path) -> Path:

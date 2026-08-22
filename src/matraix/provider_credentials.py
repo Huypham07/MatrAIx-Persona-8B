@@ -29,6 +29,8 @@ def resolve_provider_credential(model_name: str) -> ProviderCredential:
     value = (model_name or "").strip() or "anthropic/claude-sonnet-4-6"
     lowered = value.lower()
 
+    if lowered.startswith("local/") or lowered.startswith("custom/") or "qwen" in lowered:
+        return ProviderCredential("Local", "LOCAL_LLM_BASE_URL", value)
     if lowered.startswith("openai/") or lowered.startswith("gpt-"):
         return ProviderCredential("OpenAI", "OPENAI_API_KEY", value)
     if lowered.startswith("dashscope/"):

@@ -1,4 +1,6 @@
 """Criterion: check that a command's stdout exactly matches a string."""
+from __future__ import annotations
+
 
 from pathlib import Path
 

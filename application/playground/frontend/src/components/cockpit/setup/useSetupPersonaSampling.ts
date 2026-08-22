@@ -62,7 +62,7 @@ export function useSetupPersonaSampling(
   isActive = true,
 ) {
   const fallbackPersonaModel =
-    options?.environment.personaModel ?? "anthropic/claude-haiku-4-5";
+    options?.environment.personaModel ?? "local/qwen3-14b";
   const normalizedPath = taskPath?.trim() || null;
   const [initial] = useState(() =>
     readCockpitPersonaSetup(taskKind, fallbackPersonaModel, normalizedPath),

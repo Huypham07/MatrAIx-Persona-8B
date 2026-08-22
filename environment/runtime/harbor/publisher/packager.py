@@ -2,6 +2,8 @@
 
 Shared logic used by both the publisher and the `harbor add` command.
 """
+from __future__ import annotations
+
 
 import hashlib
 from pathlib import Path

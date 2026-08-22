@@ -20,6 +20,45 @@ from playground.openai_client import (
 
 DASHSCOPE_DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
+LOCAL_LLM_DEFAULT_BASE_URL = "http://localhost:8000/v1"
+LOCAL_LLM_DEFAULT_AUTH = ""
+
+
+def local_llm_model_id(model: str) -> str:
+    """Return the bare model id from a local model string."""
+    value = (model or "").strip()
+    if value.startswith("local/") or value.startswith("custom/"):
+        return value.split("/", 1)[1]
+    return value
+
+
+def local_llm_openai_client_kwargs(model: str) -> Dict[str, Any]:
+    """OpenAI SDK kwargs for Local Qwen/Custom endpoint."""
+    base_url = (
+        os.environ.get("LOCAL_LLM_BASE_URL")
+        or os.environ.get("LLM_BASE_URL")
+        or LOCAL_LLM_DEFAULT_BASE_URL
+    ).strip()
+    auth_header = (
+        os.environ.get("LOCAL_LLM_AUTH_HEADER")
+        or os.environ.get("LOCAL_LLM_API_KEY")
+        or LOCAL_LLM_DEFAULT_AUTH
+    ).strip()
+    model_name = (
+        os.environ.get("LOCAL_LLM_MODEL")
+        or local_llm_model_id(model)
+        or "Qwen3-14B"
+    )
+    if model_name.lower() in {"qwen3-14b", "local", "default"}:
+        model_name = "Qwen3-14B"
+    headers = {"Authorization": auth_header} if auth_header else None
+    return {
+        "model": model_name,
+        "api_key": "dummy",
+        "base_url": base_url,
+        "default_headers": headers,
+        "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+    }
 
 
 def dashscope_model_id(model: str) -> str:
@@ -194,8 +233,20 @@ def _llm_request_timeout_seconds() -> float:
 
 def build_json_client(model: str, *, temperature: float = 0.7) -> Any:
     """Return a JSON-mode client for a configured persona model string."""
-    value = (model or "openai/gpt-4o-mini").strip()
+    value = (model or "local/qwen3-14b").strip()
     timeout_seconds = _llm_request_timeout_seconds()
+    if value.startswith("local/") or value.startswith("custom/") or "qwen" in value.lower():
+        kwargs = local_llm_openai_client_kwargs(value)
+        return OpenAIChatClient(
+            model=kwargs["model"],
+            api_key=kwargs["api_key"],
+            base_url=kwargs["base_url"],
+            default_headers=kwargs.get("default_headers"),
+            extra_body=kwargs.get("extra_body"),
+            temperature=temperature,
+            timeout_seconds=timeout_seconds,
+            provider="local",
+        )
     if value.startswith("anthropic/"):
         if _llm_proxy_base_url():
             # Route Claude through the proxy's OpenAI-compatible endpoint; base

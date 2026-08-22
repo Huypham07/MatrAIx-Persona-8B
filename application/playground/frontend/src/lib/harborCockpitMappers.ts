@@ -6,6 +6,7 @@ import type {
   PlaygroundQuestionnaire,
   PlaygroundResult,
   StructuredExposureField,
+  SurveyAnswer,
   SurveyEvalJobView,
   SurveyResult,
   TurnView,
@@ -252,6 +253,52 @@ export function applyHarborTrialEvents(
       prompts = event.prompts;
     } else if (event.type === "instruction" && event.markdown) {
       instructionMarkdown = event.markdown;
+    } else if (event.type === "survey_answer" && (event as any).questionId) {
+      const qId = (event as any).questionId as string;
+      const val = (event as any).value as string;
+      const existingAnswers = surveyResult?.answers ? [...surveyResult.answers] : [];
+      const newAnswer: SurveyAnswer = {
+        questionId: qId,
+        value: val,
+        rationale: ((event as any).rationale as string) ?? "",
+        confidence: ((event as any).confidence as number | null) ?? null,
+      };
+      const idx = existingAnswers.findIndex((a) => a.questionId === qId);
+      if (idx >= 0) {
+        existingAnswers[idx] = newAnswer;
+      } else {
+        existingAnswers.push(newAnswer);
+      }
+      surveyResult = {
+        ...(surveyResult ?? {
+          instrument: {
+            id: "",
+            title: "",
+            questions: [],
+          },
+          completion: {
+            numQuestions: 45,
+            numAnswered: 0,
+            answered: 0,
+            total: 45,
+            valid: true,
+          },
+          trajectory: [],
+        }),
+        answers: existingAnswers,
+        completion: {
+          numQuestions: surveyResult?.completion?.numQuestions || 45,
+          numAnswered: existingAnswers.length,
+          answered: existingAnswers.length,
+          total: surveyResult?.completion?.total || 45,
+          valid: true,
+        },
+      };
+    } else if (event.type === "survey_progress" && event.result) {
+      const extracted = surveyResultFromDonePayload(event.result);
+      if (extracted) {
+        surveyResult = extracted;
+      }
     } else if (event.type === "done" && event.result) {
       const payload = event.result;
       const extracted = surveyResultFromDonePayload(payload);

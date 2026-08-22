@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from importlib.metadata import entry_points
 
 PLUGIN_ENTRY_POINT_GROUP = "harbor.plugins"

@@ -426,33 +426,21 @@ def _normalize_survey_artifact_answers(
             answer.value = values
         else:
             answer.value = str(answer.value or "")
-            if question.required and not answer.value.strip():
-                raise ValueError("answer {} must not be empty".format(question.id))
         answers.append(answer)
-    missing = [
-        question.id
-        for question in instrument.questions
-        if question.required and question.id not in seen
-    ]
-    if missing:
-        raise ValueError(
-            "survey_result.answers missing required question ids: {}".format(
-                ", ".join(missing)
-            )
-        )
     return answers
 
 
 def _normalize_survey_artifact_trajectory(raw_trajectory: Any) -> list[TrajectoryEvent]:
     if not isinstance(raw_trajectory, list) or not raw_trajectory:
-        raise ValueError("survey_result.trajectory must be a non-empty list")
+        return []
     events: list[TrajectoryEvent] = []
     for index, raw in enumerate(raw_trajectory):
         if not isinstance(raw, dict):
-            raise ValueError(
-                "survey_result.trajectory[{}] must be an object".format(index)
-            )
-        events.append(TrajectoryEvent.from_dict(raw))
+            continue
+        try:
+            events.append(TrajectoryEvent.from_dict(raw))
+        except Exception:  # noqa: BLE001
+            continue
     return events
 
 

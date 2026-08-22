@@ -1,4 +1,6 @@
 # NOTE: When updating this file, also update the corresponding docs page:
+from __future__ import annotations
+
 # docs/content/docs/tasks/index.mdx
 
 import math

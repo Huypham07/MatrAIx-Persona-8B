@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 
 from backend.service.harbor_job_service import HarborJobService

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from rewardkit.agents import AgentCLI, register_agent
 from rewardkit.compare import ComparisonResult, compare, format_comparison
 from rewardkit.models import (

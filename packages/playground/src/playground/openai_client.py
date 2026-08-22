@@ -12,16 +12,24 @@ DEFAULT_REQUEST_TIMEOUT_SECONDS = 180.0
 
 def coerce_json(text: str) -> Dict[str, Any]:
     text = (text or "").strip()
+    if "<think>" in text:
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
     match = _FENCE.search(text)
     if match:
-        return json.loads(match.group("body"))
+        try:
+            return json.loads(match.group("body"))
+        except json.JSONDecodeError:
+            pass
     start, end = text.find("{"), text.rfind("}")
     if 0 <= start < end:
-        return json.loads(text[start:end + 1])
+        try:
+            return json.loads(text[start:end + 1])
+        except json.JSONDecodeError:
+            pass
     raise ValueError("could not parse JSON from model output: {!r}".format(text[:200]))
 
 
@@ -58,6 +66,8 @@ class OpenAIChatClient:
         *,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        default_headers: Optional[Dict[str, str]] = None,
+        extra_body: Optional[Dict[str, Any]] = None,
         temperature: float = 0.7,
         timeout_seconds: float = DEFAULT_REQUEST_TIMEOUT_SECONDS,
         provider: str = "openai",
@@ -66,6 +76,7 @@ class OpenAIChatClient:
         self.temperature = temperature
         self.timeout_seconds = timeout_seconds
         self.provider = provider
+        self.extra_body = extra_body or {}
         if client is None:
             from openai import OpenAI  # lazy: tests inject a fake
 
@@ -74,6 +85,8 @@ class OpenAIChatClient:
                 client_kwargs["api_key"] = api_key
             if base_url is not None:
                 client_kwargs["base_url"] = base_url
+            if default_headers is not None:
+                client_kwargs["default_headers"] = default_headers
             client = OpenAI(**client_kwargs)
         self._client = client
 
@@ -90,6 +103,8 @@ class OpenAIChatClient:
             ],
             "timeout": self.timeout_seconds,
         }
+        if self.extra_body:
+            kwargs["extra_body"] = self.extra_body
         if openai_model_supports_custom_temperature(self.model):
             kwargs["temperature"] = self.temperature
         completion = self._client.chat.completions.create(**kwargs)

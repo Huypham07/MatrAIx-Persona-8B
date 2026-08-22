@@ -1,4 +1,6 @@
 """Criterion: check that a specific cell in an xlsx file has the expected value."""
+from __future__ import annotations
+
 
 import warnings
 from pathlib import Path

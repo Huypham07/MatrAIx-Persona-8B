@@ -1,4 +1,6 @@
 """Criterion: check that a specific CSV cell has the expected value."""
+from __future__ import annotations
+
 
 import csv
 import warnings

@@ -13,6 +13,8 @@ Users who need PowerShell or other interpreters can call them from within
 a ``.bat`` file (e.g. ``powershell -File script.ps1``).
 """
 
+from __future__ import annotations
+
 import shlex
 from pathlib import Path, PurePath
 from typing import TYPE_CHECKING

@@ -67,6 +67,8 @@ Environment variables (--ae) by provider:
     huggingface_inference:  HF_TOKEN, HF_ENDPOINT_URL
     dynamo:                 DYNAMO_API_KEY, DYNAMO_BASE_URL
 """
+from __future__ import annotations
+
 
 import json
 import shlex

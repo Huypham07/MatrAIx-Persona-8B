@@ -1,4 +1,6 @@
 """Chat session manager for task definitions using Claude Agent SDK."""
+from __future__ import annotations
+
 
 import asyncio
 import json

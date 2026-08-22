@@ -1,4 +1,6 @@
 """Criterion: check that a shell command exits with code 0."""
+from __future__ import annotations
+
 
 from pathlib import Path
 
