@@ -311,7 +311,7 @@ export function PersonaGroupBuilder({
                     className={`flex w-full items-center justify-between px-2.5 py-2 text-left text-[14px] ${FOCUS_RING}`}
                   >
                     <span className={groupActive ? "text-primary" : "text-text-main"}>
-                      {group.label}
+                      {labels.taxonomyLabel(group.id, group.label)}
                     </span>
                     <span className="text-text-dim">{open ? "−" : "+"}</span>
                   </button>
