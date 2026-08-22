@@ -990,6 +990,23 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
         except (ValueError, FileNotFoundError, OSError) as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    @app.get(
+        "/api/persona-pool/dimension-labels",
+        response_model=schemas.PersonaDimensionLabelsResponse,
+        tags=["persona-pool"],
+    )
+    def get_persona_dimension_labels(
+        locale: str = Query(min_length=1),
+        services: AppState = Depends(get_services),
+    ) -> Dict[str, Any]:
+        """Translated dimension labels/values for display (English fallback)."""
+        try:
+            return services.persona_pool.get_dimension_labels(locale)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
     @app.post(
         "/api/persona-pool/match-attributes",
         response_model=schemas.PersonaMatchAttributesResponse,

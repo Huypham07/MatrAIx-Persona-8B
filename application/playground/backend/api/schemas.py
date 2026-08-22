@@ -835,6 +835,24 @@ class PersonaPoolCatalogResponse(BaseModel):
     dimensionCategories: Dict[str, Any] = Field(default_factory=dict)
 
 
+class PersonaDimensionLabelsResponse(BaseModel):
+    """Display-label overlay for persona dimensions in one UI locale.
+
+    ``dimensions`` maps canonical English dimension ids to translated
+    ``label`` / ``values`` entries; ``taxonomy`` maps Layer-1 / Layer-2
+    group ids (Background, Demographics, …) to display titles. Anything
+    missing falls back to English.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    locale: str
+    available: bool = False
+    reviewStatus: Optional[str] = None
+    dimensions: Dict[str, Any] = Field(default_factory=dict)
+    taxonomy: Dict[str, str] = Field(default_factory=dict)
+
+
 class PersonaMatchAttributesRequest(BaseModel):
     """Free-text / NL prompt → catalog attribute suggestions (Treiver)."""
 

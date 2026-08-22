@@ -4,6 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useI18n } from "@/i18n/I18nProvider";
 import { api } from "@/lib/api";
+import {
+  useDimensionLabels,
+  type DimensionLabelLookup,
+} from "@/lib/dimensionLabels";
 import type {
   PersonaMatchedAttribute,
   PersonaPoolCatalog,
@@ -67,23 +71,40 @@ function matchesQuery(text: string, query: string): boolean {
   return text.toLowerCase().includes(query);
 }
 
+/** English label/id/values plus, when a label pack is active, their translations. */
 function dimensionMatchesQuery(
   dim: PersonaPoolDimensionOption,
   query: string,
+  labels: DimensionLabelLookup,
 ): boolean {
   if (!query) return true;
   if (matchesQuery(`${dimLabel(dim)} ${dim.id}`, query)) return true;
-  return (dim.values ?? []).some((value) => matchesQuery(value, query));
+  if (labels.active && matchesQuery(labels.dimLabel(dim.id, ""), query)) {
+    return true;
+  }
+  return (dim.values ?? []).some(
+    (value) =>
+      matchesQuery(value, query) ||
+      (labels.active && matchesQuery(labels.valueLabel(dim.id, value), query)),
+  );
 }
 
 function filterDimensionValues(
   dim: PersonaPoolDimensionOption,
   query: string,
+  labels: DimensionLabelLookup,
 ): string[] {
   const values = dim.values ?? [];
   if (!query) return values;
   if (matchesQuery(`${dimLabel(dim)} ${dim.id}`, query)) return values;
-  return values.filter((value) => matchesQuery(value, query));
+  if (labels.active && matchesQuery(labels.dimLabel(dim.id, ""), query)) {
+    return values;
+  }
+  return values.filter(
+    (value) =>
+      matchesQuery(value, query) ||
+      (labels.active && matchesQuery(labels.valueLabel(dim.id, value), query)),
+  );
 }
 
 function useDebounced<T>(value: T, delay: number): T {
@@ -106,6 +127,7 @@ export function PersonaFilterModal({
   onConfirm,
 }: PersonaFilterModalProps) {
   const { t } = useI18n();
+  const labels = useDimensionLabels();
   const [draft, setDraft] = useState(filters);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [expandedSubgroup, setExpandedSubgroup] = useState<string | null>(null);
@@ -164,7 +186,7 @@ export function PersonaFilterModal({
         const matchedSubs: PersonaPoolDimensionSubgroup[] = [];
         for (const sub of subgroups) {
           const dims = (sub.dimensions ?? []).filter((dim) =>
-            dimensionMatchesQuery(dim, normalizedQuery),
+            dimensionMatchesQuery(dim, normalizedQuery, labels),
           );
           if (dims.length === 0) continue;
           matchedSubs.push({
@@ -183,7 +205,7 @@ export function PersonaFilterModal({
         continue;
       }
       const dims = (group.dimensions ?? []).filter((dim) =>
-        dimensionMatchesQuery(dim, normalizedQuery),
+        dimensionMatchesQuery(dim, normalizedQuery, labels),
       );
       if (dims.length === 0) continue;
       next.push({
@@ -193,7 +215,7 @@ export function PersonaFilterModal({
       });
     }
     return next;
-  }, [groups, normalizedQuery]);
+  }, [groups, labels, normalizedQuery]);
 
   const selectedChips = useMemo(() => {
     const chips: Array<{
@@ -211,13 +233,13 @@ export function PersonaFilterModal({
       });
     }
     for (const [dimId, values] of Object.entries(draft.dimensionFilters)) {
-      const label = findDimensionLabel(catalog, dimId);
+      const label = labels.dimLabel(dimId, findDimensionLabel(catalog, dimId));
       for (const value of values) {
         chips.push({ key: `${dimId}:${value}`, dimId, label, value });
       }
     }
     return chips;
-  }, [catalog, draft, t]);
+  }, [catalog, draft, labels, t]);
 
   if (!open) return null;
 
@@ -275,7 +297,7 @@ export function PersonaFilterModal({
   };
 
   const renderDimension = (dim: PersonaPoolDimensionOption) => {
-    const visibleValues = filterDimensionValues(dim, normalizedQuery);
+    const visibleValues = filterDimensionValues(dim, normalizedQuery, labels);
     const dimOpen =
       expandedDim === dim.id ||
       (Boolean(normalizedQuery) && visibleValues.length > 0);
@@ -294,7 +316,7 @@ export function PersonaFilterModal({
           className={`flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left text-[13px] ${FOCUS_RING}`}
         >
           <span className={selected.length ? "text-primary" : "text-text-main"}>
-            {dimLabel(dim)}
+            {labels.dimLabel(dim.id, dimLabel(dim))}
             {selected.length > 0 ? ` · ${selected.length}` : ""}
           </span>
           <div className="flex items-center gap-2">
@@ -336,7 +358,7 @@ export function PersonaFilterModal({
                       : "glass-tile glass-tile--hover text-text-variant"
                   }`}
                 >
-                  {value}
+                  {labels.valueLabel(dim.id, value)}
                 </button>
               );
             })}
@@ -465,9 +487,9 @@ export function PersonaFilterModal({
               <div className="flex flex-wrap gap-1.5">
                 {suggestions.map((attr) => {
                   const active = isSuggestionSelected(draft, attr);
-                  const label = (attr.label || attr.dimensionId).replace(
-                    /_/g,
-                    " ",
+                  const label = labels.dimLabel(
+                    attr.dimensionId,
+                    (attr.label || attr.dimensionId).replace(/_/g, " "),
                   );
                   return (
                     <button
@@ -493,7 +515,7 @@ export function PersonaFilterModal({
                     >
                       <span className="text-text-dim">{label}</span>
                       <span className="mx-1 text-text-dim">·</span>
-                      {attr.value}
+                      {labels.valueLabel(attr.dimensionId, attr.value)}
                     </button>
                   );
                 })}
@@ -603,7 +625,9 @@ export function PersonaFilterModal({
                       className="glass-tile glass-tile--active inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] text-primary"
                     >
                       <span className="text-text-dim">{chip.label}:</span>{" "}
-                      {chip.value}
+                      {chip.dimId === "source"
+                        ? chip.value
+                        : labels.valueLabel(chip.dimId, chip.value)}
                       <Sym name="close" size={12} />
                     </button>
                   ))}
@@ -625,7 +649,10 @@ export function PersonaFilterModal({
                 {fields.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5">
                     {fields.map((field) => {
-                      const label = findDimensionLabel(catalog, field);
+                      const label = labels.dimLabel(
+                        field,
+                        findDimensionLabel(catalog, field),
+                      );
                       return (
                         <button
                           key={field}

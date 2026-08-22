@@ -974,6 +974,22 @@ export interface PersonaMatchAttributesResponse {
   usedLlm: boolean;
 }
 
+/** Translated display strings for one dimension (missing keys fall back to English). */
+export interface PersonaDimensionLabelEntry {
+  label?: string;
+  values?: Record<string, string>;
+}
+
+/** Display-label overlay for persona dimensions in one UI locale. */
+export interface PersonaDimensionLabels {
+  locale: string;
+  available: boolean;
+  reviewStatus?: string | null;
+  dimensions: Record<string, PersonaDimensionLabelEntry>;
+  /** Layer-1 / Layer-2 filter accordion titles (Background, Demographics, …). */
+  taxonomy?: Record<string, string>;
+}
+
 export interface PersonaDatasetOption {
   pool: string;
   label: string;
