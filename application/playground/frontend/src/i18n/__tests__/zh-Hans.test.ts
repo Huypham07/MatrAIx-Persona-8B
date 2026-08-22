@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import sourceMessages from "../messages/en-US.json";
-import zhCNMessages from "../messages/zh-CN.json";
+import zhHansMessages from "../messages/zh-Hans.json";
 import {
   createLocalePackLoader,
   loadLocaleWithFallback,
@@ -84,9 +84,9 @@ function icuSignature(value: string): string[] {
   return signature.sort();
 }
 
-describe("zh-CN optional UI locale pack", () => {
+describe("zh-Hans optional UI locale pack", () => {
   it("is registry-driven, lazy, and truthfully labeled", async () => {
-    const definition = getLocaleDefinition("zh-CN");
+    const definition = getLocaleDefinition("zh-Hans");
     expect(definition.nativeName).toBe("简体中文");
     expect(definition.englishName).toBe("Simplified Chinese");
     expect(definition.dir).toBe("ltr");
@@ -94,27 +94,27 @@ describe("zh-CN optional UI locale pack", () => {
     expect(definition.translationStatus).toBe("machine-assisted");
 
     const loader = createLocalePackLoader(LOCALE_REGISTRY);
-    expect(loader.hasCached("zh-CN")).toBe(false);
-    const first = await loader.load("zh-CN");
-    const second = await loader.load("zh-CN");
+    expect(loader.hasCached("zh-Hans")).toBe(false);
+    const first = await loader.load("zh-Hans");
+    const second = await loader.load("zh-Hans");
     expect(first).toBe(second);
-    expect(loader.hasCached("zh-CN")).toBe(true);
+    expect(loader.hasCached("zh-Hans")).toBe(true);
   });
 
   it("matches the current English key set with no obsolete or unknown keys", () => {
     const sourceKeys = Object.keys(sourceMessages).sort();
-    const translatedKeys = Object.keys(zhCNMessages).sort();
+    const translatedKeys = Object.keys(zhHansMessages).sort();
     expect(translatedKeys).toEqual(sourceKeys);
   });
 
   it("uses English for an omitted optional key through the registry fallback", async () => {
     const partialDefinitions = LOCALE_REGISTRY.map((definition) =>
-      definition.code === "zh-CN"
-        ? { ...definition, load: async () => ({ "locale.current": zhCNMessages["locale.current"] }) }
+      definition.code === "zh-Hans"
+        ? { ...definition, load: async () => ({ "locale.current": zhHansMessages["locale.current"] }) }
         : definition,
     );
     const loader = createLocalePackLoader(partialDefinitions);
-    const resolved = await loadLocaleWithFallback("zh-CN", partialDefinitions, loader);
+    const resolved = await loadLocaleWithFallback("zh-Hans", partialDefinitions, loader);
 
     expect(resolved["locale.current"]).toBe("当前语言");
     expect(resolved["shell.nav.home"]).toBe(SOURCE_MESSAGES["shell.nav.home"]);
@@ -122,7 +122,7 @@ describe("zh-CN optional UI locale pack", () => {
 
   it("preserves ICU arguments, plural/select branches, and rich-text tags", () => {
     const source = sourceMessages as Catalog;
-    const translated = zhCNMessages as Catalog;
+    const translated = zhHansMessages as Catalog;
     for (const key of Object.keys(source)) {
       expect(icuSignature(translated[key]), key).toEqual(icuSignature(source[key]));
     }
@@ -143,7 +143,7 @@ describe("zh-CN optional UI locale pack", () => {
   });
 
   it("translates representative chrome, setup, report, status, and accessibility copy", async () => {
-    const resolved = (await loadRegisteredLocale("zh-CN")) as Catalog;
+    const resolved = (await loadRegisteredLocale("zh-Hans")) as Catalog;
     expect(resolved["shell.nav.home"]).toBe("首页");
     expect(resolved["locale.buttonLabel"]).toBe("切换语言");
     expect(resolved["personaSetup.filters.stratify"]).toBe("分层");
@@ -162,7 +162,7 @@ describe("zh-CN optional UI locale pack", () => {
   });
 
   it("keeps high-risk Chinese terminology and count grammar stable", async () => {
-    const resolved = (await loadRegisteredLocale("zh-CN")) as Catalog;
+    const resolved = (await loadRegisteredLocale("zh-Hans")) as Catalog;
     const expected: Record<string, string> = {
       "cockpitSetup.pipeline.instrument": "问卷",
       "personaSetup.strategy.selectedValues": "{label}的已选值",
@@ -217,5 +217,11 @@ describe("zh-CN optional UI locale pack", () => {
     const zeroSample = signal.replace("{count}", resolved["reports.analysis.the"]);
     expect(zeroSample).toContain("样本数：未注明");
     expect(zeroSample).not.toContain("若干");
+  });
+
+  it("resolves the legacy zh-CN alias to zh-Hans", async () => {
+    const { resolveUiLocale } = await import("../registry");
+    expect(resolveUiLocale("zh-CN")).toBe("zh-Hans");
+    expect(resolveUiLocale("zh-Hans")).toBe("zh-Hans");
   });
 });

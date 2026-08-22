@@ -23,13 +23,13 @@ export const LOCALE_REGISTRY = [
     load: async () => SOURCE_MESSAGES,
   },
   {
-    code: "zh-CN",
+    code: "zh-Hans",
     nativeName: "简体中文",
     englishName: "Simplified Chinese",
     translationStatus: "machine-assisted",
     dir: "ltr",
     fallback: SOURCE_LOCALE,
-    load: async () => (await import("./messages/zh-CN.json")).default,
+    load: async () => (await import("./messages/zh-Hans.json")).default,
   },
 ] as const satisfies readonly LocaleDefinition[];
 
@@ -38,6 +38,22 @@ export type UiLocale = (typeof LOCALE_REGISTRY)[number]["code"];
 
 export function isUiLocale(value: unknown): value is UiLocale {
   return typeof value === "string" && LOCALE_REGISTRY.some((entry) => entry.code === value);
+}
+
+
+/**
+ * Legacy / region tags accepted as aliases for BCP 47 script codes (#66).
+ * Prefer `zh-Hans` / `zh-Hant` as the registered UI locale codes.
+ */
+export const LOCALE_ALIASES: Record<string, UiLocale> = {
+  "zh-CN": "zh-Hans",
+};
+
+export function resolveUiLocale(value: unknown): UiLocale | null {
+  if (typeof value !== "string") return null;
+  if (isUiLocale(value)) return value;
+  const aliased = LOCALE_ALIASES[value];
+  return aliased ?? null;
 }
 
 export function getLocaleDefinition(locale: UiLocale): LocaleDefinition<UiLocale> {

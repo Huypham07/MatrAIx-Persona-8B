@@ -16,7 +16,7 @@ import {
 } from "react";
 
 import { createLatestRequestGuard, loadRegisteredLocale } from "./loader";
-import { getLocaleDefinition, isUiLocale, type UiLocale } from "./registry";
+import { getLocaleDefinition, resolveUiLocale, type UiLocale } from "./registry";
 import { SOURCE_LOCALE, SOURCE_MESSAGES, withEnglishFallback } from "./source";
 import type {
   MessageCatalog,
@@ -43,7 +43,7 @@ function readStoredLocale(): UiLocale {
   if (typeof window === "undefined") return SOURCE_LOCALE;
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    return isUiLocale(stored) ? stored : SOURCE_LOCALE;
+    return resolveUiLocale(stored) ?? SOURCE_LOCALE;
   } catch {
     return SOURCE_LOCALE;
   }
