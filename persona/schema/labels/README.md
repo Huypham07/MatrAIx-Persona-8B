@@ -16,6 +16,8 @@ values: [Mandarin, English, ...]     Mandarin -> 普通话
 
 ## Layout
 
+Committed packs currently include: `zh-Hans`, `zh-Hant`, `ja`, `ko`, `es`, `pt-BR`.
+
 ```
 persona/schema/labels/
   build_labels.py                    # deterministic generator + validator
