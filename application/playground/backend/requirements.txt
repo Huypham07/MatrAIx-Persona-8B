@@ -34,3 +34,6 @@ tomli>=1.0.0
 
 # PDF report downloads for batch / trial debriefs.
 fpdf2>=2.7.0
+
+# Browser automation for Web Agent
+playwright>=1.40.0
