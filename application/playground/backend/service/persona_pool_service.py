@@ -412,9 +412,24 @@ class PersonaPoolService:
         return value_aliases, topic_aliases
 
     def _read_json(self, path: Path) -> dict[str, Any]:
+        if not hasattr(self, "_json_file_cache"):
+            self._json_file_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+        resolved = path.resolve()
+        try:
+            mtime = resolved.stat().st_mtime
+            if str(resolved) in self._json_file_cache:
+                cached_mtime, cached_payload = self._json_file_cache[str(resolved)]
+                if cached_mtime == mtime:
+                    return cached_payload
+        except OSError:
+            pass
         payload = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
             raise ValueError("{} must contain a JSON object".format(path.name))
+        try:
+            self._json_file_cache[str(resolved)] = (resolved.stat().st_mtime, payload)
+        except OSError:
+            pass
         return payload
 
     def load_manifest_summary(self, persona_pool: str = DEFAULT_PERSONA_POOL) -> dict[str, Any]:
