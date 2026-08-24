@@ -37,27 +37,39 @@ def local_llm_openai_client_kwargs(model: str) -> Dict[str, Any]:
     base_url = (
         os.environ.get("LOCAL_LLM_BASE_URL")
         or os.environ.get("LLM_BASE_URL")
+        or os.environ.get("OPENAI_BASE_URL")
         or LOCAL_LLM_DEFAULT_BASE_URL
     ).strip()
     auth_header = (
         os.environ.get("LOCAL_LLM_AUTH_HEADER")
         or os.environ.get("LOCAL_LLM_API_KEY")
-        or LOCAL_LLM_DEFAULT_AUTH
+        or os.environ.get("OPENAI_API_KEY")
+        or ""
     ).strip()
     model_name = (
         os.environ.get("LOCAL_LLM_MODEL")
         or local_llm_model_id(model)
-        or "Qwen3-14B"
-    )
-    if model_name.lower() in {"qwen3-14b", "local", "default"}:
-        model_name = "Qwen3-14B"
-    headers = {"Authorization": auth_header} if auth_header else None
+        or "custom_model"
+    ).strip()
+    if model_name.lower() in {"local", "default"}:
+        model_name = "custom_model"
+    if auth_header:
+        if " " in auth_header:
+            headers = {"Authorization": auth_header}
+        else:
+            headers = {"Authorization": f"Bearer {auth_header}"}
+    else:
+        headers = None
+    enable_thinking = os.environ.get("LOCAL_LLM_ENABLE_THINKING", "false").strip().lower() in {"1", "true", "yes"}
+    extra_body = {}
+    if not enable_thinking:
+        extra_body["chat_template_kwargs"] = {"enable_thinking": False}
     return {
         "model": model_name,
-        "api_key": "dummy",
+        "api_key": auth_header or "dummy",
         "base_url": base_url,
         "default_headers": headers,
-        "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+        "extra_body": extra_body or None,
     }
 
 
@@ -231,11 +243,23 @@ def _llm_request_timeout_seconds() -> float:
         return DEFAULT_REQUEST_TIMEOUT_SECONDS
 
 
-def build_json_client(model: str, *, temperature: float = 0.7) -> Any:
+def build_json_client(model: Optional[str] = None, *, temperature: float = 0.7) -> Any:
     """Return a JSON-mode client for a configured persona model string."""
-    value = (model or "local/qwen3-14b").strip()
+    value = ((model or "") or os.environ.get("MATRIX_PERSONA_MODEL") or os.environ.get("LOCAL_LLM_MODEL") or "custom_model").strip()
     timeout_seconds = _llm_request_timeout_seconds()
-    if value.startswith("local/") or value.startswith("custom/") or "qwen" in value.lower():
+    if (
+        value.startswith("local")
+        or value.startswith("custom")
+        or "qwen" in value.lower()
+        or (
+            not value.startswith("anthropic/")
+            and not value.startswith("claude-")
+            and not value.startswith("dashscope/")
+            and not value.startswith("openrouter/")
+            and not value.startswith("openai/")
+            and not value.startswith("gpt-")
+        )
+    ):
         kwargs = local_llm_openai_client_kwargs(value)
         return OpenAIChatClient(
             model=kwargs["model"],

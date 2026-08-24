@@ -156,6 +156,18 @@ def _load_playground_persona(repo_root: Path, persona_rel: str | None) -> Person
             if loaded is not None:
                 raw = loaded.data
                 context = loaded.system_prompt or loaded.summary or ""
+                if not context:
+                    try:
+                        from matraix.agents.persona.templating import (
+                            PERSONA_SYSTEM_TEMPLATE,
+                            render_persona_template,
+                            resolve_persona_template,
+                        )
+
+                        template = resolve_persona_template(loaded, None, PERSONA_SYSTEM_TEMPLATE)
+                        context = render_persona_template(template, loaded).strip()
+                    except Exception:
+                        context = ""
                 if not context and loaded.has_dimensions_schema():
                     context = "Persona {}".format(loaded.persona_id or stem)
                 return Persona(
@@ -170,11 +182,17 @@ def _load_playground_persona(repo_root: Path, persona_rel: str | None) -> Person
                 raw = None
             if isinstance(raw, dict):
                 pid = str(raw.get("persona_id") or raw.get("id") or stem)
+                pname = str(raw.get("display_name") or raw.get("name") or pid)
+                context = str(raw.get("system_prompt") or raw.get("summary") or "")
+                if not context:
+                    from playground.user_sim.prompt import render_persona_block
+                    p_obj = Persona(id=pid, name=pname, source=str(raw.get("source") or ""), context="")
+                    context = render_persona_block(p_obj, persona_yaml_path=str(abs_path)).strip()
                 return Persona(
                     id=pid,
-                    name=str(raw.get("display_name") or raw.get("name") or pid),
+                    name=pname,
                     source=str(raw.get("source") or ""),
-                    context=str(raw.get("system_prompt") or raw.get("summary") or pid),
+                    context=context or pid,
                 )
         catalog = _persona_from_catalog_stem(stem)
         if catalog is not None:
@@ -664,6 +682,26 @@ def _humanize_dimension_key(key: str) -> str:
 
 
 def _format_persona_dimensions_from_yaml(raw: dict[str, Any]) -> str:
+    if raw.get("system_prompt"):
+        return str(raw.get("system_prompt")).strip()
+    if raw.get("summary"):
+        return str(raw.get("summary")).strip()
+    try:
+        from matraix.agents.persona.loader import Persona as LoaderPersona
+        from matraix.agents.persona.templating import (
+            PERSONA_SYSTEM_TEMPLATE,
+            render_persona_template,
+            resolve_persona_template,
+        )
+
+        lp = LoaderPersona.from_dict(raw)
+        tmpl = resolve_persona_template(lp, None, PERSONA_SYSTEM_TEMPLATE)
+        rendered = render_persona_template(tmpl, lp).strip()
+        if rendered:
+            return rendered
+    except Exception:
+        pass
+
     display_name = str(raw.get("display_name") or "").strip()
     lines: list[str] = []
     if display_name:
@@ -678,10 +716,6 @@ def _format_persona_dimensions_from_yaml(raw: dict[str, Any]) -> str:
             if value is None or str(value).strip() == "":
                 continue
             lines.append("- {}: {}".format(_humanize_dimension_key(key), value))
-    elif raw.get("system_prompt"):
-        lines.append(str(raw.get("system_prompt")).strip())
-    elif raw.get("summary"):
-        lines.append(str(raw.get("summary")).strip())
     return "\n".join(lines).strip()
 
 
@@ -1228,9 +1262,18 @@ def _web_result_from_decision_artifact(
         effort_score = _clamp_web_score(effort, default=5)
         ease_of_use = max(1, min(10, 11 - effort_score))
 
+    task_price = str(data.get("task_price_text", data.get("taskPriceText", "")) or "").strip()
+    compared_candidates = list(data.get("compared_candidates", data.get("comparedCandidates", [])) or [])
+    basis_primary = str(data.get("basis_primary", data.get("basisPrimary", "")) or "").strip()
+    exploration_style = str(data.get("exploration_style", data.get("explorationStyle", "")) or "").strip()
+
     return {
         "selectedProductId": selected_product_id,
         "selectedProductName": selected_product_name,
+        "taskPriceText": task_price,
+        "comparedCandidates": compared_candidates,
+        "basisPrimary": basis_primary,
+        "explorationStyle": exploration_style,
         "needSatisfaction": need_satisfaction,
         "easeOfUse": ease_of_use,
         "overallExperienceRating": overall,

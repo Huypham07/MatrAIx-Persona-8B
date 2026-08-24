@@ -1547,17 +1547,10 @@ class HarborJobService:
                 event_writer.append({"type": "stage", "stage": "completed", "message": "Conversation completed successfully."})
                 event_writer.append({"type": "done", "status": "completed", "completed": True, "succeeded": True, "result": {"turns": turns_data, "transcript": turns_data}})
             else:
-                task_p = Path(task_path_str)
-                task = WebEvalTask(
-                    id=task_p.name,
-                    title=task_p.name.replace("_", " ").title(),
-                    site_name=task_p.name,
-                    site_url="https://example.com",
-                    task_path=task_p,
-                    description="Simulated web decision task",
-                )
+                from backend.service.harbor_trial_debrief import _resolve_web_eval_task
+                task = _resolve_web_eval_task(self.repo_root, trial_dir, output_dir)
                 event_writer.append({"type": "stage", "stage": "running_agent", "message": f"Browsing website and selecting options as {persona_obj.name}..."})
-                runner = InprocessWebEvalRunner()
+                runner = InprocessWebEvalRunner(repo_root=self.repo_root)
                 result = runner(
                     persona=persona_obj,
                     task=task,
@@ -1571,6 +1564,10 @@ class HarborJobService:
                     "decision_subject_id": result.web_result.selected_product_id,
                     "decision_subject_label": result.web_result.selected_product_name,
                     "decision_outcome": "selected",
+                    "basis_primary": getattr(result.web_result, "basis_primary", "features") or "features",
+                    "exploration_style": getattr(result.web_result, "exploration_style", "compared_multiple") or "compared_multiple",
+                    "task_price_text": getattr(result.web_result, "task_price_text", "") or "",
+                    "compared_candidates": getattr(result.web_result, "compared_candidates", []) or [],
                     "reason": result.web_result.reason,
                 }
                 decision_json = json.dumps(decision_dict, ensure_ascii=False, indent=2)

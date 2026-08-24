@@ -21,6 +21,12 @@ class ProviderCredential:
 
     @property
     def present(self) -> bool:
+        if self.env_var == "LOCAL_LLM_BASE_URL":
+            return bool(
+                (os.environ.get("LOCAL_LLM_BASE_URL") or "").strip()
+                or (os.environ.get("LLM_BASE_URL") or "").strip()
+                or (os.environ.get("OPENAI_BASE_URL") or "").strip()
+            )
         return bool((os.environ.get(self.env_var) or "").strip())
 
 
@@ -29,7 +35,12 @@ def resolve_provider_credential(model_name: str) -> ProviderCredential:
     value = (model_name or "").strip() or "anthropic/claude-sonnet-4-6"
     lowered = value.lower()
 
-    if lowered.startswith("local/") or lowered.startswith("custom/") or "qwen" in lowered:
+    if (
+        lowered.startswith("local")
+        or lowered.startswith("custom")
+        or "qwen" in lowered
+        or bool((os.environ.get("LOCAL_LLM_BASE_URL") or os.environ.get("LLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL") or "").strip())
+    ):
         return ProviderCredential("Local", "LOCAL_LLM_BASE_URL", value)
     if lowered.startswith("openai/") or lowered.startswith("gpt-"):
         return ProviderCredential("OpenAI", "OPENAI_API_KEY", value)

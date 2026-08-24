@@ -80,12 +80,12 @@ class OpenAIChatClient:
         if client is None:
             from openai import OpenAI  # lazy: tests inject a fake
 
-            client_kwargs: Dict[str, Any] = {}
-            if api_key is not None:
-                client_kwargs["api_key"] = api_key
-            if base_url is not None:
+            client_kwargs: Dict[str, Any] = {
+                "api_key": (api_key or os.environ.get("OPENAI_API_KEY") or "dummy").strip() or "dummy"
+            }
+            if base_url:
                 client_kwargs["base_url"] = base_url
-            if default_headers is not None:
+            if default_headers:
                 client_kwargs["default_headers"] = default_headers
             client = OpenAI(**client_kwargs)
         self._client = client

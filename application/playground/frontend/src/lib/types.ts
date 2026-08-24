@@ -448,9 +448,21 @@ export interface WebTrace {
   raw?: Record<string, unknown>;
 }
 
+export interface ComparedCandidate {
+  name: string;
+  price?: string | null;
+  specs?: string | null;
+  prosCons?: string | null;
+  pros_cons?: string | null;
+}
+
 export interface WebResult {
   selectedProductId: string;
   selectedProductName: string;
+  taskPriceText?: string | null;
+  comparedCandidates?: ComparedCandidate[] | null;
+  basisPrimary?: string | null;
+  explorationStyle?: string | null;
   needSatisfaction: number;
   easeOfUse: number;
   informationQuality?: number | null;

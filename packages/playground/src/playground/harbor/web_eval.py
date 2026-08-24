@@ -85,6 +85,10 @@ class WebEvalResultArtifact:
     overall_experience_rating: int
     reason: str
     created_at: str
+    task_price_text: str = ""
+    compared_candidates: Sequence[Dict[str, Any]] = ()
+    basis_primary: str = "features"
+    exploration_style: str = "compared_multiple"
     valid: bool = True
 
     @classmethod
@@ -117,6 +121,19 @@ class WebEvalResultArtifact:
         if len(reason) < 20:
             raise ValueError("reason must explain the website experience")
 
+        task_price_text = str(
+            data.get("task_price_text", data.get("taskPriceText", ""))
+        ).strip()
+        compared_candidates = list(
+            data.get("compared_candidates", data.get("comparedCandidates", [])) or []
+        )
+        basis_primary = str(
+            data.get("basis_primary", data.get("basisPrimary", "features"))
+        ).strip()
+        exploration_style = str(
+            data.get("exploration_style", data.get("explorationStyle", "compared_multiple"))
+        ).strip()
+
         return cls(
             selected_product_id=selected_product_id,
             selected_product_name=selected_product_name,
@@ -125,12 +142,24 @@ class WebEvalResultArtifact:
             overall_experience_rating=scores["overall_experience_rating"],
             reason=reason,
             created_at=created_at,
+            task_price_text=task_price_text,
+            compared_candidates=compared_candidates,
+            basis_primary=basis_primary,
+            exploration_style=exploration_style,
         )
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "selectedProductId": self.selected_product_id,
             "selectedProductName": self.selected_product_name,
+            "selected_product_id": self.selected_product_id,
+            "selected_product_name": self.selected_product_name,
+            "taskPriceText": self.task_price_text,
+            "task_price_text": self.task_price_text,
+            "comparedCandidates": list(self.compared_candidates),
+            "compared_candidates": list(self.compared_candidates),
+            "basisPrimary": self.basis_primary,
+            "explorationStyle": self.exploration_style,
             "needSatisfaction": self.need_satisfaction,
             "easeOfUse": self.ease_of_use,
             "overallExperienceRating": self.overall_experience_rating,

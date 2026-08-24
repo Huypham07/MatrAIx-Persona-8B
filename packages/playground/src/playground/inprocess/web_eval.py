@@ -1,4 +1,4 @@
-"""In-process Web evaluation runner using Local LLM."""
+"""In-process Web evaluation runner using Local LLM with fast, smooth, visible DOM interactions."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def _resolve_start_url(task: WebEvalTask) -> str:
     if "search" in tid or "search" in tname or "duckduckgo" in (task.site_url or ""):
         return "https://duckduckgo.com"
 
-    # Original tasks retain their direct landing URLs
+    # Catalog & direct web evaluation tasks
     if "laptop" in tid or "laptop" in tname:
         return "https://webscraper.io/test-sites/e-commerce/static/computers/laptops"
     if "notion" in tid or "notion" in tname or "plan-choice" in tid:
@@ -54,69 +54,68 @@ def _resolve_start_url(task: WebEvalTask) -> str:
     return "https://duckduckgo.com"
 
 
-_CURSOR_INJECT_SCRIPT = """
+_FAST_CURSOR_AND_SOM_SCRIPT = """
 (function() {
-  function setupVisualizer() {
+  window.__pw_elements__ = {};
+
+  function setupVisuals() {
     if (document.getElementById('__pw_cursor__')) return;
+
+    // Visual Cursor
     const cursor = document.createElement('div');
     cursor.id = '__pw_cursor__';
     cursor.style.cssText = `
       position: fixed;
       top: -100px;
       left: -100px;
-      width: 28px;
-      height: 28px;
+      width: 26px;
+      height: 26px;
       pointer-events: none;
       z-index: 2147483647;
-      transform: translate(0, 0);
-      transition: transform 0.12s cubic-bezier(0.2, 0.9, 0.3, 1), left 0.35s cubic-bezier(0.2, 0.9, 0.3, 1), top 0.35s cubic-bezier(0.2, 0.9, 0.3, 1);
+      transition: left 0.22s cubic-bezier(0.2, 0.9, 0.3, 1), top 0.22s cubic-bezier(0.2, 0.9, 0.3, 1), transform 0.1s ease;
       display: block;
     `;
     cursor.innerHTML = `
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));">
-        <path d="M0 0 L0 21 L5.5 15.5 L9.5 24.5 L13.5 23 L9.5 14 L16 14 Z" fill="#111111" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
-        <circle cx="0" cy="0" r="3.5" fill="#ff2d55"/>
+      <svg width="26" height="26" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));">
+        <path d="M0 0 L0 21 L5.5 15.5 L9.5 24.5 L13.5 23 L9.5 14 L16 14 Z" fill="#0f172a" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="0" cy="0" r="3.5" fill="#3b82f6"/>
       </svg>
     `;
     document.documentElement.appendChild(cursor);
     window.__pw_cursor_elem__ = cursor;
 
-    if (!document.getElementById('__pw_cursor_style__')) {
+    // CSS Styles for badges & ripples
+    if (!document.getElementById('__pw_style__')) {
       const style = document.createElement('style');
-      style.id = '__pw_cursor_style__';
+      style.id = '__pw_style__';
       style.innerHTML = `
-        @keyframes __pw_click_ripple__ {
-          0% {
-            transform: translate(-50%, -50%) scale(0.2);
-            opacity: 1;
-            box-shadow: 0 0 0 0 #ffeb3b, 0 0 20px #ff3b30, 0 0 40px #ff9500;
-          }
-          50% {
-            opacity: 0.9;
-            box-shadow: 0 0 0 22px rgba(255, 235, 59, 0.6), 0 0 45px rgba(255, 59, 48, 0.8);
-          }
-          100% {
-            transform: translate(-50%, -50%) scale(2.8);
-            opacity: 0;
-            box-shadow: 0 0 0 50px transparent;
-          }
-        }
-        .__pw_active_highlight__ {
-          outline: 4px solid #ff2d55 !important;
-          outline-offset: 4px !important;
-          box-shadow: 0 0 25px rgba(255, 45, 85, 0.8), inset 0 0 15px rgba(255, 45, 85, 0.2) !important;
-          transition: all 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) !important;
-          border-radius: 8px !important;
+        @keyframes __pw_ripple_anim__ {
+          0% { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
         }
         .__pw_ripple_ring__ {
           position: fixed;
-          width: 36px;
-          height: 36px;
+          width: 32px;
+          height: 32px;
           border-radius: 50%;
-          background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 235, 59, 0.85) 40%, rgba(255, 45, 85, 0.6) 80%, transparent 100%);
+          background: radial-gradient(circle, rgba(59, 130, 246, 0.8) 0%, rgba(245, 158, 11, 0.6) 50%, transparent 100%);
           pointer-events: none;
           z-index: 2147483646;
-          animation: __pw_click_ripple__ 0.65s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+          animation: __pw_ripple_anim__ 0.4s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+        }
+        .__pw_active_highlight__ {
+          outline: 3px solid #3b82f6 !important;
+          outline-offset: 3px !important;
+          box-shadow: 0 0 16px rgba(59, 130, 246, 0.7) !important;
+          transition: outline 0.2s ease, box-shadow 0.2s ease !important;
+          border-radius: 6px !important;
+        }
+        .__pw_chosen_highlight__ {
+          outline: 4px solid #10b981 !important;
+          outline-offset: 4px !important;
+          box-shadow: 0 0 25px rgba(16, 185, 129, 0.9) !important;
+          transition: all 0.3s ease !important;
+          border-radius: 8px !important;
         }
       `;
       document.head.appendChild(style);
@@ -124,7 +123,7 @@ _CURSOR_INJECT_SCRIPT = """
   }
 
   window.__pw_move_cursor__ = function(x, y) {
-    setupVisualizer();
+    setupVisuals();
     if (window.__pw_cursor_elem__) {
       window.__pw_cursor_elem__.style.left = x + 'px';
       window.__pw_cursor_elem__.style.top = y + 'px';
@@ -132,7 +131,7 @@ _CURSOR_INJECT_SCRIPT = """
   };
 
   window.__pw_click_visual__ = function(x, y) {
-    setupVisualizer();
+    setupVisuals();
     window.__pw_move_cursor__(x, y);
     const ring = document.createElement('div');
     ring.className = '__pw_ripple_ring__';
@@ -140,82 +139,279 @@ _CURSOR_INJECT_SCRIPT = """
     ring.style.top = y + 'px';
     document.documentElement.appendChild(ring);
     if (window.__pw_cursor_elem__) {
-      window.__pw_cursor_elem__.style.transform = 'translate(-2px, -2px) scale(0.85)';
+      window.__pw_cursor_elem__.style.transform = 'scale(0.85)';
       setTimeout(() => {
-        if (window.__pw_cursor_elem__) {
-          window.__pw_cursor_elem__.style.transform = 'translate(0, 0) scale(1)';
-        }
-      }, 250);
+        if (window.__pw_cursor_elem__) window.__pw_cursor_elem__.style.transform = 'scale(1)';
+      }, 150);
     }
-    setTimeout(() => ring.remove(), 750);
+    setTimeout(() => ring.remove(), 450);
   };
 
-  window.__pw_highlight_visual__ = function(textOrSelector) {
-    setupVisualizer();
-    document.querySelectorAll('.__pw_active_highlight__').forEach(el => el.classList.remove('__pw_active_highlight__'));
-    let target = null;
-    if (typeof textOrSelector === 'string' && textOrSelector) {
-      try {
-        target = document.querySelector(textOrSelector);
-      } catch (e) {}
-      if (!target) {
-        const candidates = Array.from(document.querySelectorAll('div.thumbnail, div.card, div[class*="plan"], div[class*="pricing"], div[class*="tier"], h1, h2, h3, h4, a, button, p, span'));
-        target = candidates.find(el => (el.innerText || '').toLowerCase().includes(textOrSelector.toLowerCase()));
+  // Set-of-Marks DOM scanner: clean extraction of product cards and interactive controls
+  window.__pw_scan_dom__ = function() {
+    setupVisuals();
+    document.querySelectorAll('.__pw_som_badge__').forEach(el => el.remove());
+    window.__pw_elements__ = {};
+
+    // Auto dismiss top announcement / cookie banner if any
+    const closeBtn = document.querySelector('.alert .close, button.close, [aria-label="Close"]');
+    if (closeBtn && closeBtn.offsetWidth > 0) {
+      try { closeBtn.click(); } catch(e) {}
+    }
+
+    const items = [];
+    let badgeId = 1;
+
+    // 1. Scan Product Cards & Search Results First
+    const rawCards = Array.from(document.querySelectorAll('.thumbnail, div.card, div.g, article, div[class*="product-card"], div[class*="product-item"]'));
+    const cards = rawCards.filter(c => !c.parentElement || !c.parentElement.closest('.thumbnail, div.card, div.g, article'));
+
+    for (const card of cards) {
+      const rect = card.getBoundingClientRect();
+      const style = window.getComputedStyle(card);
+
+      if (
+        rect.width >= 40 && rect.height >= 40 &&
+        style.visibility !== 'hidden' && style.display !== 'none' &&
+        rect.top < window.innerHeight + 100 && rect.bottom > -50
+      ) {
+        const titleEl = card.querySelector('a.title, a[class*="title"], h4 a, h3 a, h2 a, h4:not([class*="price"]), h3:not([class*="price"]), h2:not([class*="price"])');
+        const priceEl = card.querySelector('.price, [class*="price"], h4.price, span.price');
+        const descEl = card.querySelector('.description, [class*="description"], p.description, p.card-text, .snippet, p');
+
+        let title = '';
+        if (titleEl) {
+          title = (titleEl.getAttribute('title') || titleEl.innerText || titleEl.textContent || '').trim();
+        }
+        if (!title) {
+          title = (card.getAttribute('data-name') || card.getAttribute('aria-label') || '').trim();
+        }
+        title = title.replace(/\\s+/g, ' ').slice(0, 100);
+
+        const price = (priceEl ? (priceEl.innerText || priceEl.textContent) : '').trim();
+        const desc = (descEl ? (descEl.innerText || descEl.textContent) : '').trim().replace(/\\s+/g, ' ').slice(0, 150);
+
+        if (title || price) {
+          const id = badgeId++;
+          let targetEl = card;
+          if (titleEl && titleEl.tagName === 'A') targetEl = titleEl;
+          else if (titleEl && titleEl.closest('a')) targetEl = titleEl.closest('a');
+          else if (card.querySelector('a[href]')) targetEl = card.querySelector('a[href]');
+          window.__pw_elements__[id] = targetEl;
+
+          // Inject small badge overlay on element
+          const badge = document.createElement('div');
+          badge.className = '__pw_som_badge__';
+          badge.textContent = id;
+          badge.style.cssText = `
+            position: fixed;
+            left: ${Math.max(2, Math.round(rect.left))}px;
+            top: ${Math.max(2, Math.round(rect.top))}px;
+            background: #f59e0b;
+            color: #000;
+            font-size: 11px;
+            font-weight: 800;
+            font-family: system-ui, -apple-system, monospace;
+            padding: 1px 5px;
+            border-radius: 3px;
+            border: 1px solid #d97706;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+            z-index: 2147483645;
+            pointer-events: none;
+            line-height: 13px;
+          `;
+          document.documentElement.appendChild(badge);
+
+          items.push({
+            id: id,
+            type: 'product',
+            title: title || 'Item',
+            price: price,
+            description: desc,
+            rect: { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) }
+          });
+        }
       }
     }
+
+    // 2. Scan Interactive Controls (Search inputs, buttons, pagination, main nav)
+    const controlSelectors = 'input, textarea, select, button, .pagination a, [role="button"]';
+    const controls = Array.from(document.querySelectorAll(controlSelectors));
+
+    for (const ctrl of controls) {
+      if (ctrl.closest('.thumbnail, .card, div[class*="product"]')) continue;
+      const rect = ctrl.getBoundingClientRect();
+      const style = window.getComputedStyle(ctrl);
+
+      if (
+        rect.width >= 10 && rect.height >= 10 &&
+        style.visibility !== 'hidden' && style.display !== 'none' &&
+        rect.top < window.innerHeight && rect.bottom > 0
+      ) {
+        let label = (ctrl.innerText || ctrl.getAttribute('placeholder') || ctrl.getAttribute('aria-label') || ctrl.getAttribute('value') || '').trim();
+        label = label.replace(/\\s+/g, ' ').slice(0, 80);
+        const tag = ctrl.tagName.toLowerCase();
+
+        if (label || tag === 'input' || tag === 'textarea') {
+          const id = badgeId++;
+          window.__pw_elements__[id] = ctrl;
+
+          const badge = document.createElement('div');
+          badge.className = '__pw_som_badge__';
+          badge.textContent = id;
+          badge.style.cssText = `
+            position: fixed;
+            left: ${Math.max(2, Math.round(rect.left))}px;
+            top: ${Math.max(2, Math.round(rect.top))}px;
+            background: #3b82f6;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 800;
+            font-family: system-ui, -apple-system, monospace;
+            padding: 1px 4px;
+            border-radius: 3px;
+            z-index: 2147483645;
+            pointer-events: none;
+            line-height: 12px;
+          `;
+          document.documentElement.appendChild(badge);
+
+          items.push({
+            id: id,
+            type: tag === 'input' || tag === 'textarea' ? 'input' : 'button',
+            title: label || `Control (${tag})`,
+            price: '',
+            description: '',
+            rect: { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) }
+          });
+        }
+      }
+    }
+
+    return {
+      title: document.title,
+      url: window.location.href,
+      scrollY: Math.round(window.scrollY),
+      items: items
+    };
+  };
+
+  window.__pw_interact_click__ = function(id) {
+    setupVisuals();
+    const el = window.__pw_elements__[id];
+    if (!el) return null;
+    
+    const rect = el.getBoundingClientRect();
+    const cx = Math.round(rect.left + rect.width / 2);
+    const cy = Math.round(rect.top + rect.height / 2);
+    window.__pw_click_visual__(cx, cy);
+    el.classList.add('__pw_active_highlight__');
+    setTimeout(() => el.classList.remove('__pw_active_highlight__'), 600);
+    try { el.click(); } catch(e) {}
+    return { x: cx, y: cy };
+  };
+
+  window.__pw_interact_type__ = function(id, text) {
+    setupVisuals();
+    const el = window.__pw_elements__[id] || document.querySelector("input[name='q'], textarea[name='q'], input[type='text'], input[type='search']");
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    const cx = Math.round(rect.left + rect.width / 2);
+    const cy = Math.round(rect.top + rect.height / 2);
+    window.__pw_click_visual__(cx, cy);
+    el.focus();
+    if ('value' in el) {
+      el.value = text;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    return { x: cx, y: cy };
+  };
+
+  window.__pw_highlight_chosen__ = function(productName) {
+    setupVisuals();
+    const all = Array.from(document.querySelectorAll('.thumbnail, .card, div[class*="product"], div[class*="item"], h1, h2, h3, h4, a'));
+    const target = all.find(el => (el.innerText || '').toLowerCase().includes((productName || '').toLowerCase()));
     if (target) {
-      target.classList.add('__pw_active_highlight__');
+      target.classList.add('__pw_chosen_highlight__');
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });
       const rect = target.getBoundingClientRect();
       const cx = Math.round(rect.left + rect.width / 2);
       const cy = Math.round(rect.top + rect.height / 2);
-      window.__pw_move_cursor__(cx, cy);
+      window.__pw_click_visual__(cx, cy);
       return { x: cx, y: cy };
     }
     return null;
   };
 
-  document.addEventListener('DOMContentLoaded', setupVisualizer);
-  if (document.body) setupVisualizer();
+  document.addEventListener('DOMContentLoaded', setupVisuals);
+  if (document.body) setupVisuals();
 })();
 """
 
 
+def _render_persona_for_web(persona: Persona, repo_root: Optional[Path] = None) -> str:
+    """Render full natural language persona prompt for web agent."""
+    if repo_root:
+        for candidate_dir in [
+            repo_root / "persona" / "datasets" / "matraix-persona-dev-sample",
+            repo_root / "persona" / "datasets",
+            repo_root / "data" / "personas",
+        ]:
+            if candidate_dir.is_dir():
+                pid = str(persona.id or "")
+                for candidate in [
+                    candidate_dir / f"{pid}.yaml",
+                    candidate_dir / f"{pid}.yml",
+                    candidate_dir / f"persona_{pid}.yaml",
+                    candidate_dir / f"persona_{pid}.yml",
+                ]:
+                    if candidate.is_file():
+                        try:
+                            from matraix.agents.persona.loader import load_persona
+                            from matraix.agents.persona.templating import (
+                                PERSONA_SYSTEM_TEMPLATE,
+                                render_persona_template,
+                                resolve_persona_template,
+                            )
+
+                            loaded = load_persona(str(candidate))
+                            template = resolve_persona_template(loaded, None, PERSONA_SYSTEM_TEMPLATE)
+                            return render_persona_template(template, loaded).strip()
+                        except Exception:
+                            pass
+    return render_persona_block(persona, persona_yaml_path="").strip()
+
+
 def _derive_persona_tiers(persona: Persona) -> Dict[str, Any]:
-    """Derive 3-tier configuration from Persona profile."""
+    """Derive browsing configuration from Persona profile."""
     p_text = f"{persona.name} {getattr(persona, 'summary', '')} {getattr(persona, 'context', '')} {getattr(persona, 'goal', '')}".lower()
-    
-    # Tier 2: Patience & Budget
+
+    env_max = os.environ.get("WEB_AGENT_MAX_STEPS", "").strip()
+    custom_max = int(env_max) if env_max.isdigit() and int(env_max) > 0 else None
+
     if any(w in p_text for w in ["impatient", "nóng vội", "student", "sinh viên", "casual", "lười", "vội", "quick"]):
         patience = "low"
-        max_steps = 5
-        temp = 0.65
-        typing_delay = 25
-        scroll_style = "fast_skim"
+        max_steps = custom_max or 10
+        temp = 0.4
     elif any(w in p_text for w in ["analyst", "kỹ sư", "engineer", "researcher", "thorough", "cẩn thận", "chuyên gia", "tỉ mỉ", "khó tính", "planner"]):
         patience = "high"
-        max_steps = 10
+        max_steps = custom_max or 18
         temp = 0.15
-        typing_delay = 55
-        scroll_style = "slow_read"
     else:
         patience = "medium"
-        max_steps = 7
-        temp = 0.35
-        typing_delay = 40
-        scroll_style = "standard"
+        max_steps = custom_max or 12
+        temp = 0.25
 
     return {
         "patience": patience,
         "max_steps": max_steps,
         "temperature": temp,
-        "typing_delay": typing_delay,
-        "scroll_style": scroll_style,
     }
 
 
 class InprocessWebEvalRunner:
-    """Autonomous Multi-step Web Agent Loop (Observe -> Plan -> Act) for Persona."""
+    """Fast, smooth, visible autonomous web agent runner using Set-of-Marks interactive visual markers."""
 
     def __init__(self, *, repo_root: Optional[Path] = None) -> None:
         self.repo_root = repo_root
@@ -236,7 +432,11 @@ class InprocessWebEvalRunner:
                 on_event(event)
 
         task_prompt = build_web_task_prompt(task)
-        persona_body = render_persona_block(persona, persona_yaml_path="").strip()
+        persona_body = _render_persona_for_web(persona, self.repo_root)
+        
+        # Enforce that the exported persona context matches the exact rendered prompt
+        persona.context = persona_body
+        
         prompts = {
             "personaPrompt": persona_body,
             "harborPrompt": persona_body,
@@ -252,20 +452,26 @@ class InprocessWebEvalRunner:
 
         trace_events: List[Dict[str, Any]] = []
         action_history: List[Dict[str, Any]] = []
+        compared_candidates: List[Dict[str, Any]] = []
+
         selected_id = f"{task.id}-item-1"
         selected_name = f"{task.site_name} Selected Option"
+        task_price = ""
+        basis_primary = "features"
+        exploration_style = "compared_multiple"
         need_sat = 8
         ease = 8
         overall = 8
-        reason = f"Completed browsing task for {task.title} according to {persona.name}'s profile."
+        reason = f"Selected optimal product for {task.title} based on {persona.name}'s profile."
 
         try:
             from playwright.sync_api import sync_playwright
+
             with sync_playwright() as playwright:
                 emit({
                     "type": "stage",
                     "stage": "browser_launching",
-                    "message": f"Opening Chrome at {start_url} (Patience: {tiers['patience']}, Max Steps: {max_steps})...",
+                    "message": f"Opening Chrome at {start_url}...",
                 })
                 browser = playwright.chromium.launch(
                     headless=headless,
@@ -273,33 +479,33 @@ class InprocessWebEvalRunner:
                 )
                 context = browser.new_context(
                     viewport={"width": 1280, "height": 800},
-                    user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
                 )
-                context.add_init_script(_CURSOR_INJECT_SCRIPT)
+                context.add_init_script(_FAST_CURSOR_AND_SOM_SCRIPT)
                 page = context.new_page()
 
                 trace_events.append({
                     "step": 1,
                     "action": "launch_browser",
                     "url": start_url,
-                    "description": f"Launched Chrome and opened search entrypoint ({start_url})",
+                    "description": f"Launched browser at {start_url}",
                 })
 
                 emit({
                     "type": "stage",
                     "stage": "navigating",
-                    "message": f"Navigating to {start_url} in Chrome...",
+                    "message": f"Loading {start_url}...",
                 })
-                page.goto(start_url, wait_until="domcontentloaded", timeout=45000)
-                page.wait_for_timeout(1500)
-                page.evaluate("window.__pw_move_cursor__(640, 250)")
+                page.goto(start_url, wait_until="domcontentloaded", timeout=30000)
+                page.wait_for_timeout(350)
+                page.evaluate("window.__pw_move_cursor__(640, 200)")
 
-                # Handle Google consent dialog if shown
+                # Handle Google / Search consent modal if shown
                 try:
-                    consent_btn = page.locator("button:has-text('Accept all'), button:has-text('I agree'), button:has-text('Tôi đồng ý'), button:has-text('Accept')").first
-                    if consent_btn.is_visible(timeout=1500):
+                    consent_btn = page.locator("button:has-text('Accept all'), button:has-text('I agree'), button:has-text('Accept')").first
+                    if consent_btn.is_visible(timeout=600):
                         consent_btn.click()
-                        page.wait_for_timeout(1000)
+                        page.wait_for_timeout(250)
                 except Exception:
                     pass
 
@@ -307,117 +513,116 @@ class InprocessWebEvalRunner:
                     "step": 2,
                     "action": "navigate",
                     "url": start_url,
-                    "description": f"Loaded {page.title() or 'Search Engine'}",
+                    "description": f"Loaded {page.title() or start_url}",
                 })
 
-                client = build_json_client(config.persona_model)
+                client = build_json_client(config.persona_model, temperature=tiers["temperature"])
 
                 # ==========================================
-                # MULTI-STEP AGENT LOOP (Observe -> Plan -> Act)
+                # FAST & SMOOTH AGENT LOOP (Observe -> Plan -> Act)
                 # ==========================================
                 for step_num in range(1, max_steps + 1):
-                    emit({"type": "stage", "stage": "observing", "step": step_num, "message": f"[Step {step_num}/{max_steps}] Observing page elements..."})
+                    emit({
+                        "type": "stage",
+                        "stage": "observing",
+                        "step": step_num,
+                        "message": f"[Step {step_num}/{max_steps}] Observing screen...",
+                    })
 
-                    # 1. OBSERVE: Extract interactive elements with IDs @e1, @e2...
-                    obs_script = """
-                    () => {
-                      const elements = [];
-                      const interactive = document.querySelectorAll('button, a, input, textarea, select, div.g h3, div.thumbnail, div.card, div[class*="plan"], div[class*="pricing"], tr, h2, h3, h4');
-                      let id = 1;
-                      for (const el of interactive) {
-                        const rect = el.getBoundingClientRect();
-                        if (rect.width > 5 && rect.height > 5 && rect.top < window.innerHeight * 1.5 && rect.bottom > -150) {
-                          const text = (el.innerText || el.getAttribute('placeholder') || el.getAttribute('aria-label') || el.getAttribute('value') || '').trim();
-                          if (text || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'BUTTON') {
-                            const tag = el.tagName.toLowerCase();
-                            elements.push({
-                              id: `@e${id++}`,
-                              tag: tag,
-                              text: text.slice(0, 120).replace(/\\s+/g, ' '),
-                              rect: { x: Math.round(rect.left + rect.width/2), y: Math.round(rect.top + rect.height/2) }
-                            });
-                          }
-                        }
-                      }
-                      return {
-                        title: document.title,
-                        url: window.location.href,
-                        scrollY: Math.round(window.scrollY),
-                        elements: elements.slice(0, 30)
-                      };
-                    }
-                    """
+                    # 1. OBSERVE: Scan visible elements with numeric badges
+                    page.wait_for_timeout(150)
                     try:
-                        page.wait_for_load_state("domcontentloaded", timeout=4000)
+                        observation = page.evaluate("window.__pw_scan_dom__()")
                     except Exception:
-                        pass
-                    page.wait_for_timeout(1000)
-                    try:
-                        observation = page.evaluate(obs_script)
-                    except Exception:
-                        page.wait_for_timeout(1500)
+                        page.wait_for_timeout(250)
                         try:
-                            observation = page.evaluate(obs_script)
+                            observation = page.evaluate("window.__pw_scan_dom__()")
                         except Exception:
-                            observation = {"title": page.title() if hasattr(page, "title") else "", "url": page.url, "scrollY": 0, "elements": []}
-                    obs_elements = observation.get("elements", [])
-                    elements_summary = "\n".join(
-                        f"- {el['id']} [{el['tag']}]: \"{el['text']}\"" for el in obs_elements[:20]
-                    )
+                            observation = {"title": page.title(), "url": page.url, "scrollY": 0, "items": []}
 
-                    # 2. PLAN & REASON: Local LLM generates thought & action
+                    items = observation.get("items", [])
+
+                    # Format elements clearly with their badge IDs
+                    products = [it for it in items if it.get("type") == "product"]
+                    controls = [it for it in items if it.get("type") != "product"]
+
+                    products_str = "\n".join(
+                        f"[{p['id']}] {p['title']} | Giá: {p['price']} | Cấu hình: {p['description']}"
+                        for p in products
+                    ) if products else "(Không có sản phẩm nào trên màn hình hiện tại. Hãy scroll down để xem thêm)."
+
+                    controls_str = "\n".join(
+                        f"[{c['id']}] <{c['type']}> {c['title']}"
+                        for c in controls
+                    ) if controls else "(Không có nút điều khiển bổ sung)."
+
                     system_prompt = (
                         f"{persona_body}\n\n"
-                        "=== QUY TẮC & CHIẾN LƯỢC DUYỆT WEB CỦA PERSONA ===\n"
-                        f"- Tính cách: Kiên nhẫn ở mức {tiers['patience'].upper()} | Giới hạn: Tối đa {max_steps} bước (hiện tại là bước {step_num}/{max_steps}).\n"
-                        "- QUYỀN BỎ CUỘC: Nếu không tìm thấy lựa chọn phù hợp sau nhiều bước, được phép gọi action: 'give_up'.\n\n"
-                        "=== HƯỚNG DẪN HÀNH ĐỘNG THÔNG MINH ===\n"
-                        "1. KHI ĐANG Ở TRANG TÌM KIẾM (DuckDuckGo, Brave Search...):\n"
-                        "   - Bạn PHẢI dùng action: 'type' để gõ từ khóa tìm kiếm phù hợp (ví dụ: 'laptop dell lenovo core i5 sinh vien gia re 15 trieu').\n"
-                        "   - KHÔNG ĐƯỢC gọi 'go_back' hay 'done' khi đang ở trang tìm kiếm ban đầu.\n"
-                        "2. KIỂM TRA ĐÚNG MỤC TIÊU (Relevance Validation):\n"
-                        "   - Sau khi click vào một link, hãy kiểm tra xem trang web có đúng là sản phẩm bạn cần tìm (máy tính Laptop thật, KHÔNG PHẢI phụ kiện/túi đựng/balo/chuột/vỏ bảo vệ) hay không.\n"
-                        "   - NẾU VÀO NHẦM TRANG PHỤ KIỆN HOẶC TRANG KHÔNG ĐÚNG MỤC TIÊU: Bạn PHẢI dùng action: 'go_back' để quay lại trang tìm kiếm, rồi click vào kết quả khác hoặc đổi từ khóa. TUYỆT ĐỐI KHÔNG CHỌN SẢN PHẨM PHỤ KIỆN/TÚI ĐỰNG.\n"
-                        "3. THAM KHẢO & SO SÁNH NHIỀU NGUỒN:\n"
-                        "   - Nếu trang hiện tại không đủ thông tin hoặc giá quá đắt, dùng action: 'go_back' để quay lại xem nguồn khác.\n"
-                        "4. CÁC HÀNH ĐỘNG HỢP LỆ:\n"
-                        "   - 'type': Gõ từ khóa tìm kiếm mới hoặc lọc sản phẩm.\n"
-                        "   - 'click': Click vào link kết quả tìm kiếm, thẻ sản phẩm, nút chọn.\n"
-                        "   - 'scroll': Cuộn trang để đọc tiếp nội dung.\n"
-                        "   - 'go_back': Quay lại trang trước (chỉ dùng sau khi đã click vào xem một trang mà muốn quay lại tìm kiếm).\n"
-                        "   - 'done': Chốt lựa chọn khi đã tìm thấy đúng máy tính Laptop ưng ý.\n"
-                        "   - 'give_up': Bỏ cuộc khi không có lựa chọn phù hợp."
+                        "=== HƯỚNG DẪN ĐIỀU KHIỂN TRÌNH DUYỆT (BROWSER AGENT) ===\n"
+                        f"Bạn đang nhập vai '{persona.name}' để duyệt trang web và lựa chọn kết quả phù hợp nhất.\n"
+                        "Trên màn hình, mỗi phần tử tương tác được gắn một số ID màu vàng [1], [2], [3]...\n\n"
+                        "=== CÁC HÀNH ĐỘNG HỢP LỆ ===\n"
+                        "1. done: CHỐT LỰA CHỌN CUỐI CÙNG khi bạn đã thấy kết quả ưng ý nhất. Điền đầy đủ 'selected_product_name', 'task_price_text', 'reason'.\n"
+                        "2. click: Click vào một phần tử (target: số ID như 1, 2, 3...).\n"
+                        "3. scroll: Cuộn trang xuống để xem thêm nội dung (direction: 'down' | 'up', amount: 400).\n"
+                        "4. type: Nhập từ khóa tìm kiếm (target: số ID ô input, text: 'từ khóa').\n"
+                        "5. go_back: Quay lại trang trước.\n\n"
+                        "=== QUY TẮC QUAN TRỌNG ===\n"
+                        "- Nếu bạn đang ở trang chi tiết của một mục và muốn xem các lựa chọn khác, BẮT BUỘC dùng `action: 'go_back'` để quay lại danh sách.\n"
+                        "- Khi bạn đã đánh giá đủ và tìm thấy kết quả phù hợp nhất, hãy trả về `action: 'done'` để chốt kết quả."
                     )
 
                     user_prompt = (
                         f"Nhiệm vụ: {task.title}\n"
-                        f"Mục tiêu cần hoàn thành: {task.description}\n"
-                        f"URL hiện tại: {observation.get('url')} (Tiêu đề trang: {observation.get('title')}, Cuộn: {observation.get('scrollY')}px)\n\n"
-                        f"Lịch sử các bước đã thực hiện:\n{json.dumps(action_history, ensure_ascii=False, indent=1)}\n\n"
-                        f"Các phần tử tương tác đang nhìn thấy trên màn hình:\n{elements_summary}\n\n"
-                        "Hãy suy nghĩ và chọn 1 hành động theo định dạng JSON:\n"
+                        f"Mô tả: {task.description}\n"
+                        f"Trang hiện tại: {observation.get('title')} ({observation.get('url')})\n\n"
+                        f"=== DANH SÁCH SẢN PHẨM HIỂN THỊ TRÊN MÀN HÌNH ===\n"
+                        f"{products_str}\n\n"
+                        f"=== CÁC NÚT ĐIỀU KHIỂN / INPUT ===\n"
+                        f"{controls_str}\n\n"
+                        "Hãy trả về JSON hành động tiếp theo:\n"
                         "{\n"
-                        '  "thought": "<Suy nghĩ cụ thể của Persona: kiểm tra xem trang có đúng mục tiêu không, cần click, type, scroll, go_back hay done/give_up>",\n'
-                        '  "action": "type" | "click" | "scroll" | "go_back" | "done" | "give_up",\n'
-                        '  "target": "<ID phần tử ví dụ @e1 nếu click/type>",\n'
-                        '  "text": "<từ khóa nếu type>",\n'
-                        '  "direction": "down" | "up" (nếu scroll),\n'
-                        '  "amount": 350,\n'
-                        '  "selected_product_id": "<ID sản phẩm nếu done>",\n'
-                        '  "selected_product_name": "<Tên sản phẩm CHÍNH XÁC nếu done - ví dụ tên Laptop, không chọn phụ kiện>",\n'
+                        '  "thought": "<Suy nghĩ cụ thể của persona về sản phẩm phù hợp>",\n'
+                        '  "action": "done" | "click" | "scroll" | "type" | "go_back",\n'
+                        '  "target": <Số ID phần tử như 1, 2 nếu click hoặc type>,\n'
+                        '  "text": "<Từ khóa nếu type>",\n'
+                        '  "direction": "down" | "up",\n'
+                        '  "selected_product_name": "<Tên sản phẩm CHÍNH XÁC được chọn nếu done>",\n'
+                        '  "task_price_text": "<Giá của sản phẩm được chọn nếu done, ví dụ $739.99>",\n'
+                        '  "basis_primary": "price" | "quality" | "features" | "convenience" | "taste" | "fit",\n'
+                        '  "exploration_style": "quick_pick" | "compared_multiple" | "deep_research",\n'
                         '  "need_satisfaction": <1-10 nếu done>,\n'
                         '  "ease_of_use": <1-10 nếu done>,\n'
                         '  "overall_experience_rating": <1-10 nếu done>,\n'
-                        '  "reason": "<Giải thích chi tiết quyết định nếu done hoặc give_up>"\n'
+                        '  "reason": "<Lý do chi tiết vì sao chọn sản phẩm này phù hợp nhất với persona>"\n'
                         "}"
                     )
 
-                    emit({"type": "stage", "stage": "planning", "step": step_num, "message": f"[Step {step_num}] Thinking as {persona.name}..."})
+                    emit({
+                        "type": "stage",
+                        "stage": "planning",
+                        "step": step_num,
+                        "message": f"[Step {step_num}] Thinking as {persona.name}...",
+                    })
+
                     decision = client.complete_json(system=system_prompt, user=user_prompt)
 
                     thought = str(decision.get("thought", "")).strip()
                     act_name = str(decision.get("action", "scroll")).strip().lower()
-                    target_id = str(decision.get("target", "")).strip()
+
+                    # Parse target number
+                    raw_target = decision.get("target")
+                    target_id = None
+                    if raw_target is not None:
+                        try:
+                            target_id = int(re.sub(r"[^\d]", "", str(raw_target)))
+                        except Exception:
+                            target_id = None
+                    # If model clicked the same product target in consecutive turns or expressed satisfaction, finalize with done
+                    if act_name == "click" and target_id is not None:
+                        prev_action = action_history[-1] if action_history else None
+                        if prev_action and prev_action.get("action") == "click" and prev_action.get("target") == target_id:
+                            act_name = "done"
 
                     emit({
                         "type": "thought",
@@ -428,128 +633,140 @@ class InprocessWebEvalRunner:
                         "target": target_id,
                     })
 
-                    action_history.append({"step": step_num, "thought": thought, "action": act_name, "target": target_id})
+                    action_history.append({
+                        "step": step_num,
+                        "thought": thought,
+                        "action": act_name,
+                        "target": target_id,
+                    })
 
-                    # 3. ACT: Motor execution via Playwright
-                    if act_name in ("go_back", "back"):
-                        page.evaluate("window.__pw_move_cursor__(50, 50)")
-                        page.wait_for_timeout(300)
-                        try:
-                            page.go_back(wait_until="domcontentloaded", timeout=15000)
-                        except Exception:
-                            pass
-                        page.wait_for_timeout(1500)
-                        if page.url == "about:blank":
-                            page.goto("https://duckduckgo.com", wait_until="domcontentloaded")
-                            page.wait_for_timeout(1500)
+                    # 3. ACT: Fast, accurate, and visible execution
+                    if act_name == "click" and target_id is not None:
+                        matched = next((it for it in items if it["id"] == target_id), None)
+                        matched_text = matched.get("title", "") if matched else ""
+                        matched_price = matched.get("price", "") if matched else ""
+
+                        # Record inspected candidate
+                        if matched_text and len(matched_text) > 3 and matched.get("type") == "product":
+                            if not any(c.get("name") == matched_text for c in compared_candidates):
+                                compared_candidates.append({
+                                    "name": matched_text,
+                                    "price": matched_price,
+                                    "notes": f"Inspected via item [{target_id}]",
+                                })
+
+                        page.evaluate(f"window.__pw_interact_click__({target_id})")
+                        page.wait_for_timeout(350)
+
                         trace_events.append({
                             "step": len(trace_events) + 1,
-                            "action": "go_back",
+                            "action": "click",
+                            "target": f"[{target_id}] {matched_text}",
                             "thought": thought,
-                            "description": "Navigated back to previous page/search results to compare other sources",
+                            "description": f"Clicked [{target_id}] {matched_text}",
                         })
 
                     elif act_name == "type":
                         type_text = str(
                             decision.get("text")
                             or decision.get("query")
-                            or decision.get("search_query")
                             or decision.get("value")
-                            or ""
+                            or f"{task.title}"
                         ).strip()
-                        if not type_text:
-                            type_text = f"{task.title}".strip()
 
-                        matched_el = next((e for e in obs_elements if e["id"] == target_id), None)
-                        if matched_el:
-                            cx, cy = matched_el["rect"]["x"], matched_el["rect"]["y"]
-                            page.evaluate(f"window.__pw_click_visual__({cx}, {cy})")
-                            page.wait_for_timeout(200)
-                            try:
-                                page.mouse.click(cx, cy)
-                                page.keyboard.type(type_text, delay=tiers["typing_delay"])
-                                page.wait_for_timeout(300)
-                                page.keyboard.press("Enter")
-                            except Exception:
-                                pass
-                            page.wait_for_timeout(2000)
+                        if target_id is not None:
+                            page.evaluate(f"window.__pw_interact_type__({target_id}, {json.dumps(type_text)})")
                         else:
-                            # Fallback if typing into search box
-                            search_box = page.locator("textarea[name='q'], input[name='q'], input[type='text'], input[type='search']").first
-                            if search_box.is_visible():
-                                box = search_box.bounding_box()
-                                if box:
-                                    cx, cy = box["x"] + box["width"]/2, box["y"] + box["height"]/2
-                                    page.evaluate(f"window.__pw_click_visual__({cx}, {cy})")
-                        # If DuckDuckGo returned 418 anti-bot or didn't navigate, open search results directly
-                        page.wait_for_timeout(1500)
-                        if "418" in page.url or "error" in page.url or page.url.endswith("duckduckgo.com/"):
+                            page.evaluate(f"window.__pw_interact_type__(null, {json.dumps(type_text)})")
+
+                        page.wait_for_timeout(200)
+                        page.keyboard.press("Enter")
+                        page.wait_for_timeout(400)
+
+                        # If DuckDuckGo returned anti-bot 418, fallback cleanly to Brave Search
+                        if "418" in page.url or page.url.endswith("duckduckgo.com/"):
                             try:
-                                encoded_q = type_text.replace(" ", "+")
-                                page.goto(f"https://search.brave.com/search?q={encoded_q}", wait_until="domcontentloaded", timeout=30000)
-                                page.wait_for_timeout(1500)
+                                q_enc = type_text.replace(" ", "+")
+                                page.goto(f"https://search.brave.com/search?q={q_enc}", wait_until="domcontentloaded", timeout=20000)
+                                page.wait_for_timeout(300)
                             except Exception:
                                 pass
 
                         trace_events.append({
                             "step": len(trace_events) + 1,
                             "action": "type",
-                            "target": target_id or "search_box",
                             "text": type_text,
                             "thought": thought,
-                            "description": f"Searched '{type_text}' on DuckDuckGo",
-                        })
-
-                    elif act_name == "click":
-                        matched_el = next((e for e in obs_elements if e["id"] == target_id), None)
-                        if matched_el:
-                            cx, cy = matched_el["rect"]["x"], matched_el["rect"]["y"]
-                            page.evaluate(f"window.__pw_click_visual__({cx}, {cy})")
-                            page.wait_for_timeout(300)
-                            try:
-                                page.mouse.click(cx, cy)
-                            except Exception:
-                                pass
-                        page.wait_for_timeout(1800)
-                        trace_events.append({
-                            "step": len(trace_events) + 1,
-                            "action": "click",
-                            "target": target_id,
-                            "thought": thought,
-                            "description": f"Clicked {target_id} ({matched_el.get('text', '') if matched_el else ''})",
+                            "description": f"Searched for '{type_text}'",
                         })
 
                     elif act_name == "scroll":
-                        amount = int(decision.get("amount", 350))
+                        amount = int(decision.get("amount", 400))
                         if decision.get("direction") == "up":
                             amount = -abs(amount)
                         else:
                             amount = abs(amount)
-                        page.evaluate(f"window.scrollBy({{top: {amount}, behavior: 'smooth'}})")
-                        page.wait_for_timeout(1200 if tiers["scroll_style"] == "slow_read" else 600)
+
+                        page.evaluate(f"window.scrollBy({{ top: {amount}, behavior: 'smooth' }})")
+                        page.wait_for_timeout(300)
+
                         trace_events.append({
                             "step": len(trace_events) + 1,
                             "action": "scroll",
                             "amount": amount,
                             "thought": thought,
-                            "description": f"Scrolled {amount}px to inspect search results / content",
+                            "description": f"Scrolled {'down' if amount > 0 else 'up'} to view more options",
+                        })
+
+                    elif act_name in ("go_back", "back"):
+                        page.evaluate("window.__pw_move_cursor__(40, 40)")
+                        try:
+                            page.go_back(wait_until="domcontentloaded", timeout=10000)
+                        except Exception:
+                            pass
+                        page.wait_for_timeout(350)
+
+                        trace_events.append({
+                            "step": len(trace_events) + 1,
+                            "action": "go_back",
+                            "thought": thought,
+                            "description": "Navigated back to previous page",
                         })
 
                     elif act_name in ("done", "give_up"):
-                        selected_id = str(decision.get("selected_product_id") or f"{task.id}-item-1")
-                        selected_name = str(decision.get("selected_product_name") or f"{task.title} Choice")
+                        selected_name = str(decision.get("selected_product_name") or "").strip()
+                        task_price = str(decision.get("task_price_text") or "").strip()
+
+                        # If empty or generic, infer from most recently inspected candidate
+                        if not selected_name or "choice" in selected_name.lower() or selected_name.lower().endswith("option"):
+                            if compared_candidates:
+                                selected_name = compared_candidates[-1]["name"]
+                                if not task_price:
+                                    task_price = compared_candidates[-1].get("price", "")
+                            else:
+                                selected_name = f"{task.title} Choice"
+
+                        raw_id = decision.get("selected_product_id") or re.sub(r"[^a-zA-Z0-9_-]+", "-", selected_name).strip("-").lower()
+                        selected_id = str(raw_id or f"{task.id}-item-1")
+                        basis_primary = str(decision.get("basis_primary") or "features").strip()
+                        exploration_style = str(decision.get("exploration_style") or ("compared_multiple" if len(compared_candidates) > 1 else "quick_pick")).strip()
                         need_sat = max(1, min(10, int(decision.get("need_satisfaction", 8))))
                         ease = max(1, min(10, int(decision.get("ease_of_use", 8))))
                         overall = max(1, min(10, int(decision.get("overall_experience_rating", 8))))
-                        reason = str(decision.get("reason", thought or "Decision made according to persona preferences.")).strip()
+                        reason = str(decision.get("reason") or thought or "Selected based on persona criteria.").strip()
 
-                        # Highlight choice on webpage
+                        # Ensure selected item is in candidates list
+                        if selected_name and not any(c.get("name") == selected_name for c in compared_candidates):
+                            compared_candidates.append({
+                                "name": selected_name,
+                                "price": task_price,
+                                "notes": "Selected as optimal choice",
+                            })
+
+                        # Highlight chosen product smoothly on screen
                         try:
-                            coords = page.evaluate(f"window.__pw_highlight_visual__({json.dumps(selected_name)})")
-                            if coords and isinstance(coords, dict):
-                                cx, cy = coords.get("x", 640), coords.get("y", 300)
-                                page.evaluate(f"window.__pw_click_visual__({cx}, {cy})")
-                            page.wait_for_timeout(2000)
+                            page.evaluate(f"window.__pw_highlight_chosen__({json.dumps(selected_name)})")
+                            page.wait_for_timeout(600)
                         except Exception:
                             pass
 
@@ -558,39 +775,38 @@ class InprocessWebEvalRunner:
                             "action": act_name,
                             "target": selected_name,
                             "thought": thought,
-                            "description": f"{'Completed and selected' if act_name == 'done' else 'Gave up on'} {selected_name}",
+                            "description": f"Decided on {selected_name} ({task_price}) - {reason}",
                         })
                         break
 
                 browser.close()
 
         except Exception as exc:
-            # Fallback if browser/network issue occurs
+            import traceback
+            traceback.print_exc()
+            # Fallback in case of unexpected environment/browser error
             client = build_json_client(config.persona_model)
-            system_prompt = (
-                f"{persona_body}\n\n"
-                "Evaluate the website task and output your selection decision in JSON."
-            )
-            user_prompt = (
-                f"Task: {task.title}\n"
-                f"Description: {task.description}\n"
-                "Return JSON with selected_product_id, selected_product_name, need_satisfaction, ease_of_use, overall_experience_rating, reason."
-            )
-            raw = client.complete_json(system=system_prompt, user=user_prompt)
-            selected_id = str(raw.get("selected_product_id") or f"{task.id}-item-1")
-            selected_name = str(raw.get("selected_product_name") or f"{task.site_name} Selected Option")
-            need_sat = max(1, min(10, int(raw.get("need_satisfaction", 8))))
-            ease = max(1, min(10, int(raw.get("ease_of_use", 8))))
-            overall = max(1, min(10, int(raw.get("overall_experience_rating", 8))))
-            reason = str(raw.get("reason", f"Selected {selected_name} based on persona preferences.")).strip()
-            trace_events = [
-                {"step": 1, "action": "navigate", "url": start_url, "description": f"Navigated to {task.site_name}"},
-                {"step": 2, "action": "select", "url": start_url, "description": f"Selected {selected_name} ({selected_id})"},
-            ]
+            system_prompt = f"{persona_body}\n\nEvaluate the task and select a suitable choice according to your persona."
+            user_prompt = f"Task: {task.title}\n{task.description}\nReturn JSON with selected_product_name, task_price_text, reason, need_satisfaction, ease_of_use, overall_experience_rating."
+            try:
+                raw = client.complete_json(system=system_prompt, user=user_prompt)
+                selected_name = str(raw.get("selected_product_name") or f"{task.site_name} Option")
+                task_price = str(raw.get("task_price_text") or "")
+                selected_id = re.sub(r"[^a-zA-Z0-9_-]+", "-", selected_name).strip("-").lower()
+                reason = str(raw.get("reason") or f"Selected based on persona preferences.")
+                need_sat = max(1, min(10, int(raw.get("need_satisfaction", 8))))
+                ease = max(1, min(10, int(raw.get("ease_of_use", 8))))
+                overall = max(1, min(10, int(raw.get("overall_experience_rating", 8))))
+            except Exception:
+                pass
 
         web_result = WebEvalResultArtifact(
             selected_product_id=selected_id,
             selected_product_name=selected_name,
+            task_price_text=task_price,
+            compared_candidates=compared_candidates,
+            basis_primary=basis_primary,
+            exploration_style=exploration_style,
             need_satisfaction=need_sat,
             ease_of_use=ease,
             overall_experience_rating=overall,

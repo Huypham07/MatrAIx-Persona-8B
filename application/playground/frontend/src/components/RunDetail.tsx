@@ -1117,36 +1117,77 @@ function WebDebrief({ run }: { run: RunDetailView }) {
             />
           </div>
 
-          <div className="flex items-center gap-4 rounded-lg glass-tile p-4 backdrop-blur-sm lg:col-span-7">
-            <div
-              className="grid h-12 w-12 shrink-0 place-items-center glass-tile rounded-lg"
-              aria-hidden
-            >
-              <Sym name="inventory_2" size={22} className="text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[14px] font-semibold text-text-main">
-                  {result.selectedProductName || t("runs.noProductChosen")}
-                </span>
-                <ValidityBadge
-                  valid={result.valid}
-                  validLabel={t("runs.validPick")}
-                  invalidLabel={t("runs.invalidPick")}
-                />
+          <div className="flex flex-col gap-3 rounded-lg glass-tile p-4 backdrop-blur-sm lg:col-span-7">
+            <div className="flex items-start gap-4">
+              <div
+                className="grid h-12 w-12 shrink-0 place-items-center glass-tile rounded-lg"
+                aria-hidden
+              >
+                <Sym name="inventory_2" size={22} className="text-primary" />
               </div>
-              {result.selectedProductId && (
-                <div className="mt-0.5 font-mono text-[12px] text-text-dim">
-                  {result.selectedProductId}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[15px] font-semibold text-text-main">
+                    {result.selectedProductName || t("runs.noProductChosen")}
+                  </span>
+                  {result.taskPriceText && (
+                    <span className="font-mono text-[13px] font-bold text-primary rounded bg-primary/10 px-2 py-0.5">
+                      {result.taskPriceText}
+                    </span>
+                  )}
+                  <ValidityBadge
+                    valid={result.valid}
+                    validLabel={t("runs.validPick")}
+                    invalidLabel={t("runs.invalidPick")}
+                  />
                 </div>
-              )}
-              {result.reason && (
-                <p className="mt-1 text-[14px] leading-snug text-text-variant">
-                  {t("runs.whyThisOne")}
-                  {result.reason}
-                </p>
-              )}
+                {result.selectedProductId && (
+                  <div className="mt-0.5 font-mono text-[12px] text-text-dim">
+                    ID: {result.selectedProductId}
+                  </div>
+                )}
+                {result.reason && (
+                  <p className="mt-1.5 text-[14px] leading-relaxed text-text-variant">
+                    {t("runs.whyThisOne")}
+                    {result.reason}
+                  </p>
+                )}
+              </div>
             </div>
+
+            {result.comparedCandidates && result.comparedCandidates.length > 0 && (
+              <div className="mt-2 border-t border-outline/30 pt-3">
+                <div className="hud text-[11px] font-semibold text-text-dim mb-1.5">
+                  Đã xem xét & so sánh ({result.comparedCandidates.length} lựa chọn):
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {result.comparedCandidates.map((cand, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-2 rounded text-[13px] border ${
+                        cand.name === result.selectedProductName
+                          ? "border-primary/40 bg-primary/5"
+                          : "border-outline/30 bg-surface/30"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 font-medium text-text-main">
+                        <span className="truncate">{cand.name}</span>
+                        {cand.price && (
+                          <span className="font-mono text-[12px] text-text-dim shrink-0">
+                            {cand.price}
+                          </span>
+                        )}
+                      </div>
+                      {(cand.prosCons || cand.pros_cons || cand.specs) && (
+                        <div className="mt-1 text-[12px] text-text-variant line-clamp-2">
+                          {cand.prosCons || cand.pros_cons || cand.specs}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </DebriefPanel>

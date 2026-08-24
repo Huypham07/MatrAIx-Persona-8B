@@ -306,14 +306,16 @@ def preflight_checks() -> List[Dict[str, Any]]:
     local_llm_url = (
         os.environ.get("LOCAL_LLM_BASE_URL")
         or os.environ.get("LLM_BASE_URL")
+        or os.environ.get("OPENAI_BASE_URL")
         or "http://localhost:8000/v1"
     ).strip()
+    local_model_label = os.environ.get("LOCAL_LLM_MODEL") or os.environ.get("MATRIX_PERSONA_MODEL") or "Local LLM"
     local_llm_configured = bool(
         os.environ.get("LOCAL_LLM_BASE_URL")
         or os.environ.get("LOCAL_LLM_AUTH_HEADER")
         or os.environ.get("LLM_BASE_URL")
-        or os.environ.get("MATRIX_PERSONA_MODEL", "").startswith("local/")
-        or True
+        or (os.environ.get("OPENAI_BASE_URL") and not os.environ.get("OPENAI_BASE_URL", "").startswith("https://api.openai.com"))
+        or bool(os.environ.get("LOCAL_LLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL"))
     )
     openai_key = bool(os.environ.get("OPENAI_API_KEY"))
     anthropic_key = bool(
@@ -324,7 +326,7 @@ def preflight_checks() -> List[Dict[str, Any]]:
     configured = [
         label
         for label, present in (
-            ("Local Qwen3-14B", local_llm_configured),
+            (f"Local LLM ({local_model_label})", local_llm_configured),
             ("OpenAI", openai_key),
             ("Anthropic", anthropic_key),
             ("DashScope", dashscope_key),
