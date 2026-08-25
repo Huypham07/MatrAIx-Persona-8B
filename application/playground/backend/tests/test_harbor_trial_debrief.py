@@ -219,6 +219,44 @@ def test_map_trial_debrief_chatbot_enriches_prompts_from_events(tmp_path: Path) 
     assert debrief["instructionMarkdown"].startswith("# Task instruction")
 
 
+def test_map_trial_debrief_preserves_canonical_persona_header(tmp_path: Path) -> None:
+    repo = tmp_path
+    persona_path = repo / "personas" / "header.yaml"
+    persona_path.parent.mkdir()
+    persona_path.write_text(
+        "system_prompt: |\n  ## Persona\n\n  Header fidelity is required.\n",
+        encoding="utf-8",
+    )
+    _write_chat_trial(repo, "job-header", "trial-header")
+    trial_dir = repo / "jobs" / "job-header" / "trial-header"
+    (trial_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "config": {
+                    "agent": {"kwargs": {"persona_path": "personas/header.yaml"}}
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    debrief = map_trial_debrief(
+        repo_root=repo,
+        jobs_dir=repo / "jobs",
+        job_name="job-header",
+        trial_name="trial-header",
+    )
+    inference_persona = Persona.from_dict(
+        {"system_prompt": "## Persona\n\nHeader fidelity is required."},
+        persona_path=str(persona_path),
+    )
+    inference_prompt = render_persona_block(inference_persona)
+
+    assert inference_prompt.startswith("## Persona")
+    assert debrief["prompts"]["personaPrompt"] == inference_prompt
+    assert debrief["persona"]["context"] == inference_prompt
+
+
 def test_map_trial_debrief_survey_from_events_without_output_dir(tmp_path: Path) -> None:
     repo = tmp_path
     task_dir = repo / "application" / "tasks" / "example-survey_product-feedback"

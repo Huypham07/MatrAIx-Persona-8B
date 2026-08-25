@@ -766,9 +766,14 @@ def _enrich_debrief_prompts(
 
     persona_view = debrief.get("persona")
     if isinstance(persona_view, dict):
-        display = str(prompts.get("personaPrompt") or "").strip()
-        if display.startswith("## Persona"):
-            display = display.split("\n", 1)[1].strip() if "\n" in display else ""
+        canonical_persona = bool(
+            persona.persona_path or _persona_prompt_abs_path(repo_root, persona_rel)
+        )
+        display = str(prompts.get("personaPrompt") or "")
+        if not canonical_persona:
+            display = display.strip()
+            if display.startswith("## Persona"):
+                display = display.split("\n", 1)[1].strip() if "\n" in display else ""
         if display:
             persona_view["context"] = display
         if persona.dimensions:
