@@ -1,30 +1,44 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
+  "pool": "persona/datasets/task-eval-personas",
   "sources": [],
-  "dimensionFilters": {
-    "life_stage": [
-      "Parent of young kids",
-      "Mid-life",
-      "Early career"
-    ],
-    "age_bracket": [
-      "25-34",
-      "35-44"
-    ],
-    "economic_motivation": [
-      "Cost-sensitive",
-      "Value-driven",
-      "Premium-seeking",
-      "Indifferent"
-    ]
-  },
-  "sampling": {
-    "mode": "stratified",
-    "fields": [
-      "economic_motivation",
-      "life_stage"
-    ],
-    "allocation": "equalTotal",
-    "sampleSize": 12
-  }
+  "dimensionFilters": {},
+  "segments": [
+    {
+      "id": "budget_subscription_resistant_parents",
+      "label": "Budget- and subscription-resistant parents",
+      "hypothesis": "They should remain on free, reject annual prepay, and demand a strong upgrade case.",
+      "dimensions": {
+        "demo_parental_status": ["Parent of minors"],
+        "economic_motivation": ["Cost-sensitive"],
+        "att_subscription_services": ["Skeptical"]
+      },
+      "personaIds": ["0585", "0822"]
+    },
+    {
+      "id": "roi_driven_value_evaluators",
+      "label": "ROI-driven value evaluators",
+      "hypothesis": "They should pay only after sustained proof of family coordination value.",
+      "dimensions": {
+        "demo_parental_status": ["Parent of minors"],
+        "economic_motivation": ["Value-driven"],
+        "risk_tolerance": ["Cautious"],
+        "trust_level": ["Verifying"]
+      },
+      "personaIds": ["0551", "0747"]
+    },
+    {
+      "id": "digitally_ready_convenience_parents",
+      "label": "Digitally ready, convenience-oriented parents",
+      "hypothesis": "They should show stronger beta and paid-tier intent when automation reduces household coordination work.",
+      "dimensions": {
+        "demo_parental_status": ["Parent of minors"],
+        "economic_motivation": ["Indifferent", "Premium-seeking"],
+        "tech_savviness": ["Digital native"],
+        "att_new_technology": ["Positive"]
+      },
+      "personaIds": ["0075", "0639"]
+    }
+  ],
+  "sampling": {"mode": "pinnedSegments", "personasPerSegment": 2}
 }

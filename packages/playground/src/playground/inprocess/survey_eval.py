@@ -24,7 +24,11 @@ from playground.budget import assert_budget_allows_request, record_trial_cost
 from playground.llm_usage import LlmUsage, merge_usage
 from playground.model_client import build_json_client
 from playground.types import Persona
-from playground.user_sim.prompt import render_persona_block
+from playground.user_sim.prompt import (
+    persona_language_contract,
+    persona_primary_language,
+    render_persona_block,
+)
 
 
 def persona_system_prompt(persona: Persona, *, persona_yaml_path: Optional[str] = None) -> str:
@@ -33,7 +37,7 @@ def persona_system_prompt(persona: Persona, *, persona_yaml_path: Optional[str] 
     ).strip()
     if not persona_body:
         persona_body = persona.context or f"I am {persona.name} (Persona ID: {persona.id})."
-    return persona_body
+    return "{}\n\n{}".format(persona_body, persona_language_contract(persona))
 
 
 def build_survey_task_prompt(*, instrument: SurveyInstrument) -> str:
@@ -181,6 +185,8 @@ class InprocessSurveyEvalRunner:
         persona_yaml_path: Optional[str] = None,
         on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
         job_dir: Optional[Any] = None,
+        trace_dir: Optional[Any] = None,
+        segment_id: Optional[str] = None,
         client: Any | None = None,
         client_factory: Optional[Callable[[str], Any]] = None,
     ) -> SurveyEvalResult:
@@ -200,11 +206,36 @@ class InprocessSurveyEvalRunner:
             "harborPrompt": persona_prompt,
             "taskPrompt": task_prompt,
         }
+        expected_language = persona_primary_language(persona)
+        trace_writer = None
+        if trace_dir is not None:
+            from pathlib import Path
+
+            from playground.llm_trace import LlmTraceWriter
+
+            trace_root = Path(trace_dir)
+            trace_writer = LlmTraceWriter(
+                trace_root / "llm_calls.jsonl",
+                metadata={
+                    "jobId": trace_root.parent.name,
+                    "trialId": trace_root.name,
+                    "taskId": instrument.id,
+                    "personaId": persona.id,
+                    "segmentId": segment_id,
+                    "expectedLanguage": expected_language,
+                },
+            )
         if client is None:
             if client_factory is not None:
                 client = client_factory(config.persona_model)
-            else:
+            elif trace_writer is None:
                 client = build_json_client(config.persona_model)
+            else:
+                client = build_json_client(
+                    config.persona_model,
+                    trace_writer=trace_writer,
+                    trace_step="survey_answer",
+                )
 
         all_answers: list[SurveyAnswer] = []
         usage_parts: list[LlmUsage | None] = []
@@ -218,6 +249,7 @@ class InprocessSurveyEvalRunner:
                     "questionType": question.type,
                     "questionIndex": index,
                     "numQuestions": len(instrument.questions),
+                    "expectedLanguage": expected_language,
                 }
             )
             emit(
@@ -284,6 +316,7 @@ class InprocessSurveyEvalRunner:
                     "confidence": answer.confidence,
                     "progress": f"{len(all_answers)}/{len(instrument.questions)}",
                     "message": f"Answered [{answer.question_id}]: {answer.value}",
+                    "expectedLanguage": expected_language,
                 }
             )
             intermediate_result = SurveyEvalResult(

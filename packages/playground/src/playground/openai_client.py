@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import time
 from typing import Any, Dict, Optional, Protocol
 
 from playground.llm_usage import JsonCompletion, usage_from_openai_completion
@@ -71,12 +73,16 @@ class OpenAIChatClient:
         temperature: float = 0.7,
         timeout_seconds: float = DEFAULT_REQUEST_TIMEOUT_SECONDS,
         provider: str = "openai",
+        trace_writer: Any = None,
+        trace_step: str = "json_completion",
     ) -> None:
         self.model = model
         self.temperature = temperature
         self.timeout_seconds = timeout_seconds
         self.provider = provider
         self.extra_body = extra_body or {}
+        self.trace_writer = trace_writer
+        self.trace_step = trace_step
         if client is None:
             from openai import OpenAI  # lazy: tests inject a fake
 
@@ -107,9 +113,46 @@ class OpenAIChatClient:
             kwargs["extra_body"] = self.extra_body
         if openai_model_supports_custom_temperature(self.model):
             kwargs["temperature"] = self.temperature
-        completion = self._client.chat.completions.create(**kwargs)
-        data = coerce_json(completion.choices[0].message.content)
-        usage = usage_from_openai_completion(
-            completion, model=self.model, provider=self.provider
-        )
+        started = time.monotonic()
+        raw_output = None
+        usage = None
+        completion = None
+        try:
+            completion = self._client.chat.completions.create(**kwargs)
+            raw_output = completion.choices[0].message.content
+            data = coerce_json(raw_output)
+            usage = usage_from_openai_completion(
+                completion, model=self.model, provider=self.provider
+            )
+        except Exception as exc:
+            if self.trace_writer is not None:
+                self.trace_writer.record(
+                    model=self.model,
+                    provider=self.provider,
+                    messages=list(kwargs["messages"]),
+                    raw_output=raw_output,
+                    parsed_output=None,
+                    usage=usage,
+                    finish_reason=(
+                        getattr(completion.choices[0], "finish_reason", None)
+                        if completion is not None
+                        else None
+                    ),
+                    error=exc,
+                    step=self.trace_step,
+                    duration_ms=round((time.monotonic() - started) * 1000, 3),
+                )
+            raise
+        if self.trace_writer is not None:
+            self.trace_writer.record(
+                model=self.model,
+                provider=self.provider,
+                messages=list(kwargs["messages"]),
+                raw_output=raw_output,
+                parsed_output=data,
+                usage=usage,
+                finish_reason=getattr(completion.choices[0], "finish_reason", None),
+                step=self.trace_step,
+                duration_ms=round((time.monotonic() - started) * 1000, 3),
+            )
         return JsonCompletion(data=data, usage=usage)

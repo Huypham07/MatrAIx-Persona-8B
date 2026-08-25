@@ -784,6 +784,29 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
+    @app.get(
+        "/api/harbor/jobs/{job_name}/trace.zip",
+        tags=["harbor-jobs"],
+    )
+    def download_harbor_job_trace_zip(
+        job_name: str, services: AppState = Depends(get_services)
+    ):
+        from fastapi.responses import Response
+
+        from backend.service.trace_export_service import build_job_trace_zip
+
+        try:
+            payload, filename = build_job_trace_zip(
+                services.harbor_jobs.jobs_dir, job_name
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return Response(
+            content=payload,
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
     @app.delete(
         "/api/harbor/jobs/{job_name}",
         tags=["harbor-jobs"],
@@ -974,6 +997,51 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.get(
+        "/api/harbor/jobs/{job_name}/trials/{trial_name}/events/stream",
+        tags=["harbor-jobs"],
+    )
+    def stream_harbor_trial_events(
+        job_name: str,
+        trial_name: str,
+        services: AppState = Depends(get_services),
+    ) -> StreamingResponse:
+        import asyncio
+        import json
+        from starlette.responses import StreamingResponse
+
+        async def event_stream():
+            try:
+                job_dir = services.harbor_jobs.jobs_dir / job_name
+                trial_dir = job_dir / trial_name
+                events_file = trial_dir / "events.jsonl"
+                result_file = trial_dir / "result.json"
+
+                # wait for file
+                for _ in range(50):
+                    if events_file.exists() or result_file.exists():
+                        break
+                    await asyncio.sleep(0.1)
+
+                if not events_file.exists():
+                    return
+
+                with open(events_file, "r") as f:
+                    while True:
+                        line = f.readline()
+                        if line:
+                            yield line
+                        else:
+                            if result_file.exists():
+                                for remaining in f:
+                                    yield remaining
+                                break
+                            await asyncio.sleep(0.1)
+            except Exception:
+                pass
+
+        return StreamingResponse(event_stream(), media_type="application/x-ndjson")
+
+    @app.get(
         "/api/harbor/jobs/{job_name}/trials/{trial_name}/debrief",
         tags=["harbor-jobs"],
     )
@@ -1013,6 +1081,31 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
         return Response(
             content=payload,
             media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    @app.get(
+        "/api/harbor/jobs/{job_name}/trials/{trial_name}/trace.zip",
+        tags=["harbor-jobs"],
+    )
+    def download_harbor_trial_trace_zip(
+        job_name: str,
+        trial_name: str,
+        services: AppState = Depends(get_services),
+    ):
+        from fastapi.responses import Response
+
+        from backend.service.trace_export_service import build_trial_trace_zip
+
+        try:
+            payload, filename = build_trial_trace_zip(
+                services.harbor_jobs.jobs_dir, job_name, trial_name
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return Response(
+            content=payload,
+            media_type="application/zip",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 

@@ -117,6 +117,8 @@ class DirectApplicationSession:
         config: PlaygroundConfig,
         *,
         on_event: Callable[[Dict[str, Any]], None] | None = None,
+        trace_writer: Any = None,
+        trace_context: Dict[str, Any] | None = None,
     ) -> None:
         self.config = config
         self.turns = []
@@ -124,8 +126,16 @@ class DirectApplicationSession:
         self._application = _application_for(config.application_id)
         self._task_config = _load_sidecar_task_config(config.application_id)
         self._on_event = on_event
+        self._trace_writer = trace_writer
+        self._trace_context = dict(trace_context or {})
 
     def run_turn_sync(self, message: str) -> Dict[str, Any]:
+        trace_kwargs = (
+            {"trace_context": self._trace_context}
+            if isinstance(self._application, HTTPChatbotApplication)
+            and self._trace_writer is not None
+            else {}
+        )
         response = self._application.send_message(
             session_id=self._session_id,
             message=message,
@@ -134,7 +144,22 @@ class DirectApplicationSession:
             engine=self.config.engine,
             bot_type="chat",
             on_event=self._on_event,
+            **trace_kwargs,
         )
+        sidecar_trace = response.pop("_llmTrace", None)
+        if isinstance(sidecar_trace, dict) and self._trace_writer is not None:
+            self._trace_writer.record(
+                model=str(sidecar_trace.get("model") or "Qwen3-14B"),
+                provider=str(sidecar_trace.get("provider") or "sidecar"),
+                messages=list(sidecar_trace.get("messages") or []),
+                raw_output=sidecar_trace.get("rawOutput"),
+                parsed_output=sidecar_trace.get("parsedOutput"),
+                usage=sidecar_trace.get("usage"),
+                finish_reason=sidecar_trace.get("finishReason"),
+                error=sidecar_trace.get("error"),
+                step=str(sidecar_trace.get("step") or "meal_plan_reply"),
+                duration_ms=sidecar_trace.get("durationMs"),
+            )
         self._session_id = str(response["sessionId"])
         turn = dict(response.get("turn") or {})
         assistant = str(
@@ -217,6 +242,8 @@ def run_inprocess_chatbot_eval(
     created_at: str,
     on_event: Callable[[Dict[str, Any]], None] | None = None,
     job_dir: Path | None = None,
+    trace_dir: Path | None = None,
+    segment_id: str | None = None,
 ) -> PlaygroundResult:
     """Run the canonical UserSim session loop against an in-process app session."""
     from playground.user_sim.runner import run_playground
@@ -231,8 +258,36 @@ def run_inprocess_chatbot_eval(
         or config.application_context
         or config.domain
     )
+    trace_writer = None
+    trace_context: Dict[str, Any] = {}
+    if trace_dir is not None:
+        from playground.llm_trace import LlmTraceWriter
+        from playground.user_sim.prompt import persona_primary_language
+
+        trace_writer = LlmTraceWriter(
+            trace_dir / "llm_calls.jsonl",
+            metadata={
+                "jobId": trace_dir.parent.name,
+                "trialId": trace_dir.name,
+                "taskPath": task_path,
+                "personaId": persona.id,
+                "segmentId": segment_id,
+                "expectedLanguage": persona_primary_language(persona),
+            },
+        )
+        trace_context = {
+            "trialId": trace_dir.name,
+            "personaId": persona.id,
+            "segmentId": segment_id,
+            "expectedLanguage": persona_primary_language(persona),
+        }
     return run_playground(
-        DirectApplicationSession(config, on_event=on_event),
+        DirectApplicationSession(
+            config,
+            on_event=on_event,
+            trace_writer=trace_writer,
+            trace_context=trace_context,
+        ),
         persona,
         sut_description,
         config,
@@ -242,6 +297,8 @@ def run_inprocess_chatbot_eval(
         persona_yaml_path=persona_yaml_path,
         repo_root=repo_root,
         job_dir=job_dir,
+        trace_dir=trace_dir,
+        segment_id=segment_id,
     )
 
 
@@ -392,6 +449,7 @@ class HTTPChatbotApplication:
         engine: Optional[str],
         bot_type: Optional[str],
         on_event: Callable[[Dict[str, Any]], None] | None = None,
+        trace_context: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         active_session_id = session_id
 
@@ -406,6 +464,8 @@ class HTTPChatbotApplication:
                 "engine": engine,
                 "botType": bot_type,
             }
+            if trace_context is not None:
+                body["_traceContext"] = dict(trace_context)
             response = self._request_json("POST", "/v1/messages", body=body)
             issued_session_id = str(response.get("sessionId") or "").strip()
             if issued_session_id:

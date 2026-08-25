@@ -96,6 +96,22 @@ def _persona_meta(persona: Persona) -> dict[str, Any]:
     }
 
 
+def _persona_segment(
+    *, repo_root: Path, task_path: str, persona_id: str
+) -> dict[str, str] | None:
+    from backend.service.persona_strategy import load_persona_strategy
+
+    strategy = load_persona_strategy(repo_root / task_path.strip().strip("/"))
+    for segment in (strategy or {}).get("segments") or []:
+        if persona_id in (segment.get("personaIds") or []):
+            return {
+                "id": str(segment.get("id") or ""),
+                "label": str(segment.get("label") or ""),
+                "hypothesis": str(segment.get("hypothesis") or ""),
+            }
+    return None
+
+
 def _trial_result(
     *,
     manifest: Mapping[str, Any],
@@ -384,7 +400,13 @@ def run_inprocess_trial(
     except Exception as exc:  # noqa: BLE001 - source errors must be surfaced verbatim
         return fail(exc)
 
-    _write_json_atomic(trial_dir / "persona_meta.json", _persona_meta(persona))
+    segment = _persona_segment(
+        repo_root=repo_root, task_path=task_path, persona_id=persona.id
+    )
+    persona_meta = _persona_meta(persona)
+    if segment is not None:
+        persona_meta["segment"] = segment
+    _write_json_atomic(trial_dir / "persona_meta.json", persona_meta)
     emit(
         {
             "type": "stage",
@@ -431,6 +453,8 @@ def run_inprocess_trial(
                 persona_yaml_path=persona_yaml_path,
                 on_event=on_survey_event,
                 job_dir=trial_dir.parent,
+                trace_dir=trial_dir,
+                segment_id=(segment or {}).get("id"),
             )
             if len(result.answers) != len(instrument.questions):
                 raise ValueError("Survey runner returned an incomplete result")
@@ -499,6 +523,8 @@ def run_inprocess_trial(
                     created_at=started_at,
                     on_event=on_chat_event,
                     job_dir=trial_dir.parent,
+                    trace_dir=trial_dir,
+                    segment_id=(segment or {}).get("id"),
                 )
             except (ConversationNotTerminated, ApplicationUnavailable) as exc:
                 return fail(

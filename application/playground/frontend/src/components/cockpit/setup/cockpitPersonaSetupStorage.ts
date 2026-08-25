@@ -309,9 +309,14 @@ export function setupFromPersonaStrategy(
     next.personaPool = sanitizePersonaPool(strategy.pool);
   }
 
-  // Fresh strategy apply clears prior preview selection and locks custom filters.
-  next.selectedPersonaIds = [];
-  next.selectedCount = 0;
+  const pinnedIds =
+    strategy.sampling?.mode === "pinnedSegments"
+      ? (strategy.segments ?? []).flatMap((segment) => segment.personaIds ?? [])
+      : [];
+  // Pinned task strategies are immediately runnable; sampled strategies still
+  // start empty and are filled by Pull.
+  next.selectedPersonaIds = pinnedIds;
+  next.selectedCount = pinnedIds.length;
   next.useEntirePool = false;
   next.useTaskDefaultStrategy = true;
   next.taskDefaultStrategyDismissed = false;

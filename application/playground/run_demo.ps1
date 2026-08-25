@@ -102,6 +102,7 @@ $pythonPaths = @(
     $REPO_ROOT
     (Join-Path $REPO_ROOT "src")
     (Join-Path $REPO_ROOT "environment\runtime")
+    (Join-Path $REPO_ROOT "environment\agents")
     $PLAYGROUND_CORE_DIR
     $HERE
 )

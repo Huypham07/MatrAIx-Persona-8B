@@ -35,6 +35,7 @@ from playground.user_sim.port import (
 )
 from playground.user_sim.prompt import (
     assemble_report_system_prompt,
+    persona_primary_language,
     prompt_bundle,
 )
 from playground.user_sim.self_report import final_self_report_with_usage
@@ -62,6 +63,30 @@ class ApplicationResponseUnavailable(RuntimeError):
     def __init__(self, transcript: List[PlaygroundTurn]) -> None:
         super().__init__("application returned a blank response after 3 attempts")
         self.transcript = list(transcript)
+
+
+def _llm_trace_writer(
+    *,
+    trace_dir: Path | None,
+    persona: Persona,
+    task_path: str | None,
+    segment_id: str | None,
+):
+    if trace_dir is None:
+        return None
+    from playground.llm_trace import LlmTraceWriter
+
+    return LlmTraceWriter(
+        trace_dir / "llm_calls.jsonl",
+        metadata={
+            "jobId": trace_dir.parent.name,
+            "trialId": trace_dir.name,
+            "taskPath": task_path,
+            "personaId": persona.id,
+            "segmentId": segment_id,
+            "expectedLanguage": persona_primary_language(persona),
+        },
+    )
 
 
 def _emit_application_attempt(
@@ -229,8 +254,14 @@ def run_playground(
     persona_yaml_path: Optional[str] = None,
     repo_root: Optional[Path] = None,
     job_dir: Optional[Path] = None,
+    trace_dir: Optional[Path] = None,
+    segment_id: Optional[str] = None,
 ) -> PlaygroundResult:
+    expected_language = persona_primary_language(persona)
+
     def emit(event: Dict[str, Any]) -> None:
+        if event.get("type") in {"user_message", "turn", "done", "prompts"}:
+            event.setdefault("expectedLanguage", expected_language)
         if on_event is not None:
             on_event(event)
 
@@ -244,10 +275,18 @@ def run_playground(
         repo_root=repo_root or Path("."),
     )
 
-    tool_client = build_tool_step_client(
-        config.persona_model,
-        capabilities=task_config.capabilities if task_config else None,
+    trace_writer = _llm_trace_writer(
+        trace_dir=trace_dir,
+        persona=persona,
+        task_path=task_path,
+        segment_id=segment_id,
     )
+    tool_kwargs = {
+        "capabilities": task_config.capabilities if task_config else None,
+    }
+    if trace_writer is not None:
+        tool_kwargs["trace_writer"] = trace_writer
+    tool_client = build_tool_step_client(config.persona_model, **tool_kwargs)
     sim = UserSimSession(
         tool_client,
         persona,
@@ -327,8 +366,17 @@ def run_playground(
 
     _raise_if_unterminated(transcript, config, emit)
     emit({"type": "phase", "phase": "persona_feedback"})
+    report_client = (
+        build_json_client(
+            config.persona_model,
+            trace_writer=trace_writer,
+            trace_step="persona_self_report",
+        )
+        if trace_writer is not None
+        else build_json_client(config.persona_model)
+    )
     questionnaire, report_usage = final_self_report_with_usage(
-        build_json_client(config.persona_model),
+        report_client,
         system_prompt=report_prompt,
         persona=persona,
         transcript=transcript,
@@ -364,10 +412,16 @@ async def run_playground_async(
     persona_yaml_path: Optional[str] = None,
     repo_root: Optional[Path] = None,
     job_dir: Optional[Path] = None,
+    trace_dir: Optional[Path] = None,
+    segment_id: Optional[str] = None,
 ) -> PlaygroundResult:
     """Like :func:`run_playground` but awaits async Harbor sidecar turns."""
 
+    expected_language = persona_primary_language(persona)
+
     def emit(event: Dict[str, Any]) -> None:
+        if event.get("type") in {"user_message", "turn", "done", "prompts"}:
+            event.setdefault("expectedLanguage", expected_language)
         if on_event is not None:
             on_event(event)
 
@@ -381,10 +435,18 @@ async def run_playground_async(
         repo_root=repo_root or Path("."),
     )
 
-    tool_client = build_tool_step_client(
-        config.persona_model,
-        capabilities=task_config.capabilities if task_config else None,
+    trace_writer = _llm_trace_writer(
+        trace_dir=trace_dir,
+        persona=persona,
+        task_path=task_path,
+        segment_id=segment_id,
     )
+    tool_kwargs = {
+        "capabilities": task_config.capabilities if task_config else None,
+    }
+    if trace_writer is not None:
+        tool_kwargs["trace_writer"] = trace_writer
+    tool_client = build_tool_step_client(config.persona_model, **tool_kwargs)
     sim = UserSimSession(
         tool_client,
         persona,
@@ -464,8 +526,17 @@ async def run_playground_async(
 
     _raise_if_unterminated(transcript, config, emit)
     emit({"type": "phase", "phase": "persona_feedback"})
+    report_client = (
+        build_json_client(
+            config.persona_model,
+            trace_writer=trace_writer,
+            trace_step="persona_self_report",
+        )
+        if trace_writer is not None
+        else build_json_client(config.persona_model)
+    )
     questionnaire, report_usage = final_self_report_with_usage(
-        build_json_client(config.persona_model),
+        report_client,
         system_prompt=report_prompt,
         persona=persona,
         transcript=transcript,

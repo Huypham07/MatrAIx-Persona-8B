@@ -79,6 +79,26 @@ def render_persona_block(persona: Persona, *, persona_yaml_path: Optional[str] =
     return _persona_context(persona)
 
 
+def persona_primary_language(persona: Persona) -> str:
+    """Return the canonical language for persona-authored natural language."""
+    value = str((persona.dimensions or {}).get("primary_language") or "").strip()
+    return value or "English"
+
+
+def persona_language_contract(persona: Persona) -> str:
+    """High-priority output-language rules shared by every persona LLM path."""
+    language = persona_primary_language(persona)
+    return (
+        "## Required response language\n"
+        f"Respond in {language} for every persona-authored natural-language message, "
+        "free-text answer, rationale, and feedback explanation. The task may be written "
+        "in English; that does not permit switching the persona's response language. "
+        "Keep JSON keys, enum values, option IDs, question IDs, URLs, product names, "
+        "currencies, numeric values, and copied application text exactly as provided. "
+        "Do not translate the canonical persona profile or machine-readable identifiers."
+    )
+
+
 def _section(title: str, body: str) -> str:
     text = (body or "").strip()
     if not text:
@@ -99,6 +119,7 @@ def assemble_system_prompt(
         load_sim_guidelines(),
         _section("Task instruction", task_bundle.instruction_markdown),
         _section("Task context", task_bundle.context_markdown),
+        persona_language_contract(persona),
     ]
     return "\n\n".join(block for block in blocks if block.strip())
 
@@ -115,6 +136,7 @@ def assemble_report_system_prompt(
         current_date_block(),
         _section("Task instruction", task_bundle.instruction_markdown),
         _section("Task context", task_bundle.context_markdown),
+        persona_language_contract(persona),
     ]
     return "\n\n".join(block for block in blocks if block.strip())
 

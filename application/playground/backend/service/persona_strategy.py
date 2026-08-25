@@ -8,7 +8,9 @@ from typing import Any
 
 
 PERSONA_STRATEGY_FILENAME = "persona_strategy.json"
-PERSONA_SAMPLING_MODES = frozenset({"single", "random", "stratified", "all"})
+PERSONA_SAMPLING_MODES = frozenset(
+    {"single", "random", "stratified", "all", "pinnedSegments"}
+)
 STRATIFIED_ALLOCATIONS = frozenset({"perCell", "proportional", "equalTotal"})
 
 # Removed flat strategy keys — use ``sampling`` instead.
@@ -73,6 +75,7 @@ def normalize_persona_strategy(raw: dict[str, Any]) -> dict[str, Any]:
         if isinstance(sampling_raw, dict)
         else {"mode": "random", "sampleSize": 4}
     )
+    segments = _normalize_segments(raw.get("segments"))
 
     payload: dict[str, Any] = {
         "schemaVersion": schema_version,
@@ -86,6 +89,13 @@ def normalize_persona_strategy(raw: dict[str, Any]) -> dict[str, Any]:
         payload["seed"] = seed
     if cohort_id:
         payload["cohortId"] = cohort_id
+    if segments:
+        payload["segments"] = segments
+        payload["personaIds"] = [
+            persona_id
+            for segment in segments
+            for persona_id in segment["personaIds"]
+        ]
     return payload
 
 
@@ -93,6 +103,7 @@ def validate_persona_strategy_file(
     task_dir: Path,
     *,
     require_cohort: bool = True,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Return human-readable errors for a task's ``persona_strategy.json``.
 
@@ -155,10 +166,11 @@ def validate_persona_strategy_file(
     if require_cohort:
         filters = normalized.get("dimensionFilters") or {}
         cohort_id = normalized.get("cohortId")
+        segments = normalized.get("segments") or []
         has_filters = isinstance(filters, dict) and any(
             isinstance(vals, list) and len(vals) > 0 for vals in filters.values()
         )
-        if not has_filters and not cohort_id:
+        if not has_filters and not cohort_id and not segments:
             errors.append(
                 f"{rel}: declare a target cohort via non-empty dimensionFilters "
                 "and/or cohortId (most tasks filter to a product audience)"
@@ -173,6 +185,16 @@ def validate_persona_strategy_file(
         # silently drop a conflicting sampleSize / perCell before we complain.
         errors.extend(
             _validate_stratified_sampling(rel, normalized, sampling, raw_sampling)
+        )
+    elif mode == "pinnedSegments":
+        errors.extend(
+            _validate_pinned_segments(
+                rel,
+                normalized,
+                raw_sampling,
+                task_dir=task_dir,
+                repo_root=repo_root,
+            )
         )
 
     return errors
@@ -258,9 +280,17 @@ def _validate_stratified_sampling(
 
 
 def _normalize_sampling_block(raw: dict[str, Any]) -> dict[str, Any]:
-    mode = str(raw.get("mode") or "").strip().lower()
+    raw_mode = str(raw.get("mode") or "").strip()
+    mode = "pinnedSegments" if raw_mode.lower() == "pinnedsegments" else raw_mode.lower()
     if mode not in PERSONA_SAMPLING_MODES:
         mode = "random"
+
+    if mode == "pinnedSegments":
+        return {
+            "mode": "pinnedSegments",
+            "personasPerSegment": _as_positive_int(raw.get("personasPerSegment"))
+            or 2,
+        }
 
     if mode == "single":
         block: dict[str, Any] = {"mode": "single"}
@@ -302,7 +332,8 @@ def _normalize_sampling_block(raw: dict[str, Any]) -> dict[str, Any]:
 def sampling_to_pool_kwargs(sampling: dict[str, Any] | None) -> dict[str, Any]:
     """Map unified ``sampling`` to ``PersonaPoolService.sample_pool`` kwargs."""
     block = sampling if isinstance(sampling, dict) else {}
-    mode = str(block.get("mode") or "random").strip().lower()
+    raw_mode = str(block.get("mode") or "random").strip()
+    mode = "pinnedSegments" if raw_mode.lower() == "pinnedsegments" else raw_mode.lower()
     allocation = str(block.get("allocation") or "").strip() or None
     out: dict[str, Any] = {
         "mode": mode,
@@ -323,6 +354,138 @@ def sampling_to_pool_kwargs(sampling: dict[str, Any] | None) -> dict[str, Any]:
         out["sample_size"] = _as_positive_int(block.get("sampleSize")) or 4
         out["stratify_fields"] = None
     return out
+
+
+def _normalize_segments(value: object) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    segments: list[dict[str, Any]] = []
+    for raw in value:
+        if not isinstance(raw, dict):
+            continue
+        segment_id = str(raw.get("id") or "").strip()
+        label = str(raw.get("label") or "").strip()
+        hypothesis = str(raw.get("hypothesis") or "").strip()
+        persona_ids = _as_str_list(raw.get("personaIds"))
+        dimensions = _as_dimension_filters(raw.get("dimensions"))
+        segments.append(
+            {
+                "id": segment_id,
+                "label": label,
+                "hypothesis": hypothesis,
+                "dimensions": dimensions,
+                "personaIds": persona_ids,
+            }
+        )
+    return segments
+
+
+def _validate_pinned_segments(
+    rel: str,
+    normalized: dict[str, Any],
+    raw_sampling: dict[str, Any],
+    *,
+    task_dir: Path,
+    repo_root: Path | None,
+) -> list[str]:
+    errors: list[str] = []
+    segments = normalized.get("segments") or []
+    if not segments:
+        return [f'{rel}: sampling.mode "pinnedSegments" requires segments']
+    if raw_sampling.get("personasPerSegment") != 2:
+        errors.append(
+            f'{rel}: sampling.mode "pinnedSegments" requires personasPerSegment=2'
+        )
+
+    seen_segment_ids: set[str] = set()
+    seen_persona_ids: set[str] = set()
+    for index, segment in enumerate(segments):
+        prefix = f"{rel}: segments[{index}]"
+        segment_id = str(segment.get("id") or "")
+        if not segment_id:
+            errors.append(f"{prefix}.id is required")
+        elif segment_id in seen_segment_ids:
+            errors.append(f'{prefix}.id "{segment_id}" is duplicated')
+        seen_segment_ids.add(segment_id)
+        if not str(segment.get("label") or "").strip():
+            errors.append(f"{prefix}.label is required")
+        if not str(segment.get("hypothesis") or "").strip():
+            errors.append(f"{prefix}.hypothesis is required")
+        persona_ids = list(segment.get("personaIds") or [])
+        if len(persona_ids) != 2 or len(set(persona_ids)) != 2:
+            errors.append(f"{prefix}.personaIds must contain exactly 2 unique IDs")
+        reused = sorted(set(persona_ids) & seen_persona_ids)
+        if reused:
+            errors.append(
+                f"{prefix}.personaIds reused across segments: {', '.join(reused)}"
+            )
+        seen_persona_ids.update(persona_ids)
+
+    pool = str(normalized.get("pool") or "").strip()
+    if not pool:
+        errors.append(f"{rel}: pinnedSegments requires a pool")
+        return errors
+    root = repo_root or _infer_repo_root(task_dir)
+    if root is None:
+        errors.append(f"{rel}: cannot resolve repository root for pinned persona validation")
+        return errors
+    pool_dir = (root / pool).resolve()
+    try:
+        pool_dir.relative_to(root.resolve())
+    except ValueError:
+        errors.append(f"{rel}: pool must resolve inside the repository")
+        return errors
+    if not pool_dir.is_dir():
+        errors.append(f"{rel}: persona pool not found: {pool}")
+        return errors
+
+    for segment in segments:
+        dimensions = dict(segment.get("dimensions") or {})
+        for persona_id in segment.get("personaIds") or []:
+            persona_path = pool_dir / f"persona_{persona_id}.yaml"
+            if not persona_path.is_file():
+                errors.append(
+                    f'{rel}: segment "{segment.get("id")}" persona not found: {persona_id}'
+                )
+                continue
+            try:
+                import yaml
+
+                persona = yaml.safe_load(persona_path.read_text(encoding="utf-8"))
+            except Exception as exc:  # noqa: BLE001 - validation reports malformed input
+                errors.append(f"{rel}: cannot load persona {persona_id}: {exc}")
+                continue
+            raw_dimensions = (
+                persona.get("dimensions") if isinstance(persona, dict) else None
+            )
+            if not isinstance(raw_dimensions, dict):
+                errors.append(f"{rel}: persona {persona_id} has no dimensions mapping")
+                continue
+            for required in ("primary_language", "region"):
+                if not str(raw_dimensions.get(required) or "").strip():
+                    errors.append(f"{rel}: persona {persona_id} is missing {required}")
+            for field, allowed_values in dimensions.items():
+                actual = str(raw_dimensions.get(field) or "").strip()
+                if actual not in allowed_values:
+                    errors.append(
+                        f'{rel}: segment "{segment.get("id")}" persona {persona_id} '
+                        f"has {field}={actual or '(missing)'}; expected one of "
+                        f"{', '.join(allowed_values)}"
+                    )
+    return errors
+
+
+def _infer_repo_root(task_dir: Path) -> Path | None:
+    resolved = task_dir.resolve()
+    for candidate in (resolved, *resolved.parents):
+        tasks_dir = candidate / "application" / "tasks"
+        if tasks_dir.is_dir():
+            try:
+                resolved.relative_to(tasks_dir.resolve())
+            except ValueError:
+                continue
+            return candidate
+    return None
 
 
 def _as_positive_int(value: object) -> int | None:

@@ -1145,6 +1145,15 @@ export interface TaskPersonaSampling {
   fields?: string[];
   allocation?: "perCell" | "proportional" | "equalTotal" | string | null;
   perCell?: number | null;
+  personasPerSegment?: number | null;
+}
+
+export interface TaskPersonaSegment {
+  id: string;
+  label: string;
+  hypothesis: string;
+  dimensions: Record<string, string[]>;
+  personaIds: string[];
 }
 
 export interface TaskPersonaStrategy {
@@ -1154,6 +1163,8 @@ export interface TaskPersonaStrategy {
   dimensionFilters?: Record<string, string[]>;
   seed?: number | null;
   cohortId?: string | null;
+  segments?: TaskPersonaSegment[];
+  personaIds?: string[];
   sampling?: TaskPersonaSampling | null;
 }
 

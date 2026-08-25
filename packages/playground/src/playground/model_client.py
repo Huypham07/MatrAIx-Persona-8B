@@ -243,7 +243,13 @@ def _llm_request_timeout_seconds() -> float:
         return DEFAULT_REQUEST_TIMEOUT_SECONDS
 
 
-def build_json_client(model: Optional[str] = None, *, temperature: float = 0.7) -> Any:
+def build_json_client(
+    model: Optional[str] = None,
+    *,
+    temperature: float = 0.7,
+    trace_writer: Any = None,
+    trace_step: str = "json_completion",
+) -> Any:
     """Return a JSON-mode client for a configured persona model string."""
     value = ((model or "") or os.environ.get("MATRIX_PERSONA_MODEL") or os.environ.get("LOCAL_LLM_MODEL") or "custom_model").strip()
     timeout_seconds = _llm_request_timeout_seconds()
@@ -275,6 +281,8 @@ def build_json_client(model: Optional[str] = None, *, temperature: float = 0.7) 
             temperature=temperature,
             timeout_seconds=timeout_seconds,
             provider="local",
+            trace_writer=trace_writer,
+            trace_step=trace_step,
         )
     if value.startswith("anthropic/"):
         if _llm_proxy_base_url():
@@ -285,6 +293,8 @@ def build_json_client(model: Optional[str] = None, *, temperature: float = 0.7) 
                 temperature=temperature,
                 timeout_seconds=timeout_seconds,
                 provider="anthropic",
+                trace_writer=trace_writer,
+                trace_step=trace_step,
             )
         return AnthropicJSONClient(value.split("/", 1)[1], temperature=temperature)
     if value.startswith("dashscope/"):
@@ -296,6 +306,8 @@ def build_json_client(model: Optional[str] = None, *, temperature: float = 0.7) 
             temperature=temperature,
             timeout_seconds=timeout_seconds,
             provider="dashscope",
+            trace_writer=trace_writer,
+            trace_step=trace_step,
         )
     if value.startswith("openrouter/"):
         kwargs = openrouter_openai_client_kwargs(value)
@@ -306,6 +318,8 @@ def build_json_client(model: Optional[str] = None, *, temperature: float = 0.7) 
             temperature=temperature,
             timeout_seconds=timeout_seconds,
             provider="openrouter",
+            trace_writer=trace_writer,
+            trace_step=trace_step,
         )
     if value.startswith("openai/"):
         return OpenAIChatClient(
@@ -313,6 +327,8 @@ def build_json_client(model: Optional[str] = None, *, temperature: float = 0.7) 
             temperature=temperature,
             timeout_seconds=timeout_seconds,
             provider="openai",
+            trace_writer=trace_writer,
+            trace_step=trace_step,
         )
     if value.startswith("gpt-"):
         return OpenAIChatClient(
@@ -320,5 +336,7 @@ def build_json_client(model: Optional[str] = None, *, temperature: float = 0.7) 
             temperature=temperature,
             timeout_seconds=timeout_seconds,
             provider="openai",
+            trace_writer=trace_writer,
+            trace_step=trace_step,
         )
     return AnthropicJSONClient(value, temperature=temperature)

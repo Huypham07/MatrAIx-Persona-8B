@@ -1,0 +1,1294 @@
+persona_id: 0854
+version: '1.0'
+source: synthetic
+dimensions:
+  age_bracket: 45-54
+  region: East Asia
+  gender_identity: Man
+  urbanicity: Suburban
+  socioeconomic_band: Low income
+  primary_language: Japanese
+  english_proficiency: Basic (A1-A2)
+  multilingualism: Bilingual
+  register: Colloquial
+  domain: Business & Management
+  subject_specialty: Electrical work
+  domain_characteristics: Hobbyist
+  highest_education: Associate's
+  academic_field: Humanities
+  institution_tier: Not applicable
+  research_output: None
+  seniority: Mid
+  company_size: NGO
+  role_function: Sales / GTM
+  years_experience: 20+
+  linkedin_activity: Active networker
+  life_stage: Mid-life
+  major_life_events: Military service
+  cultural_background: Individualist (Western)
+  tech_savviness: Comfortable
+  dominant_trait: Balanced
+  risk_tolerance: Risk-averse
+  decision_style: Analytical
+  values_priority: Community
+  political_lean: Left
+  religiosity: Secular
+  neurotype: ADHD
+  emotional_state: Curious
+  intent: Vent / support
+  query_complexity: Multi-step
+  expertise_gap: Peer-level
+  tone_expected: Formal
+  trust_level: Trusting
+  safety_sensitivity: Benign
+  time_pressure: Moderate
+  prior_context: Cold start
+  device_context: Low-bandwidth
+  modality_pref: Tabular
+  accessibility_needs: None
+  learning_style: Kinesthetic
+  media_diet: Social-media-heavy
+  economic_motivation: Cost-sensitive
+  fam_machine_learning: None
+  fam_deep_learning: None
+  fam_statistics: None
+  fam_data_science: None
+  fam_cardiology: None
+  fam_neurology: Aware
+  fam_oncology: None
+  fam_pediatrics: None
+  fam_psychiatry: Aware
+  fam_radiology: Aware
+  fam_surgery: Aware
+  fam_immunology: Aware
+  fam_constitutional_law: None
+  fam_contract_law: Aware
+  fam_criminal_law: Aware
+  fam_tax_law: Aware
+  fam_intellectual_property: None
+  fam_corporate_finance: Aware
+  fam_quantitative_trading: None
+  fam_accounting: Aware
+  fam_auditing: None
+  fam_macroeconomics: Aware
+  fam_microeconomics: None
+  fam_behavioral_economics: None
+  fam_curriculum_design: None
+  fam_pedagogy: Aware
+  fam_special_education: Aware
+  fam_structural_engineering: None
+  fam_mechanical_engineering: Aware
+  fam_electrical_engineering: None
+  fam_civil_engineering: Aware
+  fam_chemical_engineering: None
+  fam_aerospace_engineering: None
+  fam_robotics: Aware
+  fam_control_systems: Familiar
+  fam_molecular_biology: Aware
+  fam_genetics: None
+  fam_biochemistry: None
+  fam_organic_chemistry: None
+  fam_physical_chemistry: Aware
+  fam_particle_physics: None
+  fam_astrophysics: Aware
+  fam_astronomy: None
+  fam_geology: None
+  fam_oceanography: Aware
+  fam_climate_science: Familiar
+  fam_ecology: Aware
+  fam_sociology: None
+  fam_psychology: None
+  fam_cognitive_science: Aware
+  fam_anthropology: Aware
+  fam_political_science: None
+  fam_international_relations: None
+  fam_comparative_literature: None
+  fam_philosophy: Aware
+  fam_ethics: Aware
+  fam_history: Aware
+  fam_archaeology: Aware
+  fam_linguistics: None
+  fam_art_history: None
+  fam_music_theory: Aware
+  fam_film_studies: None
+  fam_architecture: Aware
+  fam_urban_planning: Familiar
+  fam_landscape_design: None
+  fam_agronomy: None
+  fam_horticulture: None
+  fam_veterinary_medicine: Aware
+  fam_nursing: Aware
+  fam_pharmacology: None
+  fam_public_health: Aware
+  fam_epidemiology: None
+  fam_nutrition: None
+  fam_sports_science: Aware
+  fam_cybersecurity: Proficient
+  fam_cryptography: None
+  fam_computer_networking: None
+  fam_databases: None
+  fam_distributed_systems: Aware
+  fam_operating_systems: Aware
+  fam_compilers: None
+  fam_cloud_infrastructure: None
+  fam_devops: None
+  fam_game_development: Aware
+  fam_computer_graphics: Aware
+  fam_computer_vision: None
+  fam_natural_language_processing: Aware
+  fam_human_computer_interaction: None
+  fam_ux_research: Aware
+  fam_graphic_design: None
+  fam_industrial_design: Aware
+  fam_typography: Aware
+  fam_journalism: Expert
+  fam_public_relations: Aware
+  fam_brand_marketing: None
+  fam_performance_marketing: None
+  fam_seo: None
+  fam_sales_engineering: Aware
+  fam_supply_chain: Aware
+  fam_logistics: None
+  fam_operations_management: Aware
+  fam_lean_manufacturing: None
+  fam_quality_assurance: None
+  fam_human_resources: Familiar
+  fam_organizational_psychology: None
+  fam_project_management: Aware
+  fam_product_management: None
+  fam_venture_capital: None
+  fam_private_equity: None
+  fam_real_estate: Familiar
+  fam_insurance: None
+  fam_actuarial_science: None
+  fam_hospitality_management: Aware
+  fam_culinary_arts: None
+  fam_sommelier_knowledge: Aware
+  fam_fashion_design: Familiar
+  fam_textiles: None
+  fam_photography: Familiar
+  fam_cinematography: Familiar
+  fam_music_production: None
+  fam_sound_engineering: None
+  fam_animation: None
+  fam_3d_modeling: Familiar
+  fam_geographic_information_systems: Aware
+  fam_meteorology: None
+  fam_forestry: Familiar
+  fam_marine_biology: None
+  fam_paleontology: Aware
+  fam_materials_science: None
+  fam_nanotechnology: None
+  fam_renewable_energy: Aware
+  fam_nuclear_engineering: None
+  fam_petroleum_engineering: None
+  fam_mining: None
+  fam_aviation: None
+  fam_maritime_navigation: None
+  fam_military_strategy: None
+  fam_diplomacy: Aware
+  fam_social_work: None
+  fam_counseling: Aware
+  fam_theology: None
+  fam_religious_studies: Familiar
+  fam_library_science: None
+  skill_writing: None
+  skill_copywriting: Advanced
+  skill_editing: Beginner
+  skill_storytelling: Beginner
+  skill_public_speaking: None
+  skill_negotiation: None
+  skill_coding: Intermediate
+  skill_debugging: Beginner
+  skill_code_review: Beginner
+  skill_system_design: Advanced
+  skill_data_analysis: None
+  skill_data_visualization: Beginner
+  skill_statistical_modeling: Intermediate
+  skill_spreadsheet_modeling: Beginner
+  skill_financial_modeling: Advanced
+  skill_project_management: Beginner
+  skill_product_strategy: Beginner
+  skill_leadership: Advanced
+  skill_people_management: None
+  skill_mentoring: Advanced
+  skill_coaching: Master
+  skill_conflict_resolution: None
+  skill_time_management: None
+  skill_prioritization: Beginner
+  skill_research: Intermediate
+  skill_critical_thinking: Intermediate
+  skill_problem_solving: Intermediate
+  skill_mathematics: Intermediate
+  skill_mental_arithmetic: Beginner
+  skill_logical_reasoning: Beginner
+  skill_language_learning: Beginner
+  skill_translation: None
+  skill_interpretation: Advanced
+  skill_design_thinking: Beginner
+  skill_prototyping: Beginner
+  skill_sketching: Intermediate
+  skill_drawing: Intermediate
+  skill_painting: Beginner
+  skill_photography: Beginner
+  skill_videography: Beginner
+  skill_video_editing: Advanced
+  skill_audio_production: Beginner
+  skill_cooking: Beginner
+  skill_baking: Intermediate
+  skill_budgeting: Advanced
+  skill_investing: Beginner
+  skill_diy_repair: None
+  skill_gardening: None
+  skill_driving: Advanced
+  skill_technical_writing: None
+  skill_note_taking: Beginner
+  skill_speed_reading: None
+  skill_memorization: Beginner
+  skill_active_listening: None
+  skill_empathy: Intermediate
+  skill_persuasion: Advanced
+  skill_facilitation: Beginner
+  skill_forecasting: Master
+  skill_estimation: Advanced
+  skill_fact_checking: None
+  skill_proofreading: Intermediate
+  skill_presenting: Beginner
+  skill_networking: Beginner
+  skill_selling: Advanced
+  tool_excel: Regular
+  tool_google_sheets: Occasional
+  tool_python: Occasional
+  tool_r: Never used
+  tool_sql: Never used
+  tool_tableau: Never used
+  tool_power_bi: Never used
+  tool_looker: Never used
+  tool_figma: Occasional
+  tool_sketch: Occasional
+  tool_photoshop: Tried it
+  tool_illustrator: Never used
+  tool_indesign: Occasional
+  tool_after_effects: Occasional
+  tool_premiere_pro: Never used
+  tool_notion: Tried it
+  tool_obsidian: Never used
+  tool_jira: Tried it
+  tool_linear: Tried it
+  tool_slack: Never used
+  tool_microsoft_teams: Never used
+  tool_salesforce: Occasional
+  tool_hubspot: Occasional
+  tool_sap: Tried it
+  tool_oracle_erp: Never used
+  tool_git: Never used
+  tool_github: Occasional
+  tool_gitlab: Never used
+  tool_docker: Never used
+  tool_kubernetes: Never used
+  tool_terraform: Never used
+  tool_aws: Never used
+  tool_azure: Never used
+  tool_google_cloud: Never used
+  tool_vs_code: Never used
+  tool_jetbrains_ides: Occasional
+  tool_vim: Never used
+  tool_jupyter: Never used
+  tool_matlab: Never used
+  tool_stata: Never used
+  tool_spss: Never used
+  tool_sas: Never used
+  tool_word: Occasional
+  tool_powerpoint: Occasional
+  tool_keynote: Tried it
+  tool_canva: Tried it
+  tool_blender: Never used
+  tool_autocad: Tried it
+  tool_solidworks: Never used
+  tool_revit: Never used
+  tool_unity: Tried it
+  tool_unreal_engine: Never used
+  tool_linux_cli: Never used
+  tool_wordpress: Occasional
+  tool_webflow: Tried it
+  tool_shopify: Tried it
+  tool_stripe: Never used
+  tool_quickbooks: Tried it
+  tool_xero: Never used
+  tool_zoom: Regular
+  tool_trello: Never used
+  tool_asana: Never used
+  tool_airtable: Never used
+  tool_chatgpt: Occasional
+  tool_claude: Never used
+  tool_github_copilot: Never used
+  tool_midjourney: Never used
+  tool_zapier: Never used
+  tool_postman: Never used
+  topic_politics: Indifferent
+  topic_sports: Neutral
+  topic_fitness: Neutral
+  topic_travel: Neutral
+  topic_cooking: Neutral
+  topic_gaming: Interested
+  topic_fashion: Neutral
+  topic_technology: Passionate
+  topic_science: Indifferent
+  topic_space: Interested
+  topic_personal_finance: Interested
+  topic_investing: Neutral
+  topic_cryptocurrency: Indifferent
+  topic_real_estate: Neutral
+  topic_parenting: Indifferent
+  topic_pets: Indifferent
+  topic_gardening: Neutral
+  topic_home_improvement: Neutral
+  topic_cars: Neutral
+  topic_motorcycles: Neutral
+  topic_cycling: Indifferent
+  topic_running: Neutral
+  topic_photography: Interested
+  topic_film: Indifferent
+  topic_tv_series: Interested
+  topic_anime: Indifferent
+  topic_comics: Neutral
+  topic_music: Neutral
+  topic_live_concerts: Neutral
+  topic_theater: Interested
+  topic_visual_art: Neutral
+  topic_literature: Neutral
+  topic_poetry: Indifferent
+  topic_history: Averse
+  topic_philosophy: Neutral
+  topic_religion: Neutral
+  topic_spirituality: Neutral
+  topic_meditation: Indifferent
+  topic_yoga: Interested
+  topic_hiking: Interested
+  topic_camping: Neutral
+  topic_fishing: Neutral
+  topic_birdwatching: Neutral
+  topic_board_games: Indifferent
+  topic_tabletop_rpgs: Neutral
+  topic_puzzles: Interested
+  topic_chess: Indifferent
+  topic_astrology: Interested
+  topic_true_crime: Indifferent
+  topic_podcasts: Interested
+  topic_social_media: Interested
+  topic_volunteering: Neutral
+  topic_activism: Interested
+  topic_environment: Indifferent
+  topic_sustainability: Neutral
+  topic_wine: Indifferent
+  topic_coffee: Neutral
+  topic_craft_beer: Indifferent
+  topic_tea: Neutral
+  topic_baking: Averse
+  topic_interior_design: Interested
+  topic_architecture: Neutral
+  topic_languages: Indifferent
+  topic_genealogy: Passionate
+  topic_collecting: Indifferent
+  topic_knitting: Indifferent
+  topic_woodworking: Averse
+  topic_calligraphy: Neutral
+  topic_dance: Neutral
+  topic_stand_up_comedy: Neutral
+  topic_magic_tricks: Indifferent
+  topic_astronomy: Averse
+  topic_robotics: Indifferent
+  topic_drones: Passionate
+  topic_3d_printing: Neutral
+  topic_investmentoring: Averse
+  topic_entrepreneurship: Interested
+  topic_productivity: Passionate
+  topic_self_improvement: Indifferent
+  topic_mindfulness: Averse
+  lang_english: None
+  lang_mandarin: None
+  lang_cantonese: None
+  lang_spanish: None
+  lang_hindi: None
+  lang_arabic: Basic
+  lang_french: Basic
+  lang_portuguese: None
+  lang_bengali: None
+  lang_russian: None
+  lang_japanese: Native
+  lang_german: None
+  lang_korean: None
+  lang_italian: Basic
+  lang_turkish: None
+  lang_vietnamese: None
+  lang_thai: None
+  lang_indonesian: None
+  lang_malay: Basic
+  lang_swahili: None
+  lang_dutch: Basic
+  lang_polish: None
+  lang_ukrainian: Basic
+  lang_persian: None
+  lang_hebrew: None
+  lang_greek: Basic
+  lang_czech: None
+  lang_hungarian: None
+  lang_romanian: Basic
+  lang_swedish: None
+  lang_norwegian: Basic
+  lang_danish: None
+  lang_finnish: None
+  lang_tagalog: None
+  lang_urdu: None
+  lang_tamil: Basic
+  lang_telugu: None
+  lang_marathi: Basic
+  lang_punjabi: None
+  lang_gujarati: None
+  lang_hausa: None
+  lang_yoruba: None
+  lang_igbo: Basic
+  lang_amharic: None
+  lang_zulu: None
+  lang_afrikaans: None
+  lang_serbian: None
+  lang_croatian: None
+  lang_bulgarian: None
+  lang_slovak: Basic
+  att_ai: Skeptical
+  att_automation: Neutral
+  att_data_privacy: Skeptical
+  att_social_media: Neutral
+  att_remote_work: Neutral
+  att_globalization: Positive
+  att_immigration: Positive
+  att_free_markets: Neutral
+  att_government_regulation: Skeptical
+  att_climate_action: Neutral
+  att_nuclear_energy: Neutral
+  att_renewable_energy: Positive
+  att_genetic_engineering: Opposed
+  att_vaccines: Neutral
+  att_alternative_medicine: Positive
+  att_organized_religion: Positive
+  att_traditional_gender_roles: Positive
+  att_cryptocurrency: Neutral
+  att_the_gig_economy: Neutral
+  att_labor_unions: Skeptical
+  att_higher_education: Positive
+  att_homeownership: Positive
+  att_taking_on_debt: Neutral
+  att_risk_taking: Neutral
+  att_authority: Skeptical
+  att_rapid_change: Positive
+  att_new_technology: Neutral
+  att_brand_loyalty: Positive
+  att_advertising: Skeptical
+  att_influencers: Positive
+  att_online_reviews: Neutral
+  att_subscription_services: Positive
+  att_open_source: Positive
+  att_surveillance: Skeptical
+  att_self_driving_cars: Positive
+  att_space_exploration: Skeptical
+  att_universal_basic_income: Skeptical
+  att_minimalism: Neutral
+  att_consumerism: Positive
+  att_veganism: Neutral
+  att_fast_fashion: Enthusiast
+  att_gun_ownership: Neutral
+  att_capital_punishment: Skeptical
+  att_free_speech: Positive
+  att_privacy_vs_security: Neutral
+  att_globalized_supply_chains: Neutral
+  att_working_from_office: Neutral
+  att_four_day_work_week: Neutral
+  att_performance_reviews: Neutral
+  att_standardized_testing: Neutral
+  att_tipping_culture: Neutral
+  att_electric_vehicles: Skeptical
+  att_public_transit: Skeptical
+  att_urban_density: Neutral
+  att_gentrification: Neutral
+  ind_technology: None
+  ind_healthcare: None
+  ind_finance: None
+  ind_banking: None
+  ind_insurance: Some exposure
+  ind_retail: None
+  ind_e_commerce: Some exposure
+  ind_manufacturing: None
+  ind_automotive: None
+  ind_aerospace: Some exposure
+  ind_energy: None
+  ind_oil_gas: None
+  ind_utilities: Some exposure
+  ind_construction: None
+  ind_real_estate: Experienced
+  ind_hospitality: None
+  ind_travel_tourism: None
+  ind_restaurants: None
+  ind_agriculture: Some exposure
+  ind_food_beverage: None
+  ind_pharmaceuticals: None
+  ind_biotech: Some exposure
+  ind_telecommunications: None
+  ind_media: Experienced
+  ind_entertainment: None
+  ind_gaming: None
+  ind_publishing: None
+  ind_advertising: None
+  ind_education: None
+  ind_government: None
+  ind_defense: None
+  ind_nonprofit: None
+  ind_logistics: Experienced
+  ind_transportation: None
+  ind_shipping: Some exposure
+  ind_mining: None
+  ind_chemicals: None
+  ind_textiles: None
+  ind_apparel: None
+  ind_consumer_electronics: None
+  ind_semiconductors: None
+  ind_legal_services: Some exposure
+  ind_consulting: Veteran
+  ind_accounting: Some exposure
+  ind_marketing_agencies: None
+  ind_fitness_wellness: Some exposure
+  ind_beauty_cosmetics: None
+  ind_sports: None
+  ind_music: None
+  ind_fine_art: None
+  cult_united_states: Unfamiliar
+  cult_canada: Lived there
+  cult_mexico: Studied
+  cult_brazil: Lived there
+  cult_argentina: Visited
+  cult_united_kingdom: Lived there
+  cult_france: Unfamiliar
+  cult_germany: Lived there
+  cult_italy: Studied
+  cult_spain: Studied
+  cult_netherlands: Unfamiliar
+  cult_sweden: Studied
+  cult_poland: Lived there
+  cult_russia: Studied
+  cult_turkey: Studied
+  cult_egypt: Visited
+  cult_saudi_arabia: Studied
+  cult_uae: Visited
+  cult_israel: Studied
+  cult_iran: Unfamiliar
+  cult_nigeria: Lived there
+  cult_kenya: Unfamiliar
+  cult_south_africa: Studied
+  cult_ethiopia: Studied
+  cult_india: Visited
+  cult_pakistan: Visited
+  cult_bangladesh: Lived there
+  cult_china: Native
+  cult_japan: Native
+  cult_south_korea: Visited
+  cult_vietnam: Studied
+  cult_thailand: Unfamiliar
+  cult_indonesia: Unfamiliar
+  cult_philippines: Lived there
+  cult_australia: Lived there
+  cult_new_zealand: Visited
+  cult_singapore: Visited
+  cult_malaysia: Lived there
+  cult_greece: Visited
+  cult_portugal: Lived there
+  musg_pop: Like
+  musg_rock: Neutral
+  musg_hip_hop: Like
+  musg_r_b: Like
+  musg_jazz: Neutral
+  musg_blues: Dislike
+  musg_classical: Like
+  musg_opera: Dislike
+  musg_country: Like
+  musg_folk: Neutral
+  musg_reggae: Dislike
+  musg_reggaeton: Dislike
+  musg_electronic: Like
+  musg_house: Neutral
+  musg_techno: Neutral
+  musg_trance: Like
+  musg_drum_bass: Neutral
+  musg_metal: Dislike
+  musg_punk: Neutral
+  musg_indie: Neutral
+  musg_k_pop: Neutral
+  musg_j_pop: Neutral
+  musg_latin: Neutral
+  musg_afrobeats: Like
+  musg_gospel: Neutral
+  musg_soul: Dislike
+  musg_funk: Neutral
+  musg_disco: Like
+  musg_ambient: Dislike
+  musg_lo_fi: Neutral
+  musg_bluegrass: Dislike
+  musg_ska: Neutral
+  musg_synthwave: Neutral
+  musg_trap: Like
+  musg_bollywood: Dislike
+  filmg_action: Like
+  filmg_adventure: Neutral
+  filmg_comedy: Like
+  filmg_drama: Neutral
+  filmg_horror: Like
+  filmg_thriller: Neutral
+  filmg_sci_fi: Dislike
+  filmg_fantasy: Neutral
+  filmg_romance: Like
+  filmg_documentary: Like
+  filmg_animation: Dislike
+  filmg_crime: Neutral
+  filmg_mystery: Neutral
+  filmg_historical: Like
+  filmg_war: Love
+  filmg_western: Dislike
+  filmg_musical: Like
+  filmg_noir: Neutral
+  filmg_superhero: Neutral
+  filmg_indie_film: Neutral
+  filmg_art_house: Like
+  filmg_biopic: Dislike
+  filmg_comedy_drama: Dislike
+  filmg_disaster: Neutral
+  bookg_literary_fiction: Dislike
+  bookg_science_fiction: Dislike
+  bookg_fantasy: Dislike
+  bookg_mystery: Neutral
+  bookg_thriller: Love
+  bookg_romance: Dislike
+  bookg_historical_fiction: Neutral
+  bookg_horror: Like
+  bookg_biography: Neutral
+  bookg_memoir: Dislike
+  bookg_self_help: Like
+  bookg_business: Neutral
+  bookg_popular_science: Dislike
+  bookg_history: Dislike
+  bookg_philosophy: Neutral
+  bookg_poetry: Neutral
+  bookg_young_adult: Dislike
+  bookg_graphic_novels: Dislike
+  bookg_true_crime: Neutral
+  bookg_travel_writing: Dislike
+  bookg_cookbooks: Like
+  bookg_essays: Neutral
+  cuis_italian: Neutral
+  cuis_french: Neutral
+  cuis_spanish: Avoid
+  cuis_greek: Like
+  cuis_mexican: Avoid
+  cuis_peruvian: Avoid
+  cuis_brazilian: Avoid
+  cuis_american_bbq: Like
+  cuis_southern_soul_food: Like
+  cuis_cajun: Like
+  cuis_chinese: Like
+  cuis_sichuan: Neutral
+  cuis_cantonese: Like
+  cuis_japanese: Neutral
+  cuis_korean: Avoid
+  cuis_thai: Like
+  cuis_vietnamese: Neutral
+  cuis_indian: Neutral
+  cuis_pakistani: Neutral
+  cuis_middle_eastern: Neutral
+  cuis_lebanese: Love
+  cuis_turkish: Neutral
+  cuis_moroccan: Neutral
+  cuis_ethiopian: Neutral
+  cuis_nigerian: Love
+  cuis_caribbean: Neutral
+  cuis_german: Neutral
+  cuis_scandinavian: Neutral
+  cuis_russian: Like
+  cuis_spanish_tapas: Like
+  cuis_sushi: Avoid
+  cuis_ramen: Neutral
+  cuis_vegan: Neutral
+  cuis_vegetarian: Neutral
+  cuis_seafood: Like
+  sport_soccer: Casual
+  sport_basketball: Casual
+  sport_american_football: None
+  sport_baseball: None
+  sport_tennis: None
+  sport_golf: Casual
+  sport_cricket: None
+  sport_rugby: Casual
+  sport_hockey: Casual
+  sport_volleyball: None
+  sport_swimming: None
+  sport_running: Casual
+  sport_cycling: Follow
+  sport_boxing: Casual
+  sport_mma: None
+  sport_wrestling: None
+  sport_skiing: None
+  sport_snowboarding: None
+  sport_surfing: None
+  sport_skateboarding: None
+  sport_climbing: Play
+  sport_gymnastics: Follow
+  sport_track_field: Casual
+  sport_badminton: None
+  sport_table_tennis: None
+  sport_squash: Casual
+  sport_sailing: Casual
+  sport_rowing: None
+  sport_martial_arts: None
+  sport_yoga: None
+  sport_pilates: Casual
+  sport_crossfit: None
+  sport_weightlifting: Follow
+  sport_esports: Casual
+  sport_darts: None
+  sport_bowling: None
+  sport_archery: Play
+  sport_equestrian: None
+  sport_fencing: Follow
+  sport_triathlon: Casual
+  mbti_type: "ENTP \u2014 Debater"
+  big5_imagination: Low
+  big5_artistic_interest: High
+  big5_emotionality: Very high
+  big5_adventurousness: Average
+  big5_intellect: Average
+  big5_liberalism: Low
+  big5_self_efficacy: Low
+  big5_orderliness: Average
+  big5_dutifulness: Average
+  big5_achievement_striving: High
+  big5_self_discipline: High
+  big5_cautiousness: Very high
+  big5_friendliness: High
+  big5_gregariousness: Low
+  big5_assertiveness: High
+  big5_activity_level: Average
+  big5_excitement_seeking: Low
+  big5_cheerfulness: Average
+  big5_trust: Low
+  big5_morality: High
+  big5_altruism: Low
+  big5_cooperation: Average
+  big5_modesty: Low
+  big5_sympathy: Average
+  big5_anxiety: Average
+  big5_anger: Low
+  big5_depression: High
+  big5_self_consciousness: Low
+  big5_immoderation: Average
+  big5_vulnerability: Average
+  lstyle_sleep_schedule: Night owl
+  lstyle_exercise_freq: Weekly
+  lstyle_diet_type: Omnivore
+  lstyle_alcohol_use: Regularly
+  lstyle_smoking: Former
+  lstyle_caffeine: Low
+  lstyle_cooking_freq: Weekly
+  lstyle_shopping_style: Bargain hunter
+  lstyle_travel_freq: A few trips/yr
+  lstyle_commute_mode: Public transit
+  lstyle_pet_ownership: None
+  lstyle_household_size: 5+ people
+  lstyle_work_schedule: Shift work
+  lstyle_screen_time: 4-8 hrs
+  lstyle_social_battery: Ambivert
+  lstyle_planning_horizon: Multi-year
+  lstyle_punctuality: Unpredictable
+  lstyle_tidiness: Cluttered
+  lstyle_frugality: Balanced
+  lstyle_giving: Rare
+  lstyle_news_freq: Weekly
+  lstyle_reading_freq: Weekly
+  lstyle_gaming_freq: Never
+  lstyle_streaming_hours: 3-7
+  lstyle_music_listening: Rarely
+  lstyle_podcast_listening: Never
+  lstyle_primary_social: Instagram
+  lstyle_primary_messenger: WeChat
+  lstyle_device_ecosystem: Apple
+  lstyle_browser: Other
+  lstyle_payment_pref: Cash
+  lstyle_banking_style: Unbanked
+  lstyle_investment_style: Cash saver
+  lstyle_subscription_count: 0-2
+  lstyle_coffee_ritual: Home brew
+  lstyle_fashion_sense: Indifferent
+  lstyle_hobby_intensity: Dabbler
+  lstyle_vacation_style: Staycation
+  lstyle_morning_routine: Rushed
+  lstyle_volunteering: Never
+  cog_verbosity: Wordy
+  cog_formality: Neutral
+  cog_directness: Indirect
+  cog_humor: Playful
+  cog_detail_orientation: Moderate
+  cog_abstraction: Balanced
+  cog_optimism: Low
+  cog_patience: None
+  cog_curiosity: Moderate
+  cog_skepticism: Moderate
+  cog_open_mindedness: Low
+  cog_assertiveness: None
+  cog_emotional_expressiveness: Moderate
+  cog_conflict_approach: Collaborative
+  cog_feedback_receptiveness: High
+  cog_ambiguity_tolerance: Moderate
+  cog_perfectionism: Very high
+  cog_procrastination: Moderate
+  cog_multitasking: Some
+  cog_attention_span: Short
+  cog_learning_pace: Slow
+  cog_question_asking: Asks constantly
+  cog_decision_speed: Agonizes
+  cog_confidence_calibration: Well-calibrated
+  cog_numeracy_comfort: Very high
+  cog_reading_vs_watching: Prefers video
+  cog_visual_vs_verbal: Verbal
+  cog_big_picture_vs_detail: Detail-obsessed
+  cog_risk_framing: Balanced
+  cog_empathy_expression: Low
+  cog_storytelling: High
+  cog_precision_of_language: Precise
+  cog_use_of_jargon: Light
+  cog_emoji_use: Never
+  cog_politeness: Polite
+  health_general_health: Good
+  health_chronic_condition: None
+  health_mobility: Full
+  health_vision: Normal
+  health_hearing: Normal
+  health_color_vision: Typical
+  health_dexterity: Full
+  health_mental_health: Stable
+  health_stress_level: Very high
+  health_energy_level: Moderate
+  health_sleep_quality: Good
+  health_pain_level: None
+  health_medication_use: Daily
+  health_dietary_restriction: None
+  health_neurodivergence: ADHD
+  health_caregiver_status: Child caregiver
+  health_health_literacy: Low
+  health_insurance_status: Uninsured
+  health_fitness_level: Sedentary
+  health_cognitive_load_capacity: Moderate
+  health_contrast_need: 'No'
+  health_text_size_need: 'No'
+  health_assistive_tech: None
+  health_motion_sensitivity: None
+  health_attention_condition: Mild
+  hob_knitting: Never
+  hob_crocheting: Never
+  hob_pottery: Never
+  hob_woodworking: Never
+  hob_metalworking: Curious
+  hob_leatherworking: Never
+  hob_candle_making: Curious
+  hob_origami: Never
+  hob_calligraphy: Curious
+  hob_scrapbooking: Never
+  hob_quilting: Never
+  hob_embroidery: Never
+  hob_jewelry_making: Never
+  hob_model_building: Occasional
+  hob_coin_collecting: Never
+  hob_stamp_collecting: Never
+  hob_antiquing: Never
+  hob_vegetable_gardening: Never
+  hob_bonsai: Never
+  hob_aquariums: Never
+  hob_beekeeping: Never
+  hob_birdwatching: Never
+  hob_stargazing: Curious
+  hob_geocaching: Never
+  hob_rock_climbing: Curious
+  hob_bouldering: Curious
+  hob_kayaking: Curious
+  hob_paddleboarding: Never
+  hob_scuba_diving: Never
+  hob_snorkeling: Curious
+  hob_skydiving: Curious
+  hob_paragliding: Occasional
+  hob_horseback_riding: Curious
+  hob_foraging: Never
+  hob_bread_baking: Never
+  hob_home_brewing: Never
+  hob_winemaking: Curious
+  hob_cheesemaking: Never
+  hob_karaoke: Active
+  hob_ballroom_dance: Never
+  hob_salsa_dancing: Curious
+  hob_improv: Occasional
+  hob_stand_up_comedy: Active
+  hob_juggling: Never
+  hob_whittling: Curious
+  hob_letterpress: Occasional
+  hob_urban_sketching: Occasional
+  hob_genealogy: Never
+  hob_metal_detecting: Curious
+  hob_cosplay: Never
+  acad_algebra: Neutral
+  acad_geometry: Neutral
+  acad_calculus: Averse
+  acad_statistics: Averse
+  acad_physics: Interested
+  acad_chemistry: Neutral
+  acad_biology: Indifferent
+  acad_earth_science: Neutral
+  acad_computer_science: Interested
+  acad_economics: Averse
+  acad_psychology: Averse
+  acad_sociology: Neutral
+  acad_world_history: Neutral
+  acad_geography: Neutral
+  acad_civics: Neutral
+  acad_literature: Neutral
+  acad_creative_writing: Indifferent
+  acad_foreign_languages: Neutral
+  acad_philosophy: Neutral
+  acad_visual_art: Interested
+  acad_music: Neutral
+  acad_drama: Neutral
+  acad_physical_education: Interested
+  acad_health_science: Indifferent
+  acad_business_studies: Interested
+  acad_environmental_science: Interested
+  acad_logic: Averse
+  acad_astronomy: Neutral
+  acad_anthropology: Indifferent
+  acad_political_theory: Neutral
+  peeve_typos: Fine
+  peeve_being_interrupted: Annoys
+  peeve_lateness: Neutral
+  peeve_loud_chewing: Major peeve
+  peeve_slow_walkers: Neutral
+  peeve_spam: Annoys
+  peeve_clickbait: Major peeve
+  peeve_unexplained_jargon: Major peeve
+  peeve_condescension: Major peeve
+  peeve_micromanagement: Neutral
+  peeve_forced_small_talk: Annoys
+  peeve_cold_calls: Fine
+  peeve_pop_up_ads: Neutral
+  peeve_auto_play_video: Annoys
+  peeve_paywalls: Major peeve
+  trait_curiosity: Slight
+  trait_creativity: Signature
+  trait_love_of_learning: Moderate
+  trait_open_mindedness: Moderate
+  trait_perspective: Strong
+  trait_bravery: Slight
+  trait_perseverance: Moderate
+  trait_honesty: Strong
+  trait_zest: Strong
+  trait_capacity_for_love: Moderate
+  trait_kindness: Moderate
+  trait_social_intelligence: Slight
+  trait_teamwork: Moderate
+  trait_fairness: Moderate
+  trait_leadership: Moderate
+  trait_forgiveness: Absent
+  trait_humility: Moderate
+  trait_prudence: Moderate
+  trait_self_regulation: Strong
+  trait_appreciation_of_beauty: Moderate
+  trait_gratitude: Moderate
+  trait_hope_optimism: Moderate
+  trait_playfulness: Moderate
+  trait_spirituality: Strong
+  trait_ambition: Slight
+  trait_empathy: Strong
+  trait_resilience: Strong
+  trait_discipline: Slight
+  trait_generosity: Strong
+  trait_loyalty: Slight
+  trait_competitiveness: Slight
+  trait_adaptability: Slight
+  val_family: Moderate
+  val_career_success: Moderate
+  val_wealth: Moderate
+  val_health: Minor
+  val_personal_freedom: Important
+  val_security_stability: Important
+  val_adventure: Core value
+  val_tradition: Moderate
+  val_power_influence: Important
+  val_achievement: Minor
+  val_creativity_self_expression: Moderate
+  val_community: Important
+  val_spirituality_faith: Important
+  val_knowledge_truth: Moderate
+  val_social_status: Core value
+  val_independence: Important
+  val_justice_fairness: Moderate
+  val_loyalty: Moderate
+  val_sustainability: Core value
+  val_recognition: Minor
+  val_helping_others: Moderate
+  val_personal_growth: Moderate
+  val_fun_enjoyment: Minor
+  val_integrity_honesty: Important
+  val_beauty_aesthetics: Minor
+  val_order_structure: Important
+  val_patriotism: Important
+  val_equality: Important
+  val_privacy: Important
+  habit_journaling: Monthly
+  habit_meditation: Rarely
+  habit_to_do_lists: Monthly
+  habit_goal_setting: Monthly
+  habit_daily_reflection: Rarely
+  habit_budget_tracking: Weekly
+  habit_meal_prepping: Daily
+  habit_stretching_mobility: Weekly
+  habit_morning_walk: Weekly
+  habit_phone_free_downtime: Rarely
+  habit_gratitude_practice: Never
+  habit_reading_before_bed: Never
+  habit_naps: Monthly
+  habit_power_snoozing_alarm: Never
+  habit_skipping_breakfast: Never
+  habit_late_night_snacking: Never
+  habit_nail_biting_fidgeting: Never
+  habit_doomscrolling: Weekly
+  habit_multitab_browsing: Weekly
+  habit_inbox_zero_discipline: Never
+  habit_saving_receipts: Rarely
+  habit_pre_trip_overpacking: Rarely
+  habit_talking_to_oneself: Monthly
+  habit_humming_whistling: Daily
+  habit_cold_showers: Never
+  habit_step_counting: Monthly
+  habit_hydration_tracking: Weekly
+  habit_backing_up_files: Weekly
+  habit_re_reading_texts_before_sending: Never
+  habit_procrasti_cleaning: Rarely
+  pref_work_location: Hybrid
+  pref_team_vs_solo: Solo-leaning
+  pref_plan_vs_spontaneous: Spontaneous
+  pref_city_vs_nature: Either
+  pref_routine_vs_variety: Balanced
+  pref_speed_vs_accuracy: Speed-leaning
+  pref_quality_vs_quantity: Quantity-leaning
+  pref_logic_vs_intuition: Balanced
+  pref_save_vs_spend: Spender-leaning
+  pref_lead_vs_follow: Situational
+  pref_indoor_vs_outdoor: Indoor-leaning
+  pref_early_vs_late: Bleeding edge
+  pref_text_vs_call: Either
+  pref_big_group_vs_one_on_one: Group-leaning
+  pref_novelty_vs_familiarity: Comfort-leaning
+  pref_detail_brief_vs_full: Every detail
+  pref_competition_vs_collab: Highly collaborative
+  pref_stability_vs_change: Balanced
+  demo_marital_status: Married
+  demo_children_count: 2 children
+  demo_household_income: $25k-50k
+  demo_employment_status: Self-employed
+  demo_housing_status: Renting
+  demo_generation: Gen X
+  demo_religion_affiliation: Spiritual but unaffiliated
+  demo_sexual_orientation: Prefer not to say
+  demo_citizenship_status: Citizen by birth
+  demo_ethnicity_broad: East Asian
+  demo_disability_status: Prefers not to say
+  demo_veteran_status: Civilian
+  demo_birth_order: Eldest
+  demo_home_language: Mixed languages
+  demo_political_engagement: Disengaged
+  demo_parental_status: Parent of minors
+  demo_relationship_length: 15+ years
+  demo_driver_status: Occasional driver
+  lifex_childhood_environment: Stable & secure
+  lifex_geographic_mobility: Moved internationally
+  lifex_travel_breadth: Lived abroad
+  lifex_career_path_shape: Linear climb
+  lifex_education_journey: Returned as adult
+  lifex_financial_trajectory: Volatile
+  lifex_adversity_level: Overcame major hardship
+  lifex_immigration_generation: Native multi-generational
+  lifex_military_history: Never served
+  lifex_entrepreneurship_history: Side hustle
+  lifex_relationship_history: Remarried
+  lifex_parenting_journey: Empty nester
+  lifex_health_journey: No major events
+  lifex_loss_experience: Lost a parent
+  lifex_faith_journey: Lapsed / left faith
+  lifex_cultural_exposure: Lived across cultures
+  lifex_formative_decade: 2000s
+  lifex_public_recognition: Locally known
+  lifex_service_history: None
+  lifex_turning_point: Reinvention
+  lifex_languages_lifetime: Two
+  lifex_hometown_tie: Visits often
+  code_comment_style: Self-documenting code preference
+  code_summary_documentation: Includes TLDR for complex functions only
+  code_naming_verbosity: Single-letter names
+  code_indentation_style: 2 spaces
+  code_structure_preference: Functional programming style
+  code_function_length: Medium functions (30-100 lines)
+  code_error_handling: Graceful degradation and recovery
+  code_abstraction_level: Highly abstract and generic
+  code_dependencies_approach: Use framework defaults
+  code_performance_priority: Balanced consideration
+  code_testing_approach: Minimal testing
+  code_refactoring_frequency: Refactor when necessary
+  prog_python: Proficient
+  prog_javascript: Proficient
+  prog_typescript: None
+  prog_java: None
+  prog_c: Familiar
+  prog_go: None
+  prog_rust: None
+  prog_ruby: Familiar
+  prog_php: None
+  prog_swift: None
+  prog_kotlin: None
+  prog_objective_c: None
+  prog_scala: Familiar
+  prog_haskell: None
+  prog_elixir: None
+  prog_erlang: Familiar
+  prog_clojure: None
+  prog_lua: Familiar
+  prog_perl: Familiar
+  prog_r: None
+  prog_julia: None
+  prog_matlab: None
+  prog_sql: Familiar
+  prog_bash: Familiar
+  prog_powershell: Familiar
+  prog_dart: None
+  prog_f: Familiar
+  prog_ocaml: None
+  prog_assembly: None
+  prog_cobol: Familiar
+  prog_fortran: None
+  prog_solidity: Familiar
+  prog_graphql: Proficient
+  bfi2_domain_extraversion: Low
+  bfi2_domain_agreeableness: Low
+  bfi2_domain_conscientiousness: High
+  bfi2_domain_negative_emotionality: Low
+  bfi2_domain_open_mindedness: Low
+  bfi2_facet_sociability: Average
+  bfi2_facet_assertiveness: Very high
+  bfi2_facet_energy_level: Average
+  bfi2_facet_compassion: High
+  bfi2_facet_respectfulness: Very low
+  bfi2_facet_trust: Low
+  bfi2_facet_organization: Very low
+  bfi2_facet_productiveness: Low
+  bfi2_facet_responsibility: Very low
+  bfi2_facet_anxiety: Low
+  bfi2_facet_depression: Very low
+  bfi2_facet_emotional_volatility: Low
+  bfi2_facet_intellectual_curiosity: Average
+  bfi2_facet_aesthetic_sensitivity: Low
+  bfi2_facet_creative_imagination: High
+  schwartz_value_self_direction: Average
+  schwartz_value_stimulation: High
+  schwartz_value_hedonism: Average
+  schwartz_value_achievement: Low
+  schwartz_value_power: Average
+  schwartz_value_security: Average
+  schwartz_value_conformity: Average
+  schwartz_value_tradition: Low
+  schwartz_value_benevolence: Low
+  schwartz_value_universalism: Very high
+  sdt_need_autonomy: Average
+  sdt_need_competence: Low
+  sdt_need_relatedness: High
+  mft_care_harm: Average
+  mft_fairness_cheating: Average
+  mft_loyalty_betrayal: High
+  mft_authority_subversion: Low
+  mft_sanctity_degradation: High
+  mft_liberty_oppression: High
+  need_for_cognition: Average
+  need_for_closure: Average
+  dospert_ethical_risk_tolerance: Average
+  dospert_financial_risk_tolerance: Very low
+  dospert_health_safety_risk_tolerance: Average
+  dospert_recreational_risk_tolerance: Average
+  dospert_social_risk_tolerance: Very high
+  attachment_anxiety: Average
+  attachment_avoidance: Average
+  interpersonal_agency_dominance: High
+  interpersonal_communion_warmth: Average
+  ai_task_code_generation: Not applicable
+  ai_task_code_review: Not applicable
+  ai_task_codebase_learning: Not applicable
+  ai_task_data_generation_analytics: Does not plan AI use
+  ai_task_debugging_fixing: Does not plan AI use
+  ai_task_deployment_monitoring: Not applicable
+  ai_task_documentation: Not applicable
+  ai_task_learning_concepts: Not applicable
+  ai_task_project_planning: Not applicable
+  ai_task_refactoring: Not applicable
+  ai_task_search_answers: Not applicable
+  ai_task_testing: Not applicable
+  bug_fix_scope_preference: Root-cause / systemic fix
+  bug_fix_test_behavior: Rarely adds tests
+  code_api_design_orientation: Internal ergonomics first
+  code_complexity_tolerance: Very high
+  code_modularity_preference: Context-dependent
+  code_observability_habit: Structured logging / metrics by default
+  code_review_participation_level: Rare / no review
+  code_security_review_habit: Relies on automated scanners
+  code_type_system_orientation: No strong preference
+  codebase_onboarding_style: Reads architecture / docs first
+  coding_agent_adoption_barrier: Integration with existing tools
+  coding_agent_autonomy_preference: No agent autonomy
+  coding_agent_context_sharing_comfort: Shares natural-language descriptions only
+  coding_agent_control_expectation: Requires explicit approval before edits
+  coding_agent_explanation_preference: Show diffs / tests first
+  coding_agent_failure_tolerance: High tolerance for experimental work
+  coding_agent_memory_preference: Prefers stateless interactions
+  coding_agent_security_expectation: Not a priority
+  coding_agent_tool_integration_preference: CLI / terminal integrated
+  coding_agent_usage_frequency: Not yet but interested
+  coding_agent_workflow_impact: Negative / slowdown
+  coding_ai_complexity_comfort: Avoids AI for complexity
+  coding_ai_job_threat_perception: Minor long-term concern
+  coding_ai_learning_source: Online courses / videos
+  coding_ai_output_trust: Neutral / depends on task
+  coding_ai_sentiment: Somewhat unfavorable
+  coding_ai_usage_frequency: Never used
+  coding_tool_ai_capability_importance: Low
+  coding_tool_alternative_sensitivity: Minor concern
+  coding_tool_api_completeness_importance: Low
+  coding_tool_ethics_blocker: Moderate concern
+  coding_tool_obsolescence_blocker: Minor concern
+  coding_tool_open_source_importance: Low
+  coding_tool_reliability_latency_importance: Critical
+  coding_tool_security_privacy_blocker: Moderate concern
+  commit_cadence_style: Squashed milestone commits
+  debugging_strategy: Read code / traces first
+  dev_contribution_context: Mixed contexts
+  dev_ic_manager_orientation: Not applicable
+  dev_primary_work_surface: Browser / cloud workspace
+  dev_professional_status: Non-developer technologist
+  dev_role_archetype: Other developer
+  dev_toolchain_complexity: Focused small stack
+  developer_help_seeking_preference: Mixed strategy
+  developer_problem_profile: Learning concepts
+  future_developer_skill_belief: Debugging and diagnosis
+  github_contribution_mode: Rare GitHub user
+  human_help_boundary_for_ai_coding: When learning deeply
+  issue_engagement_style: Rare issue usage
+  open_source_activity_level: Private-only developer
+  pr_collaboration_style: Moderate scoped PRs
+  release_maintenance_orientation: Not involved in releases
+  stackoverflow_participation_style: Does not participate
+  stackoverflow_usage_pattern: Never used

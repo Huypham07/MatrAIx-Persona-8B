@@ -1,35 +1,54 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
+  "pool": "persona/datasets/task-eval-personas",
   "sources": [],
-  "dimensionFilters": {
-    "age_bracket": [
-      "18-24",
-      "25-34",
-      "35-44",
-      "45-54",
-      "55-64",
-      "65+"
-    ],
-    "health_insurance_status": [
-      "Comprehensive",
-      "Basic",
-      "Minimal",
-      "Uninsured"
-    ],
-    "health_general_health": [
-      "Excellent",
-      "Good",
-      "Fair",
-      "Poor"
-    ]
-  },
-  "sampling": {
-    "mode": "stratified",
-    "fields": [
-      "age_bracket",
-      "health_insurance_status"
-    ],
-    "allocation": "equalTotal",
-    "sampleSize": 20
-  }
+  "dimensionFilters": {},
+  "segments": [
+    {
+      "id": "high_need_weak_access",
+      "label": "High health need with weak access",
+      "hypothesis": "Responses should show unmet need, access barriers, and irregular checkups.",
+      "dimensions": {
+        "age_bracket": ["55-64", "65-74"],
+        "health_insurance_status": ["Minimal"],
+        "health_general_health": ["Poor", "Fair"]
+      },
+      "personaIds": ["0069", "0823"]
+    },
+    {
+      "id": "healthy_weak_access_low_urgency",
+      "label": "Relatively healthy with weak access or low urgency",
+      "hypothesis": "They should postpone preventive care because it feels less urgent despite access constraints.",
+      "dimensions": {
+        "health_insurance_status": ["Uninsured"],
+        "health_general_health": ["Good"],
+        "economic_motivation": ["Cost-sensitive"]
+      },
+      "personaIds": ["0593", "0854"]
+    },
+    {
+      "id": "healthy_insured_preventive",
+      "label": "Healthy and adequately insured preventive users",
+      "hypothesis": "They should schedule more regularly and express stronger preventive-care beliefs.",
+      "dimensions": {
+        "health_insurance_status": ["Basic", "Comprehensive"],
+        "health_general_health": ["Good", "Excellent"],
+        "trust_level": ["Trusting", "Verifying"]
+      },
+      "personaIds": ["0045", "0481"]
+    },
+    {
+      "id": "older_meaningful_health_needs",
+      "label": "Older adults with meaningful health needs",
+      "hypothesis": "They should report higher clinical need but greater scheduling and preparation friction.",
+      "dimensions": {
+        "age_bracket": ["75-84"],
+        "health_insurance_status": ["Basic", "Comprehensive"],
+        "health_general_health": ["Poor", "Fair"],
+        "tech_savviness": ["Avoidant", "Reluctant"]
+      },
+      "personaIds": ["0609", "0675"]
+    }
+  ],
+  "sampling": {"mode": "pinnedSegments", "personasPerSegment": 2}
 }

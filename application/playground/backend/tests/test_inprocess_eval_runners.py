@@ -182,6 +182,43 @@ def test_survey_calls_model_once_per_question_and_streams_in_order(tmp_path):
     ]
 
 
+def test_survey_events_expose_persona_expected_language(tmp_path):
+    client = ScriptedJSONClient(
+        [{"answer": {"questionId": "q1", "value": "respuesta libre"}}]
+    )
+    persona = Persona(
+        id="p1",
+        name="Persona",
+        dimensions={"primary_language": "Spanish", "region": "Latin America"},
+    )
+    path = tmp_path / "persona_p1.yaml"
+    path.write_text(
+        "persona_id: p1\ndimensions:\n  primary_language: Spanish\n  region: Latin America\n",
+        encoding="utf-8",
+    )
+    events = []
+
+    InprocessSurveyEvalRunner()(
+        persona,
+        SurveyInstrument(
+            id="s",
+            title="S",
+            questions=[SurveyQuestion(id="q1", prompt="Explain", type="free_text")],
+        ),
+        client=client,
+        on_event=events.append,
+        persona_yaml_path=str(path),
+    )
+
+    relevant = [
+        event
+        for event in events
+        if event["type"] in {"survey_question_started", "survey_answer"}
+    ]
+    assert relevant
+    assert all(event["expectedLanguage"] == "Spanish" for event in relevant)
+
+
 def test_invalid_choice_retries_once_then_fails_without_first_option(tmp_path):
     client = ScriptedJSONClient(
         [

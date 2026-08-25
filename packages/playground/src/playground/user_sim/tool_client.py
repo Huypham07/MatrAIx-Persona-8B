@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Optional, Protocol, Sequence
@@ -51,11 +52,13 @@ class OpenAIToolStepClient:
         temperature: float = 0.7,
         capabilities: Sequence[ChatbotCapability] | None = None,
         provider: str = "openai",
+        trace_writer: Any = None,
     ) -> None:
         self.model = model
         self.temperature = temperature
         self.provider = provider
         self.extra_body = extra_body
+        self.trace_writer = trace_writer
         self.native_tools = native_tools
         self.usage_parts: list = []
         self._tools = tool_definitions(capabilities)
@@ -100,7 +103,21 @@ class OpenAIToolStepClient:
             kwargs["temperature"] = self.temperature
         if self.extra_body is not None:
             kwargs["extra_body"] = self.extra_body
-        completion = self._client.chat.completions.create(**kwargs)
+        started = time.monotonic()
+        completion = None
+        try:
+            completion = self._client.chat.completions.create(**kwargs)
+        except Exception as exc:
+            if self.trace_writer is not None:
+                self.trace_writer.record(
+                    model=self.model,
+                    provider=self.provider,
+                    messages=list(kwargs["messages"]),
+                    error=exc,
+                    step="persona_next_action",
+                    duration_ms=round((time.monotonic() - started) * 1000, 3),
+                )
+            raise
         self.usage_parts.append(
             usage_from_openai_completion(
                 completion, model=self.model, provider=self.provider
@@ -109,7 +126,21 @@ class OpenAIToolStepClient:
         message = completion.choices[0].message
         calls: List[ToolCall] = []
         if not self.native_tools:
-            payload = coerce_json(str(message.content or ""))
+            raw_output = str(message.content or "")
+            try:
+                payload = coerce_json(raw_output)
+            except Exception as exc:
+                if self.trace_writer is not None:
+                    self.trace_writer.record(
+                        model=self.model,
+                        provider=self.provider,
+                        messages=list(kwargs["messages"]),
+                        raw_output=raw_output,
+                        error=exc,
+                        step="persona_next_action",
+                        duration_ms=round((time.monotonic() - started) * 1000, 3),
+                    )
+                raise
             action = str(
                 payload.get("action") or payload.get("tool") or payload.get("name") or ""
             ).strip()
@@ -125,6 +156,21 @@ class OpenAIToolStepClient:
                 }
             if action in {tool["function"]["name"] for tool in self._tools}:
                 calls.append(ToolCall(action, arguments))
+            if self.trace_writer is not None:
+                self.trace_writer.record(
+                    model=self.model,
+                    provider=self.provider,
+                    messages=list(kwargs["messages"]),
+                    raw_output=raw_output,
+                    parsed_output=[
+                        {"name": call.name, "arguments": call.arguments}
+                        for call in calls
+                    ],
+                    usage=self.usage_parts[-1] if self.usage_parts else None,
+                    finish_reason=getattr(completion.choices[0], "finish_reason", None),
+                    step="persona_next_action",
+                    duration_ms=round((time.monotonic() - started) * 1000, 3),
+                )
             return calls
         for tool_call in message.tool_calls or []:
             fn = tool_call.function
@@ -133,6 +179,30 @@ class OpenAIToolStepClient:
             text = normalize_sim_message(str(message.content or ""))
             if text:
                 calls.append(ToolCall("send_message", {"message": text}))
+        if self.trace_writer is not None:
+            self.trace_writer.record(
+                model=self.model,
+                provider=self.provider,
+                messages=list(kwargs["messages"]),
+                raw_output={
+                    "content": str(message.content or ""),
+                    "toolCalls": [
+                        {
+                            "name": call.name,
+                            "arguments": call.arguments,
+                        }
+                        for call in calls
+                    ],
+                },
+                parsed_output=[
+                    {"name": call.name, "arguments": call.arguments}
+                    for call in calls
+                ],
+                usage=self.usage_parts[-1] if self.usage_parts else None,
+                finish_reason=getattr(completion.choices[0], "finish_reason", None),
+                step="persona_next_action",
+                duration_ms=round((time.monotonic() - started) * 1000, 3),
+            )
         return calls
 
     def accumulated_usage(self):
@@ -254,6 +324,7 @@ def build_tool_step_client(
     *,
     temperature: float = 0.7,
     capabilities: Sequence[ChatbotCapability] | None = None,
+    trace_writer: Any = None,
 ) -> ToolStepClient:
     from playground.model_client import (
         dashscope_openai_client_kwargs,
@@ -283,6 +354,7 @@ def build_tool_step_client(
             temperature=temperature,
             capabilities=capabilities,
             provider="local",
+            trace_writer=trace_writer,
         )
     if value.startswith("anthropic/"):
         proxy_base = (
@@ -297,6 +369,7 @@ def build_tool_step_client(
                 temperature=temperature,
                 capabilities=capabilities,
                 provider="anthropic",
+                trace_writer=trace_writer,
             )
         return AnthropicToolStepClient(
             value.split("/", 1)[1],
@@ -312,6 +385,7 @@ def build_tool_step_client(
             temperature=temperature,
             capabilities=capabilities,
             provider="dashscope",
+            trace_writer=trace_writer,
         )
     if value.startswith("openrouter/"):
         kwargs = openrouter_openai_client_kwargs(value)
@@ -322,6 +396,7 @@ def build_tool_step_client(
             temperature=temperature,
             capabilities=capabilities,
             provider="openrouter",
+            trace_writer=trace_writer,
         )
     if value.startswith("openai/"):
         return OpenAIToolStepClient(
@@ -329,6 +404,7 @@ def build_tool_step_client(
             temperature=temperature,
             capabilities=capabilities,
             provider="openai",
+            trace_writer=trace_writer,
         )
     if value.startswith("gpt-"):
         return OpenAIToolStepClient(
@@ -336,6 +412,7 @@ def build_tool_step_client(
             temperature=temperature,
             capabilities=capabilities,
             provider="openai",
+            trace_writer=trace_writer,
         )
     return AnthropicToolStepClient(
         value, temperature=temperature, capabilities=capabilities

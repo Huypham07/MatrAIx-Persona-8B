@@ -86,6 +86,28 @@ def test_persona_system_prompt_renders_dimensions_yaml(tmp_path: Path):
     assert "65" in prompt or "South Asia" in prompt or "Retirement" in prompt
 
 
+def test_persona_system_prompt_uses_primary_language_without_translating_ids(
+    tmp_path: Path,
+):
+    yaml_path = _write_dims_yaml(
+        tmp_path / "persona_0903.yaml",
+        persona_id="0903",
+        region="Latin America",
+        primary_language="Spanish",
+    )
+    persona = Persona(
+        id="0903",
+        name="persona-0903",
+        dimensions={"region": "Latin America", "primary_language": "Spanish"},
+    )
+
+    prompt = persona_system_prompt(persona, persona_yaml_path=str(yaml_path))
+
+    assert "Respond in Spanish" in prompt
+    assert "JSON keys" in prompt
+    assert "option IDs" in prompt
+
+
 def test_persona_prompt_renders_late_dimension_from_canonical_path(tmp_path: Path):
     path = _write_dims_yaml(
         tmp_path / "mai.yaml",

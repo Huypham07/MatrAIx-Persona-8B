@@ -1,27 +1,44 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
+  "pool": "persona/datasets/task-eval-personas",
   "sources": [],
-  "dimensionFilters": {
-    "economic_motivation": [
-      "Cost-sensitive",
-      "Value-driven",
-      "Premium-seeking",
-      "Indifferent"
-    ],
-    "age_bracket": [
-      "25-34",
-      "35-44"
-    ],
-    "life_stage": [
-      "Parent of young kids"
-    ]
-  },
-  "sampling": {
-    "mode": "stratified",
-    "fields": [
-      "economic_motivation"
-    ],
-    "allocation": "equalTotal",
-    "sampleSize": 8
-  }
+  "dimensionFilters": {},
+  "segments": [
+    {
+      "id": "budget_parent_bargain_hunters",
+      "label": "Budget-constrained parent bargain hunters",
+      "hypothesis": "The increased price should produce high price pain, sale dependence, or rejection.",
+      "dimensions": {
+        "demo_parental_status": ["Parent of minors"],
+        "socioeconomic_band": ["Low income"],
+        "economic_motivation": ["Cost-sensitive"],
+        "lstyle_shopping_style": ["Bargain hunter"]
+      },
+      "personaIds": ["0585", "0854"]
+    },
+    {
+      "id": "value_evaluating_parents",
+      "label": "Value-evaluating parents",
+      "hypothesis": "They should accept the price only when product quality and child fit justify the increase.",
+      "dimensions": {
+        "demo_parental_status": ["Parent of minors"],
+        "economic_motivation": ["Value-driven"],
+        "risk_tolerance": ["Cautious"],
+        "trust_level": ["Trusting", "Verifying"]
+      },
+      "personaIds": ["0475", "0551"]
+    },
+    {
+      "id": "affluent_premium_parents",
+      "label": "Affluent premium-oriented parents",
+      "hypothesis": "They should show lower absolute price pain and emphasize quality or suitability instead.",
+      "dimensions": {
+        "demo_parental_status": ["Parent of minors"],
+        "socioeconomic_band": ["Upper-middle"],
+        "economic_motivation": ["Premium-seeking"]
+      },
+      "personaIds": ["0131", "0168"]
+    }
+  ],
+  "sampling": {"mode": "pinnedSegments", "personasPerSegment": 2}
 }

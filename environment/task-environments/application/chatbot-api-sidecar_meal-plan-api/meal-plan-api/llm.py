@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import threading
+import time
 from typing import Any, Callable
 
 _LLM_SEM: threading.Semaphore | None = None
@@ -167,6 +168,7 @@ def generate_llm_reply(
     action_notes: list[str],
     formatted_plan: str | None = None,
     chat_completions: Callable[..., Any] | None = None,
+    trace_out: dict[str, Any] | None = None,
 ) -> str | None:
     """Call OpenAI chat completions; return None on disable/failure."""
     if chat_completions is None and not llm_enabled():
@@ -182,11 +184,30 @@ def generate_llm_reply(
         action_notes=action_notes,
         formatted_plan=formatted_plan,
     )
+    started = time.monotonic()
+    if trace_out is not None:
+        trace_out.update(
+            {
+                "step": "meal_plan_reply",
+                "model": model_name(),
+                "provider": "local-openai-compatible",
+                "messages": messages,
+                "rawOutput": None,
+                "usage": None,
+                "finishReason": None,
+                "error": None,
+            }
+        )
 
     try:
         if chat_completions is not None:
             content = chat_completions(messages=messages, model=model_name())
             text = str(content or "").strip()
+            if trace_out is not None:
+                trace_out["rawOutput"] = text
+                trace_out["durationMs"] = round(
+                    (time.monotonic() - started) * 1000, 3
+                )
             return text or None
 
         from openai import OpenAI
@@ -219,6 +240,28 @@ def generate_llm_reply(
                 extra_body={"chat_template_kwargs": {"enable_thinking": False}},
             )
         text = (response.choices[0].message.content or "").strip()
+        if trace_out is not None:
+            usage = getattr(response, "usage", None)
+            trace_out["rawOutput"] = text
+            trace_out["finishReason"] = getattr(
+                response.choices[0], "finish_reason", None
+            )
+            trace_out["usage"] = {
+                "inputTokens": getattr(usage, "prompt_tokens", None),
+                "outputTokens": getattr(usage, "completion_tokens", None),
+                "requestId": getattr(response, "id", None),
+            }
+            trace_out["durationMs"] = round(
+                (time.monotonic() - started) * 1000, 3
+            )
         return text or None
-    except Exception:
+    except Exception as exc:
+        if trace_out is not None:
+            trace_out["error"] = {
+                "type": type(exc).__name__,
+                "message": str(exc),
+            }
+            trace_out["durationMs"] = round(
+                (time.monotonic() - started) * 1000, 3
+            )
         return None

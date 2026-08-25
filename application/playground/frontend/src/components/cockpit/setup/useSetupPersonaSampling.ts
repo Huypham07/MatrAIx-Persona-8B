@@ -199,6 +199,17 @@ export function useSetupPersonaSampling(
     const key = `${normalizedPath ?? ""}:${sampling.mode}:${sampling.allocation}:${sampling.sampleSize ?? ""}:${sampling.perCell ?? ""}:${sampling.fields.join(",")}`;
     if (appliedKeyRef.current === key) return;
     appliedKeyRef.current = key;
+    if (sampling.isPinnedSegments) {
+      const pinnedIds = (strategy.segments ?? []).flatMap(
+        (segment) => segment.personaIds ?? [],
+      );
+      setSelectedPersonaIds(pinnedIds);
+      setSelectedCount(pinnedIds.length);
+      setUseEntirePool(false);
+      if (typeof strategy.pool === "string" && strategy.pool.trim()) {
+        setPersonaPool(strategy.pool.trim());
+      }
+    }
     setSamplingMode(sampling.mode);
     if (sampling.fields.length > 0) {
       setFields(sampling.fields);

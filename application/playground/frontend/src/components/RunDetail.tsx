@@ -188,6 +188,17 @@ export function RunDetail({ harborTrial, onBack }: RunDetailProps) {
             >
               {t("runs.downloadPdf")}
             </StudioToolbarButton>
+            <StudioToolbarButton
+              icon="folder_zip"
+              onClick={() =>
+                api.downloadHarborTrialTraceZip(
+                  harborTrial.jobName,
+                  harborTrial.trialName,
+                )
+              }
+            >
+              Trace ZIP
+            </StudioToolbarButton>
           </>
         }
       />
