@@ -223,7 +223,7 @@ def maybe_write_trial_user_feedback(*, repo_root: Path, trial_dir: Path) -> Path
     task_bundle = load_task_content_bundle_for_task_path(task_path, repo_root=repo_root)
     system_prompt = assemble_report_system_prompt(
         persona,
-        persona_yaml_path=persona_rel,
+        persona_yaml_path=persona.persona_path,
         task_bundle=task_bundle,
     )
     user_prompt = _REFLECTION_USER.format(
