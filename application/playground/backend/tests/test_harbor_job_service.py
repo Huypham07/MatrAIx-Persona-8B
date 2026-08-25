@@ -7,6 +7,34 @@ import json
 from backend.service.harbor_job_service import HarborJobService, HarborLaunchRecord
 
 
+def test_inprocess_worker_delegates_to_focused_trial_worker(tmp_path, monkeypatch):
+    """Keeping Harbor's old inline worker would bypass the faithful runner boundary."""
+    service = HarborJobService(
+        repo_root=tmp_path,
+        jobs_dir=tmp_path / "jobs",
+        generated_configs_dir=tmp_path / "configs",
+    )
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text("{}", encoding="utf-8")
+    captured = {}
+
+    def fake_run(manifest_path, env, *, repo_root):
+        captured.update(manifest_path=manifest_path, env=env, repo_root=repo_root)
+        return 7
+
+    monkeypatch.setattr(
+        "backend.service.inprocess_trial_worker.run_inprocess_trial", fake_run
+    )
+
+    assert service._inprocess_trial_worker(manifest, {"RUN": "test"}) == 7
+    assert captured == {
+        "manifest_path": manifest,
+        "env": {"RUN": "test"},
+        "repo_root": tmp_path,
+    }
+    service.shutdown()
+
+
 def test_launch_writes_job_config(tmp_path, monkeypatch):
     repo = tmp_path
     jobs_dir = repo / "jobs"
