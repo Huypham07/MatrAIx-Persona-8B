@@ -197,12 +197,26 @@ def _persist_completed_chat(trial_dir: Path, result: PlaygroundResult) -> tuple[
 
 
 def _turns_from_exception(
-    exc: BaseException, observed_turns: list[dict[str, Any]]
+    exc: BaseException,
+    observed_turns: list[dict[str, Any]],
+    pending_turns: Mapping[int, dict[str, Any]],
 ) -> list[dict[str, Any]]:
     transcript = getattr(exc, "transcript", None)
     if isinstance(transcript, list):
-        return [turn.to_dict() for turn in transcript if isinstance(turn, PlaygroundTurn)]
-    return list(observed_turns)
+        turns = [turn.to_dict() for turn in transcript if isinstance(turn, PlaygroundTurn)]
+    else:
+        turns = list(observed_turns)
+    finalized_indices = {
+        int(turn["turnIndex"])
+        for turn in turns
+        if isinstance(turn.get("turnIndex"), int)
+    }
+    turns.extend(
+        turn
+        for index, turn in sorted(pending_turns.items())
+        if index not in finalized_indices
+    )
+    return turns
 
 
 def _run_web_trial(
@@ -310,6 +324,14 @@ def run_inprocess_trial(
     def emit(event: dict[str, Any]) -> None:
         event_writer.append(event)
 
+    def emit_runner_event(event: dict[str, Any]) -> None:
+        # Runners may report completion for their own in-memory result. The
+        # worker is responsible for the one durable terminal event after all
+        # artifacts and result.json have reached disk.
+        if event.get("type") == "done":
+            return
+        emit(event)
+
     def fail(exc: BaseException, *, partial_turns: list[dict[str, Any]] | None = None) -> int:
         if partial_turns is not None:
             _persist_partial_chat(
@@ -317,6 +339,19 @@ def run_inprocess_trial(
                 partial_turns,
                 termination_reason=type(exc).__name__,
             )
+        _write_failure_result(
+            trial_dir,
+            manifest,
+            exception_type=type(exc).__name__,
+            exception_message=f"{exc}\n{traceback.format_exc()}",
+        )
+        # The coordinator helper owns the portable failure shape; atomically
+        # replace its final result before anyone can consume the terminal event.
+        failure_result = json.loads((trial_dir / "result.json").read_text(encoding="utf-8"))
+        failure_result["terminal_status"] = "failed"
+        failure_result["succeeded"] = False
+        failure_result["evals"] = {}
+        _write_json_atomic(trial_dir / "result.json", failure_result)
         emit(
             {
                 "type": "done",
@@ -326,12 +361,6 @@ def run_inprocess_trial(
                 "terminationReason": type(exc).__name__,
                 "message": str(exc),
             }
-        )
-        _write_failure_result(
-            trial_dir,
-            manifest,
-            exception_type=type(exc).__name__,
-            exception_message=f"{exc}\n{traceback.format_exc()}",
         )
         return 1
 
@@ -375,11 +404,11 @@ def run_inprocess_trial(
             )
 
             def on_survey_event(event: dict[str, Any]) -> None:
-                emit(event)
                 partial = event.get("result")
                 if event.get("type") == "survey_progress" and isinstance(partial, dict):
                     _write_output_and_verifier(trial_dir, "structured_output.json", partial)
                     _write_output_and_verifier(trial_dir, "survey_result.json", partial)
+                emit_runner_event(event)
 
             result = InprocessSurveyEvalRunner()(
                 persona=persona,
@@ -405,12 +434,36 @@ def run_inprocess_trial(
             terminal_status, succeeded, evals = "completed", True, {}
         elif "user-sim" in agent_name or "chat" in task_path.lower():
             observed_turns: list[dict[str, Any]] = []
+            pending_turns: dict[int, dict[str, Any]] = {}
 
             def on_chat_event(event: dict[str, Any]) -> None:
-                emit(event)
+                event_type = event.get("type")
+                turn_index = event.get("turnIndex")
+                if event_type == "user_message" and isinstance(turn_index, int):
+                    pending_turns[turn_index] = {
+                        "turnIndex": turn_index,
+                        "userMessage": str(event.get("message") or ""),
+                    }
+                elif event_type == "assistant_message" and isinstance(turn_index, int):
+                    pending = pending_turns.get(turn_index, {"turnIndex": turn_index})
+                    pending["userMessage"] = str(
+                        event.get("userMessage") or pending.get("userMessage") or ""
+                    )
+                    pending["assistantMessage"] = str(event.get("assistantMessage") or "")
+                    pending["structuredExposure"] = list(
+                        event.get("structuredExposure") or []
+                    )
+                    if event.get("durationSeconds") is not None:
+                        pending["durationSeconds"] = event["durationSeconds"]
+                    pending_turns[turn_index] = pending
                 turn = event.get("turn")
-                if event.get("type") == "turn" and isinstance(turn, dict):
-                    observed_turns.append(dict(turn))
+                if event_type == "turn" and isinstance(turn, dict):
+                    completed = dict(turn)
+                    completed_index = completed.get("turnIndex")
+                    if isinstance(completed_index, int):
+                        pending_turns.pop(completed_index, None)
+                    observed_turns.append(completed)
+                emit_runner_event(event)
 
             config = inprocess_chatbot_config(
                 task_path, repo_root=repo_root, env=env, model_name=model_name
@@ -434,9 +487,19 @@ def run_inprocess_trial(
                     job_dir=trial_dir.parent,
                 )
             except (ConversationNotTerminated, ApplicationUnavailable) as exc:
-                return fail(exc, partial_turns=_turns_from_exception(exc, observed_turns))
+                return fail(
+                    exc,
+                    partial_turns=_turns_from_exception(
+                        exc, observed_turns, pending_turns
+                    ),
+                )
             except Exception as exc:  # provider and runner failures preserve observed truth
-                return fail(exc, partial_turns=_turns_from_exception(exc, observed_turns))
+                return fail(
+                    exc,
+                    partial_turns=_turns_from_exception(
+                        exc, observed_turns, pending_turns
+                    ),
+                )
             succeeded, termination_reason, satisfaction = _persist_completed_chat(
                 trial_dir, result
             )
@@ -461,18 +524,10 @@ def run_inprocess_trial(
                 persona=persona,
                 model_name=model_name,
                 created_at=started_at,
-                emit=emit,
+                emit=emit_runner_event,
             )
             terminal_status, succeeded, evals = "completed", True, {"satisfaction": 1.0}
 
-        emit(
-            {
-                "type": "done",
-                "status": terminal_status,
-                "completed": True,
-                "succeeded": succeeded,
-            }
-        )
         _write_json_atomic(
             trial_dir / "result.json",
             _trial_result(
@@ -486,6 +541,14 @@ def run_inprocess_trial(
                 succeeded=succeeded,
                 evals=evals,
             ),
+        )
+        emit(
+            {
+                "type": "done",
+                "status": terminal_status,
+                "completed": True,
+                "succeeded": succeeded,
+            }
         )
         return 0
     except Exception as exc:  # noqa: BLE001 - produce a terminal truthful failure

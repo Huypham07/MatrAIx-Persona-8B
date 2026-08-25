@@ -199,3 +199,133 @@ def test_missing_canonical_persona_is_a_failure(tmp_path):
     result = json.loads((trial_dir / "result.json").read_text())
     assert result["exception_info"]["exception_type"] == "FileNotFoundError"
     assert "Canonical persona source not found" in result["exception_info"]["exception_message"]
+
+
+def test_survey_worker_publishes_one_terminal_after_final_artifacts(monkeypatch, tmp_path):
+    """Forwarding a runner terminal would expose incomplete artifacts as final."""
+    manifest, trial_dir = _write_manifest(tmp_path)
+    payload = json.loads(manifest.read_text())
+    payload["task"]["path"] = "application/tasks/example-survey_product-feedback"
+    payload["agent"]["name"] = "persona-json-survey"
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    snapshots = []
+    events = []
+
+    class RecordingWriter:
+        def append(self, event):
+            events.append(dict(event))
+            if event.get("type") == "survey_progress":
+                progress = json.loads(
+                    (trial_dir / "verifier" / "survey_result.json").read_text()
+                )
+                snapshots.append(("progress", progress["metrics"]["numAnswered"]))
+            if event.get("type") == "done":
+                snapshots.append(
+                    (
+                        "done",
+                        (trial_dir / "result.json").is_file(),
+                        (trial_dir / "verifier" / "survey_result.json").is_file(),
+                    )
+                )
+
+    class FakeRunner:
+        def __call__(self, persona, instrument, config, **kwargs):
+            answer = SurveyAnswer(question_id="q1", value=4)
+            result = SurveyEvalResult(
+                config,
+                persona,
+                instrument,
+                [answer],
+                [],
+                SurveyMetrics(1, 1),
+                "2026-08-25T00:00:00Z",
+                {},
+            )
+            kwargs["on_event"]({"type": "survey_progress", "result": result.to_dict()})
+            kwargs["on_event"]({"type": "done", "result": result.to_dict()})
+            return result
+
+    monkeypatch.setattr(
+        "playground.harbor.trial_events.TrialEventWriter.for_trial_dir",
+        lambda *_args: RecordingWriter(),
+    )
+    monkeypatch.setattr(
+        "backend.service.inprocess_trial_worker.InprocessSurveyEvalRunner", FakeRunner
+    )
+    monkeypatch.setattr(
+        "backend.service.inprocess_trial_worker.survey_questionnaire_id_for_task_path",
+        lambda *_args, **_kwargs: "fixture-survey",
+    )
+    monkeypatch.setattr(
+        "backend.service.inprocess_trial_worker.get_survey_instrument",
+        lambda *_args, **_kwargs: SurveyInstrument(
+            id="s", title="S", questions=[SurveyQuestion(id="q1", prompt="Rate")]
+        ),
+    )
+
+    assert run_inprocess_trial(manifest, {}, repo_root=tmp_path) == 0
+    assert snapshots == [("progress", 1), ("done", True, True)]
+    assert [event["type"] for event in events].count("done") == 1
+
+
+def test_chat_failure_persists_pending_observed_pair_before_one_terminal(monkeypatch, tmp_path):
+    """A provider error after an assistant event must not discard that real pair."""
+    manifest, trial_dir = _write_manifest(tmp_path)
+    snapshots = []
+    events = []
+
+    class RecordingWriter:
+        def append(self, event):
+            events.append(dict(event))
+            if event.get("type") == "done":
+                transcript = json.loads(
+                    (trial_dir / "verifier" / "transcript.json").read_text()
+                )
+                snapshots.append(
+                    (
+                        (trial_dir / "result.json").is_file(),
+                        transcript["turns"],
+                        event["status"],
+                    )
+                )
+
+    def fake_run(*_args, **kwargs):
+        kwargs["on_event"]({"type": "user_message", "turnIndex": 1, "message": "Need help"})
+        kwargs["on_event"](
+            {
+                "type": "assistant_message",
+                "turnIndex": 1,
+                "userMessage": "Need help",
+                "assistantMessage": "Tell me more",
+                "structuredExposure": [],
+            }
+        )
+        raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(
+        "playground.harbor.trial_events.TrialEventWriter.for_trial_dir",
+        lambda *_args: RecordingWriter(),
+    )
+    monkeypatch.setattr(
+        "backend.service.inprocess_trial_worker.run_inprocess_chatbot_eval", fake_run
+    )
+
+    assert run_inprocess_trial(manifest, {}, repo_root=tmp_path) == 1
+    assert len([event for event in events if event["type"] == "done"]) == 1
+    result = json.loads((trial_dir / "result.json").read_text())
+    assert result["terminal_status"] == "failed"
+    assert result["succeeded"] is False
+    assert snapshots == [
+        (
+            True,
+            [
+                {
+                    "turnIndex": 1,
+                    "userMessage": "Need help",
+                    "assistantMessage": "Tell me more",
+                    "structuredExposure": [],
+                }
+            ],
+            "failed",
+        )
+    ]
