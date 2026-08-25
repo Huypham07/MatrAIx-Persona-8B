@@ -1,5 +1,19 @@
 import pytest
 from playground.persona_catalog import get_persona, load_personas
+from playground.types import Persona
+
+
+def test_persona_envelope_round_trips_every_dimension():
+    dims = {f"dimension_{i}": f"value-{i}" for i in range(50)}
+    persona = Persona.from_dict(
+        {"persona_id": "mai", "schema_version": "persona.v1", "dimensions": dims},
+        persona_path="personas/mai.yaml",
+    )
+
+    assert persona.dimensions == dims
+    assert persona.to_dict()["dimensions"]["dimension_49"] == "value-49"
+    assert persona.persona_path == "personas/mai.yaml"
+    assert "Key Attributes" not in persona.context
 
 
 def test_loads_curated_catalog():

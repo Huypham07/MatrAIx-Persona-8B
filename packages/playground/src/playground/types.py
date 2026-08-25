@@ -19,6 +19,9 @@ class Persona:
     constraints: List[str] = field(default_factory=list)
     goal: str = ""
     communication_style: str = ""
+    dimensions: Dict[str, Any] = field(default_factory=dict)
+    schema_version: str = ""
+    persona_path: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -32,30 +35,19 @@ class Persona:
             "constraints": list(self.constraints),
             "goal": self.goal,
             "communicationStyle": self.communication_style,
+            "dimensions": dict(self.dimensions),
+            "schemaVersion": self.schema_version,
+            "personaPath": self.persona_path,
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Persona":
-        pid = str(d.get("id") or d.get("persona_id") or "unknown")
-        name = str(d.get("name") or d.get("display_name") or d.get("persona_id") or pid)
-        summary = str(d.get("summary") or "")
-        context = str(d.get("context") or "")
-        if not context and isinstance(d.get("dimensions"), dict):
-            dims = d["dimensions"]
-            active_dims = [
-                f"{k}: {v}"
-                for k, v in dims.items()
-                if v is not None
-                and str(v).strip().lower() not in {"none", "null", "not applicable", "false", "0", ""}
-            ]
-            clean_profile = summary or f"Persona {name}"
-            traits_str = "\n- ".join(active_dims[:35])
-            context = f"Name: {name}\nProfile: {clean_profile}\nKey Attributes:\n- {traits_str}"
+    def from_dict(cls, d: Dict[str, Any], *, persona_path: str = "") -> "Persona":
+        dimensions = d.get("dimensions")
         return cls(
-            id=pid,
-            name=name,
-            summary=summary,
-            context=context,
+            id=str(d.get("id") or d.get("persona_id") or "unknown"),
+            name=str(d.get("name") or d.get("display_name") or d.get("persona_id") or "unknown"),
+            summary=str(d.get("summary") or ""),
+            context=str(d.get("context") or ""),
             source=str(d.get("source") or ""),
             preferences=list(d.get("preferences", [])),
             dislikes=list(d.get("dislikes", [])),
@@ -64,6 +56,9 @@ class Persona:
             communication_style=str(
                 d.get("communicationStyle", d.get("communication_style", ""))
             ),
+            dimensions=dict(dimensions) if isinstance(dimensions, dict) else {},
+            schema_version=str(d.get("schema_version", d.get("schemaVersion", "")) or ""),
+            persona_path=str(persona_path or d.get("persona_path") or d.get("personaPath") or ""),
         )
 
 

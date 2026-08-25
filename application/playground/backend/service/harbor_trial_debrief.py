@@ -155,45 +155,21 @@ def _load_playground_persona(repo_root: Path, persona_rel: str | None) -> Person
                 loaded = None
             if loaded is not None:
                 raw = loaded.data
-                context = loaded.system_prompt or loaded.summary or ""
-                if not context:
-                    try:
-                        from matraix.agents.persona.templating import (
-                            PERSONA_SYSTEM_TEMPLATE,
-                            render_persona_template,
-                            resolve_persona_template,
-                        )
+                persona = Persona.from_dict(raw, persona_path=str(abs_path))
+                from playground.user_sim.prompt import render_persona_block
 
-                        template = resolve_persona_template(loaded, None, PERSONA_SYSTEM_TEMPLATE)
-                        context = render_persona_template(template, loaded).strip()
-                    except Exception:
-                        context = ""
-                if not context and loaded.has_dimensions_schema():
-                    context = "Persona {}".format(loaded.persona_id or stem)
-                return Persona(
-                    id=str(loaded.persona_id or stem),
-                    name=str(loaded.display_name or loaded.persona_id or stem),
-                    source=str(raw.get("source") or ""),
-                    context=context,
-                )
+                persona.context = render_persona_block(persona)
+                return persona
             try:
                 raw = yaml.safe_load(abs_path.read_text(encoding="utf-8"))
             except Exception:  # noqa: BLE001
                 raw = None
             if isinstance(raw, dict):
-                pid = str(raw.get("persona_id") or raw.get("id") or stem)
-                pname = str(raw.get("display_name") or raw.get("name") or pid)
-                context = str(raw.get("system_prompt") or raw.get("summary") or "")
-                if not context:
-                    from playground.user_sim.prompt import render_persona_block
-                    p_obj = Persona(id=pid, name=pname, source=str(raw.get("source") or ""), context="")
-                    context = render_persona_block(p_obj, persona_yaml_path=str(abs_path)).strip()
-                return Persona(
-                    id=pid,
-                    name=pname,
-                    source=str(raw.get("source") or ""),
-                    context=context or pid,
-                )
+                persona = Persona.from_dict(raw, persona_path=str(abs_path))
+                from playground.user_sim.prompt import render_persona_block
+
+                persona.context = render_persona_block(persona)
+                return persona
         catalog = _persona_from_catalog_stem(stem)
         if catalog is not None:
             return catalog
@@ -880,19 +856,13 @@ def _enrich_debrief_prompts(
 
     persona_view = debrief.get("persona")
     if isinstance(persona_view, dict):
-        context = str(persona_view.get("context") or "").strip()
         display = str(prompts.get("personaPrompt") or "").strip()
         if display.startswith("## Persona"):
             display = display.split("\n", 1)[1].strip() if "\n" in display else ""
-        if display and (_is_thin_persona_prompt(context, persona=persona) or not context):
+        if display:
             persona_view["context"] = display
-        raw = _read_persona_yaml_raw(repo_root, persona_rel)
-        if raw and isinstance(raw.get("dimensions"), dict):
-            persona_view["dimensions"] = {
-                str(key): str(value)
-                for key, value in raw["dimensions"].items()
-                if value is not None and str(value).strip()
-            }
+        if persona.dimensions:
+            persona_view["dimensions"] = dict(persona.dimensions)
 
 
 def _map_chatbot_debrief_from_done_event(

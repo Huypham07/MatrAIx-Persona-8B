@@ -12,6 +12,23 @@ from playground.types import Persona
 _GUIDELINES_PATH = Path(__file__).resolve().parent / "sim_guidelines.md"
 
 
+def _ensure_persona_agents_package() -> None:
+    """Expose the split source package when Playground runs directly from source."""
+    try:
+        import matraix.agents.persona.loader  # noqa: F401
+    except ModuleNotFoundError as exc:
+        if exc.name != "matraix.agents":
+            raise
+        import matraix
+
+        agents_namespace = (
+            Path(__file__).resolve().parents[5] / "environment" / "agents" / "matraix"
+        )
+        if not agents_namespace.is_dir():
+            raise
+        matraix.__path__.append(str(agents_namespace))
+
+
 def load_sim_guidelines() -> str:
     return _GUIDELINES_PATH.read_text(encoding="utf-8").strip()
 
@@ -44,20 +61,21 @@ def _persona_context(persona: Persona) -> str:
 
 
 def render_persona_block(persona: Persona, *, persona_yaml_path: Optional[str] = None) -> str:
-    if persona_yaml_path:
-        try:
-            from matraix.agents.persona.loader import load_persona
-            from matraix.agents.persona.templating import (
-                PERSONA_SYSTEM_TEMPLATE,
-                render_persona_template,
-                resolve_persona_template,
-            )
+    canonical_path = persona_yaml_path or persona.persona_path
+    if canonical_path:
+        _ensure_persona_agents_package()
+        from matraix.agents.persona.loader import load_persona
+        from matraix.agents.persona.templating import (
+            PERSONA_SYSTEM_TEMPLATE,
+            render_persona_template,
+            resolve_persona_template,
+        )
 
-            loaded = load_persona(persona_yaml_path)
-            template = resolve_persona_template(loaded, None, PERSONA_SYSTEM_TEMPLATE)
-            return render_persona_template(template, loaded).strip()
-        except Exception:
-            pass
+        loaded = load_persona(canonical_path)
+        template = resolve_persona_template(loaded, None, PERSONA_SYSTEM_TEMPLATE)
+        return render_persona_template(template, loaded).strip()
+    if persona.dimensions:
+        raise ValueError("dimension-backed persona requires a canonical persona path")
     return _persona_context(persona)
 
 

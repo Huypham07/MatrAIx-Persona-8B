@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from backend.service.example_task_catalog import repo_root
 from backend.service.survey_questionnaire_catalog import get_survey_questionnaire
 from backend.service.survey_types import SurveyEvalConfig, SurveyInstrument, SurveyQuestion
@@ -82,6 +84,30 @@ def test_persona_system_prompt_renders_dimensions_yaml(tmp_path: Path):
     assert "Simulated person" not in prompt
     assert "## Persona" not in prompt
     assert "65" in prompt or "South Asia" in prompt or "Retirement" in prompt
+
+
+def test_persona_prompt_renders_late_dimension_from_canonical_path(tmp_path: Path):
+    path = _write_dims_yaml(
+        tmp_path / "mai.yaml",
+        persona_id="mai",
+        **{f"dimension_{i}": f"value-{i}" for i in range(49)},
+        cog_attention_span="Long",
+    )
+    persona = Persona.from_dict(
+        {"persona_id": "mai", "dimensions": {"cog_attention_span": "Long"}},
+        persona_path=str(path),
+    )
+
+    assert "Long" in persona_system_prompt(persona)
+
+
+def test_dimension_persona_requires_canonical_source():
+    persona = Persona.from_dict(
+        {"persona_id": "mai", "dimensions": {"cog_attention_span": "Long"}}
+    )
+
+    with pytest.raises(ValueError, match="canonical persona path"):
+        persona_system_prompt(persona, persona_yaml_path="")
 
 
 def test_survey_runner_requires_yaml_path_for_persona_prompt(monkeypatch, tmp_path: Path):
