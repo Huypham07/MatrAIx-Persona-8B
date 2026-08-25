@@ -60,7 +60,12 @@ def _playground_result() -> PlaygroundResult:
         for index in range(1, 6)
     ]
     return PlaygroundResult(
-        config=PlaygroundConfig(min_turns=5, max_turns=8),
+        config=PlaygroundConfig(
+            domain="meal planning nutrition",
+            application_context="nutrition assistant",
+            min_turns=5,
+            max_turns=8,
+        ),
         persona=Persona(
             id="p", name="Pat", dimensions={"decision_style": "analytical"}
         ),
@@ -91,6 +96,8 @@ def test_chat_worker_persists_actual_runner_result(monkeypatch, tmp_path):
     transcript = json.loads((trial_dir / "verifier" / "transcript.json").read_text())
     feedback = json.loads((trial_dir / "verifier" / "user_feedback.json").read_text())
     assert len(transcript["turns"]) == 5
+    assert transcript["sessionId"] == "trial-p"
+    assert transcript["domain"] == "meal planning nutrition"
     assert feedback["overallExperienceRating"] == 3
     assert captured["persona"].dimensions["decision_style"] == "analytical"
     assert captured["kwargs"]["persona_yaml_path"] == str(

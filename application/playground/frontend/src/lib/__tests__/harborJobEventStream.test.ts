@@ -230,4 +230,24 @@ describe("connectHarborJobEvents", () => {
       "Harbor job event stream disconnected. Realtime updates may be delayed while it reconnects.",
     ]);
   });
+
+  it("closes cleanly after the terminal job envelope", () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    const onEnvelope = vi.fn();
+    const onError = vi.fn();
+    connectHarborJobEvents({ jobName: "job", onEnvelope, onError });
+    const source = FakeEventSource.instances[0];
+
+    source.emit("job", {
+      id: 9,
+      jobName: "job",
+      trialName: null,
+      event: { type: "job_state", state: "completed", terminal: true },
+    }, "9");
+    source.onerror?.(new Event("error"));
+
+    expect(onEnvelope).toHaveBeenCalledTimes(1);
+    expect(source.closed).toBe(true);
+    expect(onError).not.toHaveBeenCalled();
+  });
 });

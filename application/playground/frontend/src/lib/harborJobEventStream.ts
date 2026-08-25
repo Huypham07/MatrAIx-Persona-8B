@@ -61,6 +61,14 @@ export function connectHarborJobEvents(options: ConnectHarborJobEventsOptions): 
     }
     transportErrorReported = false;
     options.onEnvelope(parsed);
+    if (
+      channel === "job"
+      && parsed.trialName === null
+      && parsed.event.type === "job_state"
+      && (parsed.event as HarborJobStateEvent).terminal === true
+    ) {
+      close();
+    }
   };
 
   const receiveTrialEnvelope = (raw: Event): void => receiveEnvelope("trial", raw);

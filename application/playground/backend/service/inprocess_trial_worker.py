@@ -125,7 +125,13 @@ def _trial_result(
     }
 
 
-def _chat_transcript_payload(turns: list[dict[str, Any]], *, termination_reason: str) -> dict[str, Any]:
+def _chat_transcript_payload(
+    turns: list[dict[str, Any]],
+    *,
+    termination_reason: str,
+    session_id: str,
+    config: PlaygroundConfig,
+) -> dict[str, Any]:
     messages: list[dict[str, str]] = []
     for turn in turns:
         messages.extend(
@@ -138,6 +144,10 @@ def _chat_transcript_payload(turns: list[dict[str, Any]], *, termination_reason:
             ]
         )
     return {
+        "sessionId": session_id,
+        "applicationId": config.application_id,
+        "applicationContext": config.application_context or config.domain,
+        "domain": config.domain or config.application_context,
         "turns": turns,
         "messages": messages,
         "terminationReason": termination_reason,
@@ -145,13 +155,23 @@ def _chat_transcript_payload(turns: list[dict[str, Any]], *, termination_reason:
 
 
 def _persist_partial_chat(
-    trial_dir: Path, turns: list[dict[str, Any]], *, termination_reason: str
+    trial_dir: Path,
+    turns: list[dict[str, Any]],
+    *,
+    termination_reason: str,
+    session_id: str,
+    config: PlaygroundConfig,
 ) -> None:
     """Persist only observed turns; never create feedback for a failed chat."""
     _write_output_and_verifier(
         trial_dir,
         "transcript.json",
-        _chat_transcript_payload(turns, termination_reason=termination_reason),
+        _chat_transcript_payload(
+            turns,
+            termination_reason=termination_reason,
+            session_id=session_id,
+            config=config,
+        ),
     )
     _write_output_and_verifier(
         trial_dir,
@@ -164,7 +184,9 @@ def _persist_partial_chat(
     )
 
 
-def _persist_completed_chat(trial_dir: Path, result: PlaygroundResult) -> tuple[bool, str, float]:
+def _persist_completed_chat(
+    trial_dir: Path, result: PlaygroundResult, *, session_id: str
+) -> tuple[bool, str, float]:
     turns = [turn.to_dict() for turn in result.transcript]
     decision = result.transcript[-1].decision if result.transcript else "no_turns"
     succeeded = (
@@ -174,12 +196,18 @@ def _persist_completed_chat(trial_dir: Path, result: PlaygroundResult) -> tuple[
     _write_output_and_verifier(
         trial_dir,
         "transcript.json",
-        _chat_transcript_payload(turns, termination_reason=termination_reason),
+        _chat_transcript_payload(
+            turns,
+            termination_reason=termination_reason,
+            session_id=session_id,
+            config=result.config,
+        ),
     )
     _write_output_and_verifier(
         trial_dir,
         "application_result.json",
         {
+            "sessionId": session_id,
             "applicationId": result.config.application_id,
             "applicationContext": result.config.application_context or result.config.domain,
             "status": "completed" if succeeded else "failed",
@@ -299,6 +327,7 @@ def run_inprocess_trial(
     agent_kwargs = agent_spec.get("kwargs") or {}
     started_at = _utc_now()
     event_writer = TrialEventWriter.for_trial_dir(trial_dir)
+    chat_config: PlaygroundConfig | None = None
 
     # The single callback is intentionally the future Task 5 journal seam.
     def emit(event: dict[str, Any]) -> None:
@@ -314,10 +343,14 @@ def run_inprocess_trial(
 
     def fail(exc: BaseException, *, partial_turns: list[dict[str, Any]] | None = None) -> int:
         if partial_turns is not None:
+            if chat_config is None:
+                raise RuntimeError("chat config missing while persisting partial transcript")
             _persist_partial_chat(
                 trial_dir,
                 partial_turns,
                 termination_reason=type(exc).__name__,
+                session_id=trial_name,
+                config=chat_config,
             )
         _write_failure_result(
             trial_dir,
@@ -448,6 +481,7 @@ def run_inprocess_trial(
             config = inprocess_chatbot_config(
                 task_path, repo_root=repo_root, env=env, model_name=model_name
             )
+            chat_config = config
             emit(
                 {
                     "type": "stage",
@@ -481,7 +515,7 @@ def run_inprocess_trial(
                     ),
                 )
             succeeded, termination_reason, satisfaction = _persist_completed_chat(
-                trial_dir, result
+                trial_dir, result, session_id=trial_name
             )
             if not succeeded:
                 return fail(
