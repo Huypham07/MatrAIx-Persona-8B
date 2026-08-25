@@ -180,8 +180,30 @@ def _read_json_lines_after(
 
 
 def read_events_after(path: Path, after: int = 0) -> tuple[list[dict[str, Any]], int]:
-    """Return newly complete event lines after a byte ``after`` offset."""
-    return _read_json_lines_after(path, after, decorate_job=False)
+    """Return trial events using the historic character-offset semantics.
+
+    The existing per-trial incremental endpoint exposes text offsets and has
+    always clamped a stale/out-of-range cursor. Keep that compatibility
+    contract separate from the strict binary cursors used by the job journal.
+    """
+    if not path.is_file():
+        return [], 0
+    text = path.read_text(encoding="utf-8")
+    consumed = max(0, min(after, len(text)))
+    if consumed >= len(text):
+        return [], consumed
+
+    events: list[dict[str, Any]] = []
+    while consumed < len(text):
+        newline = text.find("\n", consumed)
+        if newline == -1:
+            break
+        line = text[consumed:newline]
+        consumed = newline + 1
+        stripped = line.strip()
+        if stripped:
+            events.append(json.loads(stripped))
+    return events, consumed
 
 
 def read_job_events_after(

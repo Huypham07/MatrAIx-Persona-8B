@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import multiprocessing
+import time
 from pathlib import Path
 
 import pytest
@@ -50,6 +52,28 @@ def test_read_events_after_missing_file(tmp_path: Path) -> None:
     events, offset = read_events_after(tmp_path / "missing.jsonl", 0)
     assert events == []
     assert offset == 0
+
+
+def test_trial_event_reader_preserves_legacy_character_cursor_and_clamping(
+    tmp_path: Path,
+) -> None:
+    events_path = tmp_path / "trial-0" / "events.jsonl"
+    writer = TrialEventWriter(events_path)
+    writer.append({"type": "phase", "message": "café 東京"})
+
+    first, legacy_cursor = read_events_after(events_path, 0)
+    assert first[0]["message"] == "café 東京"
+    assert legacy_cursor == len(events_path.read_text(encoding="utf-8"))
+    assert legacy_cursor < events_path.stat().st_size
+
+    writer.append({"type": "done"})
+    replay, next_cursor = read_events_after(events_path, legacy_cursor)
+    assert [event["type"] for event in replay] == ["done"]
+    assert next_cursor == len(events_path.read_text(encoding="utf-8"))
+
+    clamped, offset = read_events_after(events_path, 999_999)
+    assert clamped == []
+    assert offset == next_cursor
 
 
 def test_job_journal_multiplexes_trials_and_replays_by_byte_cursor(tmp_path: Path) -> None:
@@ -195,3 +219,41 @@ async def test_sse_heartbeats_while_idle_and_reports_read_errors(tmp_path: Path)
     ]
     assert len(errors) == 1
     assert "event: stream_error\n" in errors[0]
+
+
+@pytest.mark.asyncio
+async def test_sse_offloads_blocking_journal_and_terminal_checks(tmp_path: Path, monkeypatch) -> None:
+    def slow_read(path: Path, after: int):
+        del path
+        time.sleep(0.05)
+        return [], after
+
+    def slow_terminal() -> bool:
+        time.sleep(0.05)
+        return True
+
+    async def never_disconnected() -> bool:
+        return False
+
+    monkeypatch.setattr("backend.api.sse_stream.read_job_events_after", slow_read)
+
+    async def collect() -> list[str]:
+        return [
+            chunk
+            async for chunk in stream_job_events(
+                tmp_path / "job",
+                after=0,
+                is_disconnected=never_disconnected,
+                is_terminal=slow_terminal,
+                poll_seconds=0,
+            )
+        ]
+
+    task = asyncio.create_task(collect())
+    ticks = 0
+    while not task.done():
+        await asyncio.sleep(0.005)
+        ticks += 1
+
+    assert await task == []
+    assert ticks >= 4

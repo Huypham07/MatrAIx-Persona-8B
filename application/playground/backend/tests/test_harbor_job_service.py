@@ -60,6 +60,50 @@ def test_job_terminal_state_is_not_visible_before_its_journal_event(tmp_path, mo
     service.shutdown()
 
 
+def test_retry_journals_fresh_queued_lifecycle_before_running(tmp_path):
+    service = HarborJobService(
+        repo_root=tmp_path,
+        jobs_dir=tmp_path / "jobs",
+        generated_configs_dir=tmp_path / "configs",
+    )
+    job_dir = tmp_path / "jobs" / "job-1"
+    failed_trial = job_dir / "trial-0"
+    failed_trial.mkdir(parents=True)
+    (failed_trial / "result.json").write_text(
+        json.dumps({"exception_info": {"exception_message": "old failure"}}),
+        encoding="utf-8",
+    )
+    config_path = tmp_path / "configs" / "job-1.yaml"
+    config_path.parent.mkdir()
+    config_path.write_text("jobs_dir: jobs\n", encoding="utf-8")
+    service._launch_meta_path("job-1").write_text(
+        json.dumps(
+            {
+                "configPath": "configs/job-1.yaml",
+                "executionPlane": "harbor",
+                "useLocalDistributed": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    service._launches["job-1"] = HarborLaunchRecord(job_name="job-1", status="running")
+    service._finish_job("job-1", status="failed", exit_code=1, error="old failure")
+    service._executor = _FakeExecutor()
+
+    assert service.retry_failed("job-1") == {"jobName": "job-1", "retried": 1}
+    service._mark_job_running("job-1")
+    service._finish_job("job-1", status="completed", exit_code=0, error=None)
+
+    events, _ = read_job_events_after(service.job_events_path("job-1"))
+    assert [event["event"]["state"] for event in events] == [
+        "failed",
+        "queued",
+        "running",
+        "completed",
+    ]
+    service.shutdown()
+
+
 def test_inprocess_worker_delegates_to_focused_trial_worker(tmp_path, monkeypatch):
     """Keeping Harbor's old inline worker would bypass the faithful runner boundary."""
     service = HarborJobService(

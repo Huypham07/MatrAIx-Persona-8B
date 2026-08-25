@@ -20,6 +20,13 @@ async def _value(value: Any) -> Any:
     return await value if inspect.isawaitable(value) else value
 
 
+async def _terminal_value(callback: Callable[[], bool | Awaitable[bool]]) -> bool:
+    """Run sync terminal probes off-loop while preserving async callback support."""
+    if inspect.iscoroutinefunction(callback):
+        return bool(await callback())
+    return bool(await _value(await asyncio.to_thread(callback)))
+
+
 def _encode(envelope: dict[str, Any]) -> str:
     event_name = "job" if envelope["trialName"] is None else "trial"
     data = json.dumps(envelope, ensure_ascii=False)
@@ -53,15 +60,17 @@ async def stream_job_events(
     path = job_dir / JOB_EVENTS_FILENAME
     try:
         while not await is_disconnected():
-            envelopes, cursor = read_job_events_after(path, cursor)
+            envelopes, cursor = await asyncio.to_thread(read_job_events_after, path, cursor)
             for envelope in envelopes:
                 if await is_disconnected():
                     return
                 yield _encode(envelope)
                 idle_since = time.monotonic()
 
-            if await _value(is_terminal()):
-                envelopes, cursor = read_job_events_after(path, cursor)
+            if await _terminal_value(is_terminal):
+                envelopes, cursor = await asyncio.to_thread(
+                    read_job_events_after, path, cursor
+                )
                 for envelope in envelopes:
                     if await is_disconnected():
                         return

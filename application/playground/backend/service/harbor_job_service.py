@@ -1987,6 +1987,7 @@ class HarborJobService:
                 started_at=_utc_now(),
                 execution_plane=plane,
             )
+        self._append_job_state(job_name, "queued")
 
         if meta.get("useLocalDistributed"):
             self._executor.submit(
