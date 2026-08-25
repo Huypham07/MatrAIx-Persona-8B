@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import json
 from typing import Any, Callable, Dict, List, Optional
 
 from backend.service.survey_instruction_builder import (
@@ -20,6 +21,7 @@ from backend.service.survey_types import (
     TrajectoryEvent,
 )
 from playground.budget import assert_budget_allows_request, record_trial_cost
+from playground.llm_usage import LlmUsage, merge_usage
 from playground.model_client import build_json_client
 from playground.types import Persona
 from playground.user_sim.prompt import render_persona_block
@@ -35,46 +37,135 @@ def persona_system_prompt(persona: Persona, *, persona_yaml_path: Optional[str] 
 
 
 def build_survey_task_prompt(*, instrument: SurveyInstrument) -> str:
-    lines: list[str] = [
+    return SurveyTaskContent(
+        title=instrument.title,
+        instruction_markdown=render_survey_task_instruction_markdown(instrument),
+        context_markdown=render_survey_context_markdown(instrument),
+        questionnaire_markdown=render_survey_questionnaire_markdown(instrument),
+        output_schema_markdown=render_survey_output_schema_markdown(instrument),
+        instrument=instrument,
+    ).combined_markdown()
+
+
+class InvalidSurveyResponse(ValueError):
+    def __init__(self, question_id: str, detail: str) -> None:
+        super().__init__(
+            f"Invalid model response for survey question {question_id}: {detail}"
+        )
+        self.question_id = question_id
+        self.detail = detail
+
+
+def _validate_answer(
+    raw: Any, question: SurveyQuestion, instrument: SurveyInstrument
+) -> SurveyAnswer:
+    payload = raw.get("answer") if isinstance(raw, dict) else None
+    if not isinstance(payload, dict):
+        raise InvalidSurveyResponse(question.id, "answer must be an object")
+    try:
+        answer = SurveyAnswer.from_dict(payload)
+    except (TypeError, ValueError) as exc:
+        raise InvalidSurveyResponse(question.id, str(exc)) from exc
+    if answer.question_id != question.id:
+        raise InvalidSurveyResponse(question.id, "questionId does not match")
+    if question.type == "likert":
+        if isinstance(answer.value, bool) or not str(answer.value).strip().isdigit():
+            raise InvalidSurveyResponse(question.id, "value must be an integer")
+        answer.value = int(answer.value)
+        if not question.min_value <= answer.value <= question.max_value:
+            raise InvalidSurveyResponse(
+                question.id, "value is outside the authored range"
+            )
+    elif question.type == "single_choice" and str(answer.value) not in question.options:
+        raise InvalidSurveyResponse(
+            question.id, "value is not one of the authored option ids"
+        )
+    elif question.type == "multi_choice":
+        if (
+            not isinstance(answer.value, list)
+            or not answer.value
+            or any(str(value) not in question.options for value in answer.value)
+        ):
+            raise InvalidSurveyResponse(
+                question.id, "values must be authored option ids"
+            )
+        answer.value = [str(value) for value in answer.value]
+    elif question.type == "free_text" and not str(answer.value or "").strip():
+        raise InvalidSurveyResponse(question.id, "free-text value must not be empty")
+    answer.rationale = (
+        answer.rationale if question.resolves_ask_rationale(instrument) else ""
+    )
+    answer.confidence = (
+        answer.confidence if question.resolves_ask_confidence(instrument) else None
+    )
+    return answer
+
+
+def _question_completion_prompt(
+    *,
+    instrument: SurveyInstrument,
+    question: SurveyQuestion,
+    answers: list[SurveyAnswer],
+    correction_detail: str | None = None,
+) -> str:
+    question_instrument = SurveyInstrument(
+        id=instrument.id,
+        title=instrument.title,
+        description=instrument.description,
+        questions=[question],
+        ask_rationale=instrument.ask_rationale,
+        ask_confidence=instrument.ask_confidence,
+    )
+    parts = [
         f"# {instrument.title}",
         "",
-        "Please answer all survey questions below based on your persona background and preferences.",
+        "## Task instruction",
         "",
-        "## Questions",
+        render_survey_task_instruction_markdown(instrument).strip(),
         "",
-    ]
-    for q in instrument.questions:
-        if q.type in {"single_choice", "multi_choice"}:
-            if q.option_details:
-                opts = ", ".join(f"`{o.id}`: {o.label}" for o in q.option_details)
-            else:
-                opts = ", ".join(f"`{o}`" for o in q.options)
-            lines.append(f"- **[{q.id}]** {q.prompt} (Options: {opts})")
-        elif q.type == "likert":
-            lines.append(f"- **[{q.id}]** {q.prompt} (Rate integer {q.min_value} to {q.max_value})")
-        else:
-            lines.append(f"- **[{q.id}]** {q.prompt} (Free text)")
-
-    lines.extend([
+        "## Context",
         "",
-        "## Instructions",
-        "- For choice questions, output ONLY the choice id (e.g. \"a\", \"b\", etc.) as the value.",
-        "- For likert questions, output the integer rating as the value.",
-        "- For free text questions, output a brief 1-sentence response as the value.",
-        "- Respond in valid JSON only without markdown explanation.",
+        render_survey_context_markdown(instrument).strip(),
         "",
-        "## Required JSON Format",
+        "## Current question",
+        "",
+        render_survey_questionnaire_markdown(question_instrument).strip(),
+        "",
+        "## Required JSON format",
+        "",
         "```json",
-        "{",
-        f'  "instrument": {{"id": "{instrument.id}", "title": "{instrument.title}"}},',
-        '  "answers": [',
-        '    {"questionId": "q0", "value": "a"},',
-        '    {"questionId": "q1", "value": "b"}',
-        "  ]",
-        "}",
+        '{"answer": {"questionId": "%s", "value": "<answer value>"}}'
+        % question.id,
         "```",
-    ])
-    return "\n".join(lines).strip()
+        "",
+        "Respond with valid JSON only.",
+    ]
+    if answers:
+        continuity = [
+            {"questionId": answer.question_id, "value": answer.value}
+            for answer in answers
+        ]
+        parts.extend(
+            [
+                "",
+                "## Previously answered questions",
+                "",
+                json.dumps(continuity, ensure_ascii=False),
+            ]
+        )
+    if correction_detail is not None:
+        parts.extend(
+            [
+                "",
+                "## Correction required",
+                "",
+                "Your previous response was invalid: {}. Return a corrected answer for "
+                "the current question using the required JSON format.".format(
+                    correction_detail
+                ),
+            ]
+        )
+    return "\n".join(parts).strip()
 
 
 class InprocessSurveyEvalRunner:
@@ -115,91 +206,77 @@ class InprocessSurveyEvalRunner:
             else:
                 client = build_json_client(config.persona_model)
 
-        questions = instrument.questions
-        chunk_size = 5 if len(questions) > 5 else len(questions)
         all_answers: list[SurveyAnswer] = []
-        total_usage_dict: dict[str, Any] = {}
+        usage_parts: list[LlmUsage | None] = []
 
-        for chunk_start in range(0, len(questions), chunk_size):
-            chunk_end = min(chunk_start + chunk_size, len(questions))
-            chunk = questions[chunk_start:chunk_end]
-
-            chunk_lines = [
-                f"# {instrument.title}",
-                "",
-                f"Please answer questions {chunk_start + 1} to {chunk_end} of {len(questions)} as yourself in JSON.",
-                "",
-                "## Questions",
-                "",
-            ]
-            for q in chunk:
-                if q.type in {"single_choice", "multi_choice"}:
-                    if q.option_details:
-                        opts = ", ".join(f"`{o.id}`: {o.label}" for o in q.option_details)
-                    else:
-                        opts = ", ".join(f"`{o}`" for o in q.options)
-                    chunk_lines.append(f"- **[{q.id}]** {q.prompt} (Options: {opts})")
-                elif q.type == "likert":
-                    chunk_lines.append(f"- **[{q.id}]** {q.prompt} (Rate integer {q.min_value} to {q.max_value})")
-                else:
-                    chunk_lines.append(f"- **[{q.id}]** {q.prompt} (Free text)")
-
-            chunk_lines.extend([
-                "",
-                "## Instructions",
-                "- For choice questions, output ONLY the choice id (e.g. \"a\", \"b\", etc.) as value.",
-                "- For likert questions, output integer rating as value.",
-                "- For free text questions, output a brief 1-sentence response.",
-                "- Respond in valid JSON only.",
-                "",
-                "## Required JSON Format",
-                "```json",
-                '{"answers": [{"questionId": "q0", "value": "a"}]}',
-                "```",
-            ])
-            chunk_task_prompt = "\n".join(chunk_lines).strip()
-
-            q_preview = chunk[0].prompt[:60]
-            emit({
-                "type": "stage",
-                "stage": "running_agent",
-                "message": f"Answering Q{chunk_start + 1}-Q{chunk_end}/{len(questions)}: {q_preview}...",
-            })
+        for index, question in enumerate(instrument.questions, start=1):
+            emit(
+                {
+                    "type": "survey_question_started",
+                    "questionId": question.id,
+                    "prompt": question.prompt,
+                    "questionType": question.type,
+                    "questionIndex": index,
+                    "numQuestions": len(instrument.questions),
+                }
+            )
+            emit(
+                {
+                    "type": "stage",
+                    "stage": "running_agent",
+                    "message": "Answering Q{}/{}: {}...".format(
+                        index, len(instrument.questions), question.prompt[:60]
+                    ),
+                }
+            )
             emit({"type": "phase", "phase": "survey_answering"})
 
-            assert_budget_allows_request(job_dir)
-            if hasattr(client, "complete_json_with_usage"):
-                completion = client.complete_json_with_usage(
-                    prompts["personaPrompt"], chunk_task_prompt
+            correction_detail: str | None = None
+            for attempt in range(2):
+                question_prompt = _question_completion_prompt(
+                    instrument=instrument,
+                    question=question,
+                    answers=all_answers,
+                    correction_detail=correction_detail,
                 )
-                raw = completion.data
-                usage = completion.usage
-            else:
-                raw = client.complete_json(prompts["personaPrompt"], chunk_task_prompt)
-                usage = None
+                assert_budget_allows_request(job_dir)
+                if hasattr(client, "complete_json_with_usage"):
+                    completion = client.complete_json_with_usage(
+                        prompts["personaPrompt"], question_prompt
+                    )
+                    raw = completion.data
+                    usage = completion.usage
+                else:
+                    raw = client.complete_json(prompts["personaPrompt"], question_prompt)
+                    usage = None
+                usage_parts.append(usage)
+                if usage is not None:
+                    record_trial_cost(job_dir, usage.cost_usd)
 
-            if usage is not None:
-                record_trial_cost(job_dir, usage.cost_usd)
-                total_usage_dict = usage.to_dict()
+                try:
+                    answer = _validate_answer(raw, question, instrument)
+                except InvalidSurveyResponse as exc:
+                    if attempt == 1:
+                        raise
+                    correction_detail = exc.detail
+                    continue
+                break
+            else:  # pragma: no cover - the second attempt either breaks or raises.
+                raise AssertionError("survey answer loop exhausted without a response")
 
-            chunk_instrument = SurveyInstrument(
-                id=instrument.id,
-                title=instrument.title,
-                questions=chunk,
-                description=instrument.description,
-            )
-            raw_answers = raw.get("answers") if isinstance(raw, dict) else None
-            chunk_norm_answers = _normalize_answers(raw_answers, chunk_instrument)
-            for ans in chunk_norm_answers:
-                all_answers.append(ans)
-                emit({
+            all_answers.append(answer)
+            total_usage = merge_usage(*usage_parts)
+            emit(
+                {
                     "type": "survey_answer",
-                    "questionId": ans.question_id,
-                    "value": ans.value,
-                    "progress": f"{len(all_answers)}/{len(questions)}",
-                    "message": f"Answered [{ans.question_id}]: {ans.value}",
-                })
-
+                    "questionId": answer.question_id,
+                    "value": answer.value,
+                    "rationale": answer.rationale,
+                    "confidence": answer.confidence,
+                    "progress": f"{len(all_answers)}/{len(instrument.questions)}",
+                    "message": f"Answered [{answer.question_id}]: {answer.value}",
+                }
+            )
             intermediate_result = SurveyEvalResult(
                 config=config,
                 persona=persona,
@@ -209,15 +286,18 @@ class InprocessSurveyEvalRunner:
                 metrics=_metrics(all_answers, instrument),
                 created_at=created_at,
                 prompts=prompts,
-                usage=total_usage_dict or None,
+                usage=total_usage.to_dict() if total_usage is not None else None,
             )
-            emit({
-                "type": "survey_progress",
-                "progress": f"{len(all_answers)}/{len(questions)}",
-                "result": intermediate_result.to_dict(),
-            })
+            emit(
+                {
+                    "type": "survey_progress",
+                    "progress": f"{len(all_answers)}/{len(instrument.questions)}",
+                    "result": intermediate_result.to_dict(),
+                }
+            )
 
         answers = all_answers
+        total_usage = merge_usage(*usage_parts)
         metrics = _metrics(answers, instrument)
         trajectory = _build_trajectory(instrument, answers, created_at)
         result = SurveyEvalResult(
@@ -229,7 +309,7 @@ class InprocessSurveyEvalRunner:
             metrics=metrics,
             created_at=created_at,
             prompts=prompts,
-            usage=total_usage_dict or None,
+            usage=total_usage.to_dict() if total_usage is not None else None,
         )
         emit({
             "type": "stage",
@@ -331,76 +411,6 @@ def _build_trajectory(
         )
     )
     return events
-
-
-def _normalize_answers(raw_answers: Any, instrument: SurveyInstrument) -> List[SurveyAnswer]:
-    by_id = {question.id: question for question in instrument.questions}
-    answers: List[SurveyAnswer] = []
-    if not isinstance(raw_answers, list):
-        raw_answers = []
-    seen = set()
-    for raw in raw_answers:
-        if not isinstance(raw, dict):
-            continue
-        answer = SurveyAnswer.from_dict(raw)
-        question = by_id.get(answer.question_id)
-        if question is None or answer.question_id in seen:
-            continue
-        answer.value = _normalize_value(answer.value, question)
-        if not question.resolves_ask_rationale(instrument):
-            answer.rationale = ""
-        if not question.resolves_ask_confidence(instrument):
-            answer.confidence = None
-        answers.append(answer)
-        seen.add(answer.question_id)
-    for question in instrument.questions:
-        if question.required and question.id not in seen:
-            answers.append(
-                SurveyAnswer(
-                    question_id=question.id,
-                    value=_default_value(question),
-                    rationale=(
-                        "No persona-specific answer was produced, so a neutral answer was used."
-                        if question.resolves_ask_rationale(instrument)
-                        else ""
-                    ),
-                    confidence=(
-                        0.0 if question.resolves_ask_confidence(instrument) else None
-                    ),
-                )
-            )
-    return answers
-
-
-def _normalize_value(value: Any, question: SurveyQuestion) -> Any:
-    if question.type == "likert":
-        try:
-            number = int(round(float(value)))
-        except (TypeError, ValueError):
-            low = question.min_value or 1
-            high = question.max_value or 5
-            number = int(round((low + high) / 2))
-        return max(question.min_value or 1, min(question.max_value or 5, number))
-    if question.type == "single_choice":
-        text = str(value)
-        return text if text in question.options else question.options[0]
-    if question.type == "multi_choice":
-        values = value if isinstance(value, list) else [value]
-        selected = [str(item) for item in values if str(item) in question.options]
-        return selected or [question.options[0]]
-    return str(value or "").strip()
-
-
-def _default_value(question: SurveyQuestion) -> Any:
-    if question.type == "likert":
-        low = question.min_value or 1
-        high = question.max_value or 5
-        return int(round((low + high) / 2))
-    if question.type == "single_choice":
-        return question.options[0]
-    if question.type == "multi_choice":
-        return [question.options[0]]
-    return ""
 
 
 def _metrics(answers: List[SurveyAnswer], instrument: SurveyInstrument) -> SurveyMetrics:

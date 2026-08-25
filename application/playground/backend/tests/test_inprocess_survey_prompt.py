@@ -122,14 +122,12 @@ def test_survey_runner_requires_yaml_path_for_persona_prompt(monkeypatch, tmp_pa
     class FakeJSONClient:
         def complete_json(self, system, user):
             return {
-                "answers": [
-                    {
-                        "questionId": "fit",
-                        "value": 4,
-                        "rationale": "Fits.",
-                        "confidence": 0.8,
-                    }
-                ]
+                "answer": {
+                    "questionId": "fit",
+                    "value": 4,
+                    "rationale": "Fits.",
+                    "confidence": 0.8,
+                }
             }
 
     monkeypatch.setattr(

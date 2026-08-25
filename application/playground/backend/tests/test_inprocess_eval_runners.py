@@ -2,8 +2,14 @@ import json
 import urllib.request
 from pathlib import Path
 
+import pytest
+
 from playground.inprocess.chatbot_eval import DirectApplicationSession
-from playground.inprocess.survey_eval import InprocessSurveyEvalRunner
+from playground.inprocess.survey_eval import (
+    InvalidSurveyResponse,
+    InprocessSurveyEvalRunner,
+)
+from playground.llm_usage import JsonCompletion, LlmUsage
 from backend.service.survey_types import SurveyEvalConfig, SurveyInstrument, SurveyQuestion
 from playground.types import Persona, PlaygroundConfig
 
@@ -16,6 +22,16 @@ class FakeJSONClient:
     def complete_json(self, system, user):
         self.calls.append((system, user))
         return self.payload
+
+
+class ScriptedJSONClient:
+    def __init__(self, payloads):
+        self.payloads = list(payloads)
+        self.calls = []
+
+    def complete_json(self, system, user):
+        self.calls.append({"system": system, "user": user})
+        return self.payloads.pop(0)
 
 
 def _persona():
@@ -48,14 +64,12 @@ def _persona_yaml(tmp_path: Path) -> str:
 def test_inprocess_survey_runner_returns_result_and_prompts(monkeypatch, tmp_path):
     client = FakeJSONClient(
         {
-            "answers": [
-                {
-                    "questionId": "fit",
-                    "value": 5,
-                    "rationale": "It fits the persona's needs.",
-                    "confidence": 0.9,
-                }
-            ]
+            "answer": {
+                "questionId": "fit",
+                "value": 5,
+                "rationale": "It fits the persona's needs.",
+                "confidence": 0.9,
+            }
         }
     )
     monkeypatch.setattr(
@@ -119,6 +133,122 @@ def test_inprocess_survey_runner_returns_result_and_prompts(monkeypatch, tmp_pat
         "valid": True,
     }
     assert client.calls
+
+
+def test_survey_calls_model_once_per_question_and_streams_in_order(tmp_path):
+    client = ScriptedJSONClient(
+        [
+            {"answer": {"questionId": "q1", "value": 4}},
+            {"answer": {"questionId": "q2", "value": "b"}},
+        ]
+    )
+    instrument = SurveyInstrument(
+        id="s",
+        title="S",
+        questions=[
+            SurveyQuestion(
+                id="q1", prompt="Rate", type="likert", min_value=1, max_value=5
+            ),
+            SurveyQuestion(
+                id="q2", prompt="Pick", type="single_choice", options=["a", "b"]
+            ),
+        ],
+    )
+    events = []
+
+    result = InprocessSurveyEvalRunner()(
+        _persona(),
+        instrument,
+        client=client,
+        on_event=events.append,
+        persona_yaml_path=_persona_yaml(tmp_path),
+    )
+
+    assert len(client.calls) == 2
+    assert [answer.value for answer in result.answers] == [4, "b"]
+    assert [event["type"] for event in events if event["type"].startswith("survey_")] == [
+        "survey_question_started",
+        "survey_answer",
+        "survey_progress",
+        "survey_question_started",
+        "survey_answer",
+        "survey_progress",
+    ]
+
+
+def test_invalid_choice_retries_once_then_fails_without_first_option(tmp_path):
+    client = ScriptedJSONClient(
+        [
+            {"answer": {"questionId": "q1", "value": "bad"}},
+            {"answer": {"questionId": "q1", "value": "still-bad"}},
+        ]
+    )
+
+    with pytest.raises(InvalidSurveyResponse, match="q1"):
+        InprocessSurveyEvalRunner()(
+            _persona(),
+            SurveyInstrument(
+                id="s",
+                title="S",
+                questions=[
+                    SurveyQuestion(
+                        id="q1",
+                        prompt="Pick",
+                        type="single_choice",
+                        options=["a", "b"],
+                    )
+                ],
+            ),
+            client=client,
+            persona_yaml_path=_persona_yaml(tmp_path),
+        )
+
+    assert len(client.calls) == 2
+    assert "not one of" in client.calls[1]["user"]
+
+
+def test_survey_merges_usage_across_question_completions(tmp_path):
+    class UsageClient(ScriptedJSONClient):
+        def complete_json_with_usage(self, system, user):
+            payload = self.complete_json(system, user)
+            return JsonCompletion(
+                data=payload,
+                usage=LlmUsage(
+                    n_input_tokens=10,
+                    n_output_tokens=2,
+                    cost_usd=0.01,
+                    model="test-model",
+                    provider="test",
+                ),
+            )
+
+    result = InprocessSurveyEvalRunner()(
+        _persona(),
+        SurveyInstrument(
+            id="s",
+            title="S",
+            questions=[
+                SurveyQuestion(id="q1", prompt="Rate"),
+                SurveyQuestion(id="q2", prompt="Rate again"),
+            ],
+        ),
+        client=UsageClient(
+            [
+                {"answer": {"questionId": "q1", "value": 3}},
+                {"answer": {"questionId": "q2", "value": 4}},
+            ]
+        ),
+        persona_yaml_path=_persona_yaml(tmp_path),
+    )
+
+    assert result.usage == {
+        "n_input_tokens": 20,
+        "n_output_tokens": 4,
+        "cost_usd": 0.02,
+        "model": "test-model",
+        "provider": "test",
+        "cost_source": "estimated",
+    }
 
 
 class FakeHTTPResponse:
