@@ -81,3 +81,12 @@ def test_get_persona_accepts_persona_prefixed_ids():
     prefixed = get_persona("persona_0001")
     assert prefixed.id == direct.id
     assert prefixed.context == direct.context
+
+
+def test_get_persona_resolves_checked_in_task_eval_personas():
+    persona = get_persona("0593")
+
+    assert persona.id == "0593"
+    assert persona.source == "synthetic"
+    assert "Primary Language: Swahili" in persona.context
+    assert "Health Insurance Status: Uninsured" in persona.context

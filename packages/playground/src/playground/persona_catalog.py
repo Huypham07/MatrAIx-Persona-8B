@@ -16,6 +16,7 @@ _ENUM_VALUE_RE = re.compile(r"[a-z0-9]+(?:_[a-z0-9]+)*")
 
 # Canonical persona source: the checked-in Playground dev pool.
 _CURATED_DIR = persona_data_dir(Path(__file__))
+_TASK_EVAL_DIR = _CURATED_DIR.parent / "task-eval-personas"
 
 # Keys that are loader bookkeeping rather than persona content.
 _SKIP_KEYS = {"id", "persona_id", "version", "source", "source_file", "raw_fields"}
@@ -124,6 +125,23 @@ def clear_persona_catalog_cache() -> None:
     _PERSONAS_BY_ID = None
 
 
+def _persona_from_yaml(path: Path) -> Persona | None:
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(data, dict):
+        return None
+    source = str(data.get("source", "")).strip()
+    persona_id = _normalize_persona_id(
+        str(data.get("persona_id") or data.get("id") or path.stem)
+    )
+    name = _extract_name(source, data)
+    return Persona(
+        id=persona_id or path.stem,
+        name=name,
+        source=source,
+        context=_persona_context(data, fallback_name=name),
+    )
+
+
 def _load_curated() -> List[Persona]:
     global _CURATED_CACHE
     if _CURATED_CACHE is not None:
@@ -133,21 +151,9 @@ def _load_curated() -> List[Persona]:
         _CURATED_CACHE = personas
         return personas
     for path in sorted(_CURATED_DIR.glob("*.yaml")):
-        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        if not isinstance(data, dict):
-            continue
-        source = str(data.get("source", "")).strip()
-        persona_id = _normalize_persona_id(
-            str(data.get("persona_id") or data.get("id") or path.stem)
-        )
-        name = _extract_name(source, data)
-        persona = Persona(
-            id=persona_id or path.stem,
-            name=name,
-            source=source,
-            context=_persona_context(data, fallback_name=name),
-        )
-        personas.append(persona)
+        persona = _persona_from_yaml(path)
+        if persona is not None:
+            personas.append(persona)
     _CURATED_CACHE = personas
     return personas
 
@@ -157,7 +163,16 @@ def _load_all() -> Dict[str, Persona]:
     if _PERSONAS_BY_ID is not None:
         return _PERSONAS_BY_ID
     personas: Dict[str, Persona] = {}
-    for persona in _load_curated():
+    task_eval_personas = (
+        [
+            persona
+            for path in sorted(_TASK_EVAL_DIR.glob("*.yaml"))
+            if (persona := _persona_from_yaml(path)) is not None
+        ]
+        if _TASK_EVAL_DIR.is_dir()
+        else []
+    )
+    for persona in [*_load_curated(), *task_eval_personas]:
         personas[persona.id] = persona
         normalized = _normalize_persona_id(persona.id)
         if normalized and normalized not in personas:
