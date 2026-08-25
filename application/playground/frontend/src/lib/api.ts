@@ -60,7 +60,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      const plainText = text.trim();
+      if (!response.ok) {
+        throw new ApiError(
+          response.status,
+          plainText || response.statusText || "Request failed",
+          plainText,
+        );
+      }
+      throw new ApiError(
+        response.status,
+        "The backend returned an invalid JSON response.",
+        plainText,
+      );
+    }
+  }
   if (!response.ok) {
     const detail = data && typeof data === "object" && "detail" in data ? data.detail : data;
     const message = typeof detail === "string" ? detail : response.statusText;
