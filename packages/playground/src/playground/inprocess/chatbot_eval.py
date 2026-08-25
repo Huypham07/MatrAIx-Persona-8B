@@ -62,21 +62,40 @@ def _is_temporary_reply(reply: str) -> bool:
 
 def _retry_meaningful_reply(
     send: Callable[[], Dict[str, Any]],
+    *,
+    on_event: Callable[[Dict[str, Any]], None] | None = None,
 ) -> Dict[str, Any]:
     last_error: Exception | None = None
     temporary_reply = False
     for attempt in range(_MAX_APPLICATION_ATTEMPTS):
+        cause = ""
         try:
             response = send()
             reply = _reply_from_response(response)
             if not _is_temporary_reply(reply):
                 return response
             temporary_reply = bool(reply)
+            cause = "temporary_reply" if reply else "blank_reply"
             last_error = ApplicationUnavailable(
                 "temporary failure reply: {}".format(reply or "blank reply")
             )
         except Exception as exc:
             last_error = exc
+            cause = "{}: {}".format(type(exc).__name__, exc)
+        event_type = (
+            "application_error"
+            if attempt == _MAX_APPLICATION_ATTEMPTS - 1
+            else "application_retry"
+        )
+        if on_event is not None:
+            on_event(
+                {
+                    "type": event_type,
+                    "attempt": attempt + 1,
+                    "maxAttempts": _MAX_APPLICATION_ATTEMPTS,
+                    "cause": cause,
+                }
+            )
         if attempt < _MAX_APPLICATION_ATTEMPTS - 1:
             time.sleep(0.05 * (attempt + 1))
     if temporary_reply:
@@ -93,12 +112,18 @@ def _retry_meaningful_reply(
 class DirectApplicationSession:
     """Session wrapper for non-RecAI chatbot application adapters."""
 
-    def __init__(self, config: PlaygroundConfig) -> None:
+    def __init__(
+        self,
+        config: PlaygroundConfig,
+        *,
+        on_event: Callable[[Dict[str, Any]], None] | None = None,
+    ) -> None:
         self.config = config
         self.turns = []
         self._session_id: Optional[str] = None
         self._application = _application_for(config.application_id)
         self._task_config = _load_sidecar_task_config(config.application_id)
+        self._on_event = on_event
 
     def run_turn_sync(self, message: str) -> Dict[str, Any]:
         response = self._application.send_message(
@@ -108,6 +133,7 @@ class DirectApplicationSession:
             context=config_context(self.config),
             engine=self.config.engine,
             bot_type="chat",
+            on_event=self._on_event,
         )
         self._session_id = str(response["sessionId"])
         turn = dict(response.get("turn") or {})
@@ -206,7 +232,7 @@ def run_inprocess_chatbot_eval(
         or config.domain
     )
     return run_playground(
-        DirectApplicationSession(config),
+        DirectApplicationSession(config, on_event=on_event),
         persona,
         sut_description,
         config,
@@ -309,6 +335,7 @@ class InProcessLLMChatbotApplication:
         context: str,
         engine: Optional[str],
         bot_type: Optional[str],
+        on_event: Callable[[Dict[str, Any]], None] | None = None,
     ) -> Dict[str, Any]:
         import uuid
         from playground.model_client import build_json_client
@@ -344,7 +371,7 @@ class InProcessLLMChatbotApplication:
                 "status": "ok",
             }
 
-        return _retry_meaningful_reply(send)
+        return _retry_meaningful_reply(send, on_event=on_event)
 
 
 class HTTPChatbotApplication:
@@ -364,18 +391,30 @@ class HTTPChatbotApplication:
         context: str,
         engine: Optional[str],
         bot_type: Optional[str],
+        on_event: Callable[[Dict[str, Any]], None] | None = None,
     ) -> Dict[str, Any]:
-        body = {
-            "sessionId": session_id,
-            "message": message,
-            "title": title,
-            "applicationId": self.application_id,
-            "applicationContext": context or self.default_context,
-            "engine": engine,
-            "botType": bot_type,
-        }
+        active_session_id = session_id
+
+        def send() -> Dict[str, Any]:
+            nonlocal active_session_id
+            body = {
+                "sessionId": active_session_id,
+                "message": message,
+                "title": title,
+                "applicationId": self.application_id,
+                "applicationContext": context or self.default_context,
+                "engine": engine,
+                "botType": bot_type,
+            }
+            response = self._request_json("POST", "/v1/messages", body=body)
+            issued_session_id = str(response.get("sessionId") or "").strip()
+            if issued_session_id:
+                active_session_id = issued_session_id
+            return response
+
         return _retry_meaningful_reply(
-            lambda: self._request_json("POST", "/v1/messages", body=body)
+            send,
+            on_event=on_event,
         )
 
     def _request_json(

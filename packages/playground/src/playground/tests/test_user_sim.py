@@ -9,7 +9,12 @@ import pytest
 
 from playground.task_content_bundle import TaskContentBundle
 from playground.types import Persona, PlaygroundConfig, Questionnaire
-from playground.user_sim.runner import run_playground, run_playground_async
+from playground.user_sim.runner import (
+    ApplicationResponseUnavailable,
+    ConversationNotTerminated,
+    run_playground,
+    run_playground_async,
+)
 from playground.user_sim.session import UserSimSession
 from playground.user_sim.tool_client import FakeToolStepClient
 from playground.user_sim.tools import ToolCall, normalize_sim_message, parse_tool_calls
@@ -249,6 +254,110 @@ def test_session_stops_after_three_rejected_early_end_attempts():
         session.next_action("The chatbot replied with a concrete plan.", allow_end=False)
 
     assert len(client.calls) == 3
+
+
+def test_runner_fails_at_maximum_without_self_report_and_preserves_turns(monkeypatch):
+    client = FakeToolStepClient(
+        [
+            [ToolCall("send_message", {"message": "opening"})],
+            [ToolCall("send_message", {"message": "follow-up one"})],
+            [ToolCall("send_message", {"message": "follow-up two"})],
+            [ToolCall("send_message", {"message": "follow-up three"})],
+            [ToolCall("send_message", {"message": "follow-up four"})],
+            [ToolCall("send_message", {"message": "follow-up five"})],
+        ]
+    )
+    monkeypatch.setattr(
+        "playground.user_sim.runner.build_tool_step_client",
+        lambda *_args, **_kwargs: client,
+    )
+    monkeypatch.setattr(
+        "playground.user_sim.runner.build_json_client",
+        lambda *_args, **_kwargs: pytest.fail("self-report must not run"),
+    )
+    events = []
+
+    with pytest.raises(ConversationNotTerminated, match="max_turns") as error:
+        run_playground(
+            FakeSession(
+                [{"assistantMessage": "reply-{}".format(index)} for index in range(1, 6)]
+            ),
+            _persona(),
+            "Meal assistant",
+            PlaygroundConfig(min_turns=5, max_turns=5),
+            created_at="2026-08-25T00:00:00Z",
+            on_event=events.append,
+        )
+
+    assert len(error.value.transcript) == 5
+    assert [event["type"] for event in events if event["type"] == "turn"] == [
+        "turn"
+    ] * 5
+    assert events[-1]["type"] == "error"
+    assert events[-1]["cause"] == "max_turns_reached"
+    assert not [event for event in events if event.get("phase") == "persona_feedback"]
+
+
+def test_runner_rejects_blank_responses_without_counting_a_turn(monkeypatch):
+    monkeypatch.setattr(
+        "playground.user_sim.runner.build_tool_step_client",
+        lambda *_args, **_kwargs: FakeToolStepClient(
+            [[ToolCall("send_message", {"message": "opening"})]]
+        ),
+    )
+    monkeypatch.setattr(
+        "playground.user_sim.runner.build_json_client",
+        lambda *_args, **_kwargs: pytest.fail("self-report must not run"),
+    )
+    events = []
+
+    with pytest.raises(ApplicationResponseUnavailable, match="blank response") as error:
+        run_playground(
+            FakeSession([{"assistantMessage": ""}] * 3),
+            _persona(),
+            "Meal assistant",
+            PlaygroundConfig(max_turns=5),
+            created_at="2026-08-25T00:00:00Z",
+            on_event=events.append,
+        )
+
+    assert not error.value.transcript
+    assert not [event for event in events if event["type"] == "turn"]
+    assert [event["type"] for event in events if event["type"].startswith("application_")] == [
+        "application_retry",
+        "application_retry",
+        "application_error",
+    ]
+
+
+def test_async_runner_rejects_blank_responses_without_counting_a_turn(monkeypatch):
+    class AsyncFakeSession(FakeSession):
+        async def run_turn_sync(self, message):
+            return super().run_turn_sync(message)
+
+    monkeypatch.setattr(
+        "playground.user_sim.runner.build_tool_step_client",
+        lambda *_args, **_kwargs: FakeToolStepClient(
+            [[ToolCall("send_message", {"message": "opening"})]]
+        ),
+    )
+    monkeypatch.setattr(
+        "playground.user_sim.runner.build_json_client",
+        lambda *_args, **_kwargs: pytest.fail("self-report must not run"),
+    )
+
+    with pytest.raises(ApplicationResponseUnavailable, match="blank response") as error:
+        asyncio.run(
+            run_playground_async(
+                AsyncFakeSession([{"assistantMessage": ""}] * 3),
+                _persona(),
+                "Meal assistant",
+                PlaygroundConfig(max_turns=5),
+                created_at="2026-08-25T00:00:00Z",
+            )
+        )
+
+    assert not error.value.transcript
 
 
 def test_async_runner_rejects_early_end_until_five_exchanges(monkeypatch):

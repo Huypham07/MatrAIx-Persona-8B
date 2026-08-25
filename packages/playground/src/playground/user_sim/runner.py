@@ -44,6 +44,68 @@ from playground.budget import assert_budget_allows_request, record_trial_cost
 from playground.llm_usage import merge_usage
 
 
+_MAX_BLANK_APPLICATION_ATTEMPTS = 3
+
+
+class ConversationNotTerminated(RuntimeError):
+    """A chat reached its turn budget without a valid end action."""
+
+    def __init__(self, cause: str, transcript: List[PlaygroundTurn]) -> None:
+        super().__init__("conversation not terminated: {}".format(cause))
+        self.cause = cause
+        self.transcript = list(transcript)
+
+
+class ApplicationResponseUnavailable(RuntimeError):
+    """A generic chat session repeatedly returned a blank response."""
+
+    def __init__(self, transcript: List[PlaygroundTurn]) -> None:
+        super().__init__("application returned a blank response after 3 attempts")
+        self.transcript = list(transcript)
+
+
+def _emit_application_attempt(
+    emit: Callable[[Dict[str, Any]], None],
+    *,
+    attempt: int,
+    cause: str,
+) -> None:
+    emit(
+        {
+            "type": (
+                "application_error"
+                if attempt == _MAX_BLANK_APPLICATION_ATTEMPTS
+                else "application_retry"
+            ),
+            "attempt": attempt,
+            "maxAttempts": _MAX_BLANK_APPLICATION_ATTEMPTS,
+            "cause": cause,
+        }
+    )
+
+
+def _raise_if_unterminated(
+    transcript: List[PlaygroundTurn],
+    config: PlaygroundConfig,
+    emit: Callable[[Dict[str, Any]], None],
+) -> None:
+    if transcript and transcript[-1].decision != "continue":
+        return
+    cause = (
+        "max_turns_reached"
+        if config.max_turns is not None and len(transcript) >= config.max_turns
+        else "no_valid_end_conversation"
+    )
+    emit(
+        {
+            "type": "error",
+            "cause": cause,
+            "transcriptTurns": len(transcript),
+        }
+    )
+    raise ConversationNotTerminated(cause, transcript)
+
+
 def _tool_client_usage(tool_client: Any):
     getter = getattr(tool_client, "accumulated_usage", None)
     if callable(getter):
@@ -216,13 +278,21 @@ def run_playground(
 
         emit({"type": "user_message", "turnIndex": index, "message": message})
         emit({"type": "phase", "phase": "application_thinking", "userMessage": message})
-        raw_view = run_session_action_sync(session, action)
-        view = normalize_agent_turn(
-            raw_view,
-            message,
-            structured_exposure_fields=task_config.structured_exposure if task_config else None,
-        )
-        assistant = str(view.get("assistantMessage") or "")
+        for attempt in range(1, _MAX_BLANK_APPLICATION_ATTEMPTS + 1):
+            raw_view = run_session_action_sync(session, action)
+            view = normalize_agent_turn(
+                raw_view,
+                message,
+                structured_exposure_fields=(
+                    task_config.structured_exposure if task_config else None
+                ),
+            )
+            assistant = str(view.get("assistantMessage") or "").strip()
+            if assistant:
+                break
+            _emit_application_attempt(emit, attempt=attempt, cause="blank_reply")
+        else:
+            raise ApplicationResponseUnavailable(transcript)
         structured_exposure = list(view.get("structuredExposure") or [])
         emit(
             {
@@ -255,6 +325,7 @@ def run_playground(
         if decision != "continue":
             break
 
+    _raise_if_unterminated(transcript, config, emit)
     emit({"type": "phase", "phase": "persona_feedback"})
     questionnaire, report_usage = final_self_report_with_usage(
         build_json_client(config.persona_model),
@@ -344,13 +415,21 @@ async def run_playground_async(
 
         emit({"type": "user_message", "turnIndex": index, "message": message})
         emit({"type": "phase", "phase": "application_thinking", "userMessage": message})
-        raw_view = await run_session_action_async(session, action)
-        view = normalize_agent_turn(
-            raw_view,
-            message,
-            structured_exposure_fields=task_config.structured_exposure if task_config else None,
-        )
-        assistant = str(view.get("assistantMessage") or "")
+        for attempt in range(1, _MAX_BLANK_APPLICATION_ATTEMPTS + 1):
+            raw_view = await run_session_action_async(session, action)
+            view = normalize_agent_turn(
+                raw_view,
+                message,
+                structured_exposure_fields=(
+                    task_config.structured_exposure if task_config else None
+                ),
+            )
+            assistant = str(view.get("assistantMessage") or "").strip()
+            if assistant:
+                break
+            _emit_application_attempt(emit, attempt=attempt, cause="blank_reply")
+        else:
+            raise ApplicationResponseUnavailable(transcript)
         structured_exposure = list(view.get("structuredExposure") or [])
         emit(
             {
@@ -383,6 +462,7 @@ async def run_playground_async(
         if decision != "continue":
             break
 
+    _raise_if_unterminated(transcript, config, emit)
     emit({"type": "phase", "phase": "persona_feedback"})
     questionnaire, report_usage = final_self_report_with_usage(
         build_json_client(config.persona_model),

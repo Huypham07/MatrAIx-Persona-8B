@@ -482,6 +482,108 @@ def test_http_chatbot_retries_temporary_reply_then_returns_real_reply(monkeypatc
     assert response["reply"] == "What foods do you dislike?"
 
 
+def test_http_chatbot_preserves_server_session_across_retry_attempts(monkeypatch):
+    app = HTTPChatbotApplication(
+        application_id="meal_planning_nutrition",
+        default_context="meal",
+        base_url="http://meal",
+    )
+    bodies = []
+    replies = iter(
+        [
+            {
+                "sessionId": "server-session",
+                "reply": "I'm temporarily unable to generate a reply. Please try again in a moment.",
+            },
+            {"sessionId": "server-session", "reply": "What foods do you dislike?"},
+        ]
+    )
+
+    def request(*_args, body, **_kwargs):
+        bodies.append(dict(body))
+        return next(replies)
+
+    monkeypatch.setattr(app, "_request_json", request)
+    monkeypatch.setattr("playground.inprocess.chatbot_eval.time.sleep", lambda *_: None)
+
+    app.send_message(
+        session_id=None,
+        message="Help",
+        title=None,
+        context="meal",
+        engine=None,
+        bot_type="chat",
+    )
+
+    assert [body["sessionId"] for body in bodies] == [None, "server-session"]
+
+
+def test_http_chatbot_emits_retry_events_for_temporary_and_transport_failures(monkeypatch):
+    app = HTTPChatbotApplication(
+        application_id="meal_planning_nutrition",
+        default_context="meal",
+        base_url="http://meal",
+    )
+    events = []
+    replies = iter(
+        [
+            {
+                "sessionId": "s",
+                "reply": "I'm temporarily unable to generate a reply. Please try again in a moment.",
+            },
+            {"sessionId": "s", "reply": "A real answer."},
+        ]
+    )
+    monkeypatch.setattr(app, "_request_json", lambda *_args, **_kwargs: next(replies))
+    monkeypatch.setattr("playground.inprocess.chatbot_eval.time.sleep", lambda *_: None)
+
+    app.send_message(
+        session_id=None,
+        message="Help",
+        title=None,
+        context="meal",
+        engine=None,
+        bot_type="chat",
+        on_event=events.append,
+    )
+
+    assert events == [
+        {
+            "type": "application_retry",
+            "attempt": 1,
+            "maxAttempts": 3,
+            "cause": "temporary_reply",
+        }
+    ]
+
+    transport_events = []
+    monkeypatch.setattr(
+        app,
+        "_request_json",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(TimeoutError("timed out")),
+    )
+
+    with pytest.raises(ApplicationUnavailable, match="timed out"):
+        app.send_message(
+            session_id=None,
+            message="Help",
+            title=None,
+            context="meal",
+            engine=None,
+            bot_type="chat",
+            on_event=transport_events.append,
+        )
+
+    assert [event["type"] for event in transport_events] == [
+        "application_retry",
+        "application_retry",
+        "application_error",
+    ]
+    assert [event["attempt"] for event in transport_events] == [1, 2, 3]
+    assert all(event["maxAttempts"] == 3 for event in transport_events)
+    assert all("TimeoutError: timed out" == event["cause"] for event in transport_events)
+
+
 def test_http_chatbot_persistent_temporary_reply_fails_after_three_attempts(monkeypatch):
     app = HTTPChatbotApplication(
         application_id="meal_planning_nutrition",

@@ -42,3 +42,23 @@
 fixed-score dispatcher in this base checkout. Per task ownership, Task 4 will
 port the historical in-process worker dispatcher to call the restored APIs;
 this Task intentionally does not modify that file.
+
+## Fix Round 1
+
+- HTTP retry now preserves a session identifier issued with a temporary reply:
+  every subsequent attempt rebuilds its body with the latest session ID.
+- Retry callbacks emit `application_retry` for retryable attempts and
+  `application_error` for the final failed attempt. Each event contains
+  `attempt`, `maxAttempts`, and a concrete `cause`; `DirectApplicationSession`
+  forwards those events to the in-process runner callback.
+- The sync and async runners retry blank generic-session replies at most three
+  times without emitting an assistant or transcript turn, then raise
+  `ApplicationResponseUnavailable` with the partial transcript attached.
+- Reaching the turn cap without a valid end no longer invokes self-report.
+  `ConversationNotTerminated` carries the partial transcript and a terminal
+  `error` event records the cause for Task 4 persistence.
+
+Fix Round 1 RED initially failed at collection because the two new structured
+runner failure types did not exist. The focused GREEN command completed with
+**36 passed**; `git diff --check` was clean and Ruff reported **All checks
+passed** for the changed Python files.
