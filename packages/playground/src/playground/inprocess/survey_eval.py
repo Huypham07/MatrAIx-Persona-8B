@@ -240,15 +240,24 @@ class InprocessSurveyEvalRunner:
                     correction_detail=correction_detail,
                 )
                 assert_budget_allows_request(job_dir)
-                if hasattr(client, "complete_json_with_usage"):
-                    completion = client.complete_json_with_usage(
-                        prompts["personaPrompt"], question_prompt
-                    )
-                    raw = completion.data
-                    usage = completion.usage
-                else:
-                    raw = client.complete_json(prompts["personaPrompt"], question_prompt)
-                    usage = None
+                try:
+                    if hasattr(client, "complete_json_with_usage"):
+                        completion = client.complete_json_with_usage(
+                            prompts["personaPrompt"], question_prompt
+                        )
+                        raw = completion.data
+                        usage = completion.usage
+                    else:
+                        raw = client.complete_json(
+                            prompts["personaPrompt"], question_prompt
+                        )
+                        usage = None
+                except ValueError as exc:
+                    invalid_response = InvalidSurveyResponse(question.id, str(exc))
+                    if attempt == 1:
+                        raise invalid_response from exc
+                    correction_detail = invalid_response.detail
+                    continue
                 usage_parts.append(usage)
                 if usage is not None:
                     record_trial_cost(job_dir, usage.cost_usd)
@@ -282,7 +291,9 @@ class InprocessSurveyEvalRunner:
                 persona=persona,
                 instrument=instrument,
                 answers=list(all_answers),
-                trajectory=_build_trajectory(instrument, all_answers, created_at),
+                trajectory=_build_trajectory(
+                    instrument, all_answers, created_at, completed=False
+                ),
                 metrics=_metrics(all_answers, instrument),
                 created_at=created_at,
                 prompts=prompts,
@@ -334,6 +345,8 @@ def _build_trajectory(
     instrument: SurveyInstrument,
     answers: List[SurveyAnswer],
     created_at: str,
+    *,
+    completed: bool = True,
 ) -> List[TrajectoryEvent]:
     answer_by_id = {answer.question_id: answer for answer in answers}
     missing_required = [
@@ -357,6 +370,9 @@ def _build_trajectory(
 
     offset = 1
     for index, question in enumerate(instrument.questions, start=1):
+        answer = answer_by_id.get(question.id)
+        if answer is None and not completed:
+            break
         question_context = {
             "instrumentId": instrument.id,
             "questionId": question.id,
@@ -378,7 +394,6 @@ def _build_trajectory(
         )
         offset += 1
 
-        answer = answer_by_id.get(question.id)
         if answer is None:
             continue
         events.append(
@@ -397,19 +412,20 @@ def _build_trajectory(
         )
         offset += 1
 
-    events.append(
-        TrajectoryEvent(
-            timestamp=_event_timestamp(created_at, offset),
-            actor="system",
-            action="survey_completed",
-            context={"instrumentId": instrument.id},
-            outcome={
-                "numAnswered": len(answers),
-                "missingRequiredQuestionIds": missing_required,
-                "valid": not missing_required,
-            },
+    if completed:
+        events.append(
+            TrajectoryEvent(
+                timestamp=_event_timestamp(created_at, offset),
+                actor="system",
+                action="survey_completed",
+                context={"instrumentId": instrument.id},
+                outcome={
+                    "numAnswered": len(answers),
+                    "missingRequiredQuestionIds": missing_required,
+                    "valid": not missing_required,
+                },
+            )
         )
-    )
     return events
 
 

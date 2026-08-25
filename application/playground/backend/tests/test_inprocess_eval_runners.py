@@ -207,6 +207,104 @@ def test_invalid_choice_retries_once_then_fails_without_first_option(tmp_path):
     assert "not one of" in client.calls[1]["user"]
 
 
+def test_survey_retries_parse_error_once_then_returns_valid_answer(tmp_path):
+    class ParseErrorClient:
+        def __init__(self):
+            self.calls = []
+            self.responses = [ValueError("invalid JSON response"), {"answer": {"questionId": "q1", "value": 4}}]
+
+        def complete_json(self, system, user):
+            self.calls.append({"system": system, "user": user})
+            response = self.responses.pop(0)
+            if isinstance(response, Exception):
+                raise response
+            return response
+
+    client = ParseErrorClient()
+    result = InprocessSurveyEvalRunner()(
+        _persona(),
+        SurveyInstrument(id="s", title="S", questions=[SurveyQuestion(id="q1", prompt="Rate")]),
+        client=client,
+        persona_yaml_path=_persona_yaml(tmp_path),
+    )
+
+    assert [answer.value for answer in result.answers] == [4]
+    assert len(client.calls) == 2
+    assert "invalid JSON response" in client.calls[1]["user"]
+
+
+def test_survey_turns_second_parse_error_into_invalid_response_without_events(tmp_path):
+    class ParseErrorClient:
+        def __init__(self):
+            self.calls = []
+
+        def complete_json(self, system, user):
+            self.calls.append({"system": system, "user": user})
+            raise ValueError("invalid JSON response")
+
+    client = ParseErrorClient()
+    events = []
+
+    with pytest.raises(InvalidSurveyResponse, match="q1") as error:
+        InprocessSurveyEvalRunner()(
+            _persona(),
+            SurveyInstrument(id="s", title="S", questions=[SurveyQuestion(id="q1", prompt="Rate")]),
+            client=client,
+            on_event=events.append,
+            persona_yaml_path=_persona_yaml(tmp_path),
+        )
+
+    assert "invalid JSON response" in error.value.detail
+    assert isinstance(error.value.__cause__, ValueError)
+    assert len(client.calls) == 2
+    assert not [event for event in events if event["type"] in {"survey_answer", "survey_progress"}]
+
+
+def test_survey_progress_trajectory_excludes_future_questions_and_completion(tmp_path):
+    events = []
+    result = InprocessSurveyEvalRunner()(
+        _persona(),
+        SurveyInstrument(
+            id="s",
+            title="S",
+            questions=[
+                SurveyQuestion(id="q1", prompt="Rate"),
+                SurveyQuestion(id="q2", prompt="Rate again"),
+            ],
+        ),
+        client=ScriptedJSONClient(
+            [
+                {"answer": {"questionId": "q1", "value": 3}},
+                {"answer": {"questionId": "q2", "value": 4}},
+            ]
+        ),
+        on_event=events.append,
+        persona_yaml_path=_persona_yaml(tmp_path),
+    )
+
+    progress = [event["result"]["trajectory"] for event in events if event["type"] == "survey_progress"]
+    assert [event["action"] for event in progress[0]] == [
+        "survey_started",
+        "ask_question",
+        "answer_question",
+    ]
+    assert [event["action"] for event in progress[1]] == [
+        "survey_started",
+        "ask_question",
+        "answer_question",
+        "ask_question",
+        "answer_question",
+    ]
+    assert [event.action for event in result.trajectory] == [
+        "survey_started",
+        "ask_question",
+        "answer_question",
+        "ask_question",
+        "answer_question",
+        "survey_completed",
+    ]
+
+
 def test_survey_merges_usage_across_question_completions(tmp_path):
     class UsageClient(ScriptedJSONClient):
         def complete_json_with_usage(self, system, user):
