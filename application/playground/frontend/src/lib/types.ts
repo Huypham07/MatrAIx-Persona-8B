@@ -598,6 +598,26 @@ export interface HarborTrialEvent {
   [key: string]: unknown;
 }
 
+/** Durable job-journal lifecycle payload carried by the job SSE channel. */
+export interface HarborJobStateEvent {
+  type: "job_state";
+  /** Current backend field. */
+  state?: string;
+  /** Compatibility spelling accepted from older or remote workers. */
+  status?: string;
+  terminal?: boolean;
+  error?: string | null;
+  [key: string]: unknown;
+}
+
+/** One replayable record from `/api/harbor/jobs/{jobName}/events`. */
+export interface HarborJobEventEnvelope {
+  id: number;
+  jobName: string;
+  trialName: string | null;
+  event: HarborTrialEvent | HarborJobStateEvent;
+}
+
 export interface HarborTrialEventsResponse {
   events: HarborTrialEvent[];
   offset: number;

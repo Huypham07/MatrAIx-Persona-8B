@@ -514,6 +514,10 @@ export function listOsAppEvalTasks(): Promise<OsAppEvalTasksResponse> {
   return request<OsAppEvalTasksResponse>("/api/os-app-eval/tasks");
 }
 
+export function harborJobEventsUrl(jobName: string, cursor = 0): string {
+  return `/api/harbor/jobs/${encodeURIComponent(jobName)}/events${qs({ cursor })}`;
+}
+
 export function harborTrialLiveScreenshotUrl(jobName: string, trialName: string): string {
   return `/api/harbor/jobs/${encodeURIComponent(jobName)}/trials/${encodeURIComponent(trialName)}/live-screenshot`;
 }
