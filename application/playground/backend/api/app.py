@@ -105,7 +105,7 @@ def get_services(request: Request) -> AppState:
     return state_from_request(request)
 
 
-def _parse_sse_cursor(value: str | None, *, source: str) -> int:
+def _parse_sse_cursor(value: Optional[str], *, source: str) -> int:
     """Validate the decimal byte cursor accepted by the job SSE endpoint."""
     if value is None:
         return 0
@@ -892,7 +892,7 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
     async def stream_harbor_job_events(
         job_name: str,
         request: Request,
-        cursor: str | None = Query(default=None),
+        cursor: Optional[str] = Query(default=None),
         services: AppState = Depends(get_services),
     ) -> StreamingResponse:
         """Replay and tail the durable multiplexed journal for one Harbor job."""
