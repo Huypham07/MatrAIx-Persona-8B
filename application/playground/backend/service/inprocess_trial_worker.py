@@ -229,7 +229,7 @@ def _run_web_trial(
     created_at: str,
     emit: Callable[[dict[str, Any]], None],
 ) -> None:
-    """Keep current host-native Web dispatch/artifacts unchanged during extraction."""
+    """Run Web and persist the task's canonical JSON hand-in."""
     from backend.service.harbor_trial_debrief import _resolve_web_eval_task
     from playground.harbor.web_eval import HarborWebEvalConfig
     from playground.inprocess.web_eval import InprocessWebEvalRunner
@@ -250,43 +250,23 @@ def _run_web_trial(
         on_event=emit,
     )
     web_result = result.web_result
-    decision = {
-        "decision_subject_id": web_result.selected_product_id,
-        "decision_subject_label": web_result.selected_product_name,
-        "decision_outcome": "selected",
-        "basis_primary": getattr(web_result, "basis_primary", "features") or "features",
-        "exploration_style": getattr(web_result, "exploration_style", "compared_multiple")
-        or "compared_multiple",
-        "task_price_text": getattr(web_result, "task_price_text", "") or "",
-        "compared_candidates": getattr(web_result, "compared_candidates", []) or [],
-        "reason": web_result.reason,
-    }
+    task_output = getattr(result, "task_output", None)
+    if not isinstance(task_output, Mapping) or not task_output:
+        raise ValueError(
+            "Web runner returned no canonical submission required by instruction.md"
+        )
     feedback = {
-        "overallExperienceRating": web_result.overall_experience_rating,
+        "overallExperienceRating": getattr(web_result, "overall_experience_rating", 0),
         "needConstraintSatisfaction": "yes",
         "personalPreferenceSatisfaction": "yes",
-        "needSatisfaction": web_result.need_satisfaction,
-        "easeOfUse": web_result.ease_of_use,
-        "reason": web_result.reason,
+        "needSatisfaction": getattr(web_result, "need_satisfaction", 0),
+        "easeOfUse": getattr(web_result, "ease_of_use", 0),
+        "reason": getattr(web_result, "reason", ""),
     }
+    _write_output_and_verifier(trial_dir, task.output_artifact, task_output)
     _write_json_atomic(output_dir / "web_result.json", web_result.to_dict())
-    for filename in (
-        "decision.json",
-        "laptop_choice.json",
-        "plan_choice.json",
-        "quote_choice.json",
-        "book_interest.json",
-    ):
-        _write_json_atomic(output_dir / filename, decision)
     _write_json_atomic(output_dir / "user_feedback.json", feedback)
     _write_json_atomic(trial_dir / "verifier" / "web_result.json", web_result.to_dict())
-    for filename in (
-        "decision.json",
-        "laptop_choice.json",
-        "plan_choice.json",
-        "quote_choice.json",
-    ):
-        _write_json_atomic(trial_dir / "verifier" / filename, decision)
     _write_json_atomic(
         trial_dir / "agent" / "trajectory.json",
         {"steps": result.trace.events, "trace": result.trace.events},

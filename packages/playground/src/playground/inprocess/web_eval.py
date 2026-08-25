@@ -6,7 +6,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Mapping, Optional
 
 from playground.harbor.web_eval import (
     HarborWebEvalConfig,
@@ -431,7 +431,7 @@ class InprocessWebEvalRunner:
             if on_event is not None:
                 on_event(event)
 
-        task_prompt = build_web_task_prompt(task)
+        task_prompt = build_web_task_prompt(task, repo_root=self.repo_root)
         persona_body = _render_persona_for_web(persona, self.repo_root)
         
         # Enforce that the exported persona context matches the exact rendered prompt
@@ -453,6 +453,7 @@ class InprocessWebEvalRunner:
         trace_events: List[Dict[str, Any]] = []
         action_history: List[Dict[str, Any]] = []
         compared_candidates: List[Dict[str, Any]] = []
+        task_output: Dict[str, Any] = {}
 
         selected_id = f"{task.id}-item-1"
         selected_name = f"{task.site_name} Selected Option"
@@ -558,18 +559,19 @@ class InprocessWebEvalRunner:
 
                     system_prompt = (
                         f"{persona_body}\n\n"
+                        f"{task_prompt}\n\n"
                         "=== HƯỚNG DẪN ĐIỀU KHIỂN TRÌNH DUYỆT (BROWSER AGENT) ===\n"
                         f"Bạn đang nhập vai '{persona.name}' để duyệt trang web và lựa chọn kết quả phù hợp nhất.\n"
                         "Trên màn hình, mỗi phần tử tương tác được gắn một số ID màu vàng [1], [2], [3]...\n\n"
                         "=== CÁC HÀNH ĐỘNG HỢP LỆ ===\n"
-                        "1. done: CHỐT LỰA CHỌN CUỐI CÙNG khi bạn đã thấy kết quả ưng ý nhất. Điền đầy đủ 'selected_product_name', 'task_price_text', 'reason'.\n"
+                        "1. done: Chỉ chốt khi đã hoàn thành mọi yêu cầu trong instruction và có object `submission` đúng schema.\n"
                         "2. click: Click vào một phần tử (target: số ID như 1, 2, 3...).\n"
                         "3. scroll: Cuộn trang xuống để xem thêm nội dung (direction: 'down' | 'up', amount: 400).\n"
                         "4. type: Nhập từ khóa tìm kiếm (target: số ID ô input, text: 'từ khóa').\n"
                         "5. go_back: Quay lại trang trước.\n\n"
                         "=== QUY TẮC QUAN TRỌNG ===\n"
                         "- Nếu bạn đang ở trang chi tiết của một mục và muốn xem các lựa chọn khác, BẮT BUỘC dùng `action: 'go_back'` để quay lại danh sách.\n"
-                        "- Khi bạn đã đánh giá đủ và tìm thấy kết quả phù hợp nhất, hãy trả về `action: 'done'` để chốt kết quả."
+                        "- Khi đã hoàn thành đủ instruction, trả về `action: 'done'` cùng `submission`. Không được dùng schema generic thay thế."
                     )
 
                     user_prompt = (
@@ -594,7 +596,8 @@ class InprocessWebEvalRunner:
                         '  "need_satisfaction": <1-10 nếu done>,\n'
                         '  "ease_of_use": <1-10 nếu done>,\n'
                         '  "overall_experience_rating": <1-10 nếu done>,\n'
-                        '  "reason": "<Lý do chi tiết vì sao chọn sản phẩm này phù hợp nhất với persona>"\n'
+                        '  "reason": "<Lý do chi tiết vì sao chọn sản phẩm này phù hợp nhất với persona>",\n'
+                        '  "submission": {<JSON đúng chính xác schema trong canonical task instruction; bắt buộc nếu done>}\n'
                         "}"
                     )
 
@@ -618,12 +621,6 @@ class InprocessWebEvalRunner:
                             target_id = int(re.sub(r"[^\d]", "", str(raw_target)))
                         except Exception:
                             target_id = None
-                    # If model clicked the same product target in consecutive turns or expressed satisfaction, finalize with done
-                    if act_name == "click" and target_id is not None:
-                        prev_action = action_history[-1] if action_history else None
-                        if prev_action and prev_action.get("action") == "click" and prev_action.get("target") == target_id:
-                            act_name = "done"
-
                     emit({
                         "type": "thought",
                         "step": step_num,
@@ -734,8 +731,33 @@ class InprocessWebEvalRunner:
                         })
 
                     elif act_name in ("done", "give_up"):
-                        selected_name = str(decision.get("selected_product_name") or "").strip()
-                        task_price = str(decision.get("task_price_text") or "").strip()
+                        raw_submission = decision.get("submission")
+                        if not isinstance(raw_submission, Mapping) or not raw_submission:
+                            if act_name == "give_up":
+                                raise ValueError(
+                                    "Web agent gave up without the canonical submission"
+                                )
+                            emit(
+                                {
+                                    "type": "stage",
+                                    "stage": "planning",
+                                    "step": step_num,
+                                    "message": "Final JSON is missing; continuing until the canonical submission is complete.",
+                                }
+                            )
+                            continue
+                        task_output = dict(raw_submission)
+                        selected_name = str(
+                            task_output.get("decision_subject_label")
+                            or task_output.get("selected_product_name")
+                            or decision.get("selected_product_name")
+                            or ""
+                        ).strip()
+                        task_price = str(
+                            task_output.get("task_price_text")
+                            or decision.get("task_price_text")
+                            or ""
+                        ).strip()
 
                         # If empty or generic, infer from most recently inspected candidate
                         if not selected_name or "choice" in selected_name.lower() or selected_name.lower().endswith("option"):
@@ -746,14 +768,24 @@ class InprocessWebEvalRunner:
                             else:
                                 selected_name = f"{task.title} Choice"
 
-                        raw_id = decision.get("selected_product_id") or re.sub(r"[^a-zA-Z0-9_-]+", "-", selected_name).strip("-").lower()
+                        raw_id = (
+                            task_output.get("decision_subject_id")
+                            or task_output.get("selected_product_id")
+                            or decision.get("selected_product_id")
+                            or re.sub(r"[^a-zA-Z0-9_-]+", "-", selected_name).strip("-").lower()
+                        )
                         selected_id = str(raw_id or f"{task.id}-item-1")
                         basis_primary = str(decision.get("basis_primary") or "features").strip()
                         exploration_style = str(decision.get("exploration_style") or ("compared_multiple" if len(compared_candidates) > 1 else "quick_pick")).strip()
                         need_sat = max(1, min(10, int(decision.get("need_satisfaction", 8))))
                         ease = max(1, min(10, int(decision.get("ease_of_use", 8))))
                         overall = max(1, min(10, int(decision.get("overall_experience_rating", 8))))
-                        reason = str(decision.get("reason") or thought or "Selected based on persona criteria.").strip()
+                        reason = str(
+                            task_output.get("reason")
+                            or decision.get("reason")
+                            or thought
+                            or "Selected based on persona criteria."
+                        ).strip()
 
                         # Ensure selected item is in candidates list
                         if selected_name and not any(c.get("name") == selected_name for c in compared_candidates):
@@ -782,23 +814,12 @@ class InprocessWebEvalRunner:
                 browser.close()
 
         except Exception as exc:
-            import traceback
-            traceback.print_exc()
-            # Fallback in case of unexpected environment/browser error
-            client = build_json_client(config.persona_model)
-            system_prompt = f"{persona_body}\n\nEvaluate the task and select a suitable choice according to your persona."
-            user_prompt = f"Task: {task.title}\n{task.description}\nReturn JSON with selected_product_name, task_price_text, reason, need_satisfaction, ease_of_use, overall_experience_rating."
-            try:
-                raw = client.complete_json(system=system_prompt, user=user_prompt)
-                selected_name = str(raw.get("selected_product_name") or f"{task.site_name} Option")
-                task_price = str(raw.get("task_price_text") or "")
-                selected_id = re.sub(r"[^a-zA-Z0-9_-]+", "-", selected_name).strip("-").lower()
-                reason = str(raw.get("reason") or f"Selected based on persona preferences.")
-                need_sat = max(1, min(10, int(raw.get("need_satisfaction", 8))))
-                ease = max(1, min(10, int(raw.get("ease_of_use", 8))))
-                overall = max(1, min(10, int(raw.get("overall_experience_rating", 8))))
-            except Exception:
-                pass
+            raise RuntimeError("Web browser task failed before producing its canonical submission") from exc
+
+        if not task_output:
+            raise ValueError(
+                "Web agent finished without the canonical submission required by instruction.md"
+            )
 
         web_result = WebEvalResultArtifact(
             selected_product_id=selected_id,
@@ -825,7 +846,7 @@ class InprocessWebEvalRunner:
             trace=trace,
             created_at=created_at,
             prompts=prompts,
+            task_output=task_output,
         )
         emit({"type": "done", "result": result.to_dict()})
         return result
-

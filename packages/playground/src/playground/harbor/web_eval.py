@@ -6,7 +6,7 @@ import json
 import os
 import re
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
@@ -191,6 +191,7 @@ class HarborWebEvalResult:
     trace: WebTrace
     created_at: str
     prompts: Dict[str, str]
+    task_output: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -205,11 +206,58 @@ class HarborWebEvalResult:
             "trace": self.trace.to_dict(),
             "createdAt": self.created_at,
             "prompts": dict(self.prompts),
+            "taskOutput": dict(self.task_output),
         }
 
 
-def build_web_task_prompt(task: WebEvalTask) -> str:
+def build_web_task_prompt(
+    task: WebEvalTask, *, repo_root: Optional[Path] = None
+) -> str:
     """Task-level instruction appended to the Harbor persona prompt."""
+    task_path = Path(task.task_path)
+    if not task_path.is_absolute() and repo_root is not None:
+        task_path = repo_root / task_path
+    instruction_path = task_path / "instruction.md"
+    context_path = task_path / "input" / "context.md"
+    instruction = (
+        instruction_path.read_text(encoding="utf-8").strip()
+        if instruction_path.is_file()
+        else ""
+    )
+    context = (
+        context_path.read_text(encoding="utf-8").strip()
+        if context_path.is_file()
+        else ""
+    )
+    if instruction:
+        parts = [
+            "# Application task prompt: website user experience test",
+            "",
+            "Harbor supplies the persona system prompt. Use that persona as your",
+            "identity, communication style, preferences, and decision-making style.",
+            "",
+            "Before using the site, state the concrete website task you will perform.",
+            "Complete the closed loop and evaluate the user experience from the",
+            "persona's perspective, while following the canonical contract below.",
+            "",
+        ]
+        if context:
+            parts.extend(["# Scenario context", "", context, ""])
+        parts.extend(
+            [
+                "# Follow this canonical task instruction exactly",
+                "",
+                instruction,
+                "",
+                "When finishing, return the required JSON object under the",
+                'browser action field "submission". Playground will collect and save it verbatim as {}.'.format(
+                    task.output_artifact
+                ),
+                "Do not substitute a generic website-evaluation schema.",
+                "",
+            ]
+        )
+        return "\n".join(parts)
     return "\n".join(
         [
             "# Application task prompt: website user experience test",

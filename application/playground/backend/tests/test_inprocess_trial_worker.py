@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 from backend.service.survey_types import (
     SurveyAnswer,
@@ -329,3 +330,96 @@ def test_chat_failure_persists_pending_observed_pair_before_one_terminal(monkeyp
             "failed",
         )
     ]
+
+
+def test_web_worker_writes_only_exact_task_artifact(monkeypatch, tmp_path):
+    """The web hand-in must use the filename and JSON contract from the task."""
+    from playground.harbor.web_eval import WebEvalTask
+
+    manifest, trial_dir = _write_manifest(tmp_path)
+    payload = json.loads(manifest.read_text())
+    payload["task"]["path"] = "application/tasks/web_notion-plan-comparison"
+    payload["agent"]["name"] = "persona-web"
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    task_dir = tmp_path / payload["task"]["path"]
+    task_dir.mkdir(parents=True)
+    task = WebEvalTask(
+        id="web-notion-plan-comparison",
+        title="Notion plans",
+        site_name="Notion",
+        site_url="https://www.notion.com/pricing",
+        task_path=task_dir,
+        description="Compare all plans.",
+        output_artifact="notion_plan_comparison.json",
+        submission_profile="notion_plan_comparison",
+    )
+    submission = {
+        "decision_subject_id": "plus",
+        "decision_subject_label": "Plus",
+        "decision_outcome": "selected",
+        "task_billing_mode": "monthly",
+        "task_options_considered": [],
+    }
+    fake_result = SimpleNamespace(
+        task_output=submission,
+        web_result=SimpleNamespace(
+            selected_product_name="Plus",
+            to_dict=lambda: {"selectedProductName": "Plus"},
+        ),
+        trace=SimpleNamespace(events=[]),
+    )
+
+    monkeypatch.setattr(
+        "backend.service.harbor_trial_debrief._resolve_web_eval_task",
+        lambda *_args, **_kwargs: task,
+    )
+    monkeypatch.setattr(
+        "playground.inprocess.web_eval.InprocessWebEvalRunner",
+        lambda **_kwargs: (lambda **_call_kwargs: fake_result),
+    )
+
+    assert run_inprocess_trial(manifest, {}, repo_root=tmp_path) == 0
+    output_dir = trial_dir / "artifacts" / "app" / "output"
+    assert json.loads((output_dir / task.output_artifact).read_text()) == submission
+    assert not (output_dir / "plan_choice.json").exists()
+
+
+def test_web_worker_fails_when_runner_has_no_canonical_submission(monkeypatch, tmp_path):
+    """A generic UX summary cannot be reported as a completed task hand-in."""
+    from playground.harbor.web_eval import WebEvalTask
+
+    manifest, trial_dir = _write_manifest(tmp_path)
+    payload = json.loads(manifest.read_text())
+    payload["task"]["path"] = "application/tasks/web_notion-plan-comparison"
+    payload["agent"]["name"] = "persona-web"
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    task = WebEvalTask(
+        id="web-notion-plan-comparison",
+        title="Notion plans",
+        site_name="Notion",
+        site_url="https://www.notion.com/pricing",
+        task_path=tmp_path / payload["task"]["path"],
+        description="Compare all plans.",
+        output_artifact="notion_plan_comparison.json",
+    )
+    fake_result = SimpleNamespace(
+        web_result=SimpleNamespace(
+            selected_product_name="Plus",
+            to_dict=lambda: {"selectedProductName": "Plus"},
+        ),
+        trace=SimpleNamespace(events=[]),
+    )
+
+    monkeypatch.setattr(
+        "backend.service.harbor_trial_debrief._resolve_web_eval_task",
+        lambda *_args, **_kwargs: task,
+    )
+    monkeypatch.setattr(
+        "playground.inprocess.web_eval.InprocessWebEvalRunner",
+        lambda **_kwargs: (lambda **_call_kwargs: fake_result),
+    )
+
+    assert run_inprocess_trial(manifest, {}, repo_root=tmp_path) == 1
+    result = json.loads((trial_dir / "result.json").read_text())
+    assert result["terminal_status"] == "failed"
+    assert "canonical submission" in result["exception_info"]["exception_message"]
