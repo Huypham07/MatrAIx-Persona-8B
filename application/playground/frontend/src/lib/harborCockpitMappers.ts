@@ -449,14 +449,28 @@ export function mergeHarborCockpitJob<TJob>(
 
   const mappedSurvey = mappedRecord.surveyResult as SurveyResult | null | undefined;
   const liveSurvey = liveJob.surveyResult as SurveyResult | null | undefined;
-  if ((!mappedSurvey?.answers?.length) && liveSurvey?.answers?.length) {
-    next.surveyResult = liveSurvey;
+  if (mappedSurvey || liveSurvey) {
+    const answerByQuestion = new Map((liveSurvey?.answers ?? []).map((answer) => [answer.questionId, answer]));
+    for (const answer of mappedSurvey?.answers ?? []) answerByQuestion.set(answer.questionId, answer);
+    const answers = [...answerByQuestion.values()];
+    const richer = mappedSurvey ?? liveSurvey;
+    next.surveyResult = {
+      ...richer,
+      answers,
+      completion: {
+        ...(richer?.completion ?? liveSurvey?.completion),
+        numAnswered: Math.max(richer?.completion.numAnswered ?? 0, answers.length),
+        answered: Math.max(richer?.completion.answered ?? 0, answers.length),
+      },
+    };
   }
 
   const mappedTurns = mappedRecord.turns as TurnView[] | undefined;
   const liveTurns = liveJob.turns as TurnView[] | undefined;
-  if ((!mappedTurns?.length) && liveTurns?.length) {
-    next.turns = liveTurns;
+  if (mappedTurns?.length || liveTurns?.length) {
+    const byId = new Map((liveTurns ?? []).map((turn, index) => [turn.turnId || String(index), turn]));
+    for (const [index, turn] of (mappedTurns ?? []).entries()) byId.set(turn.turnId || String(index), turn);
+    next.turns = [...byId.values()];
     next.draftTurn = null;
   }
 
@@ -572,6 +586,7 @@ export function mapSurveyLiveToJobView(
     personaName: fallback.personaName,
     status: "running",
     phase: live.phase,
+    activeSurveyQuestion: live.activeSurveyQuestion ?? null,
     surveyResult: live.surveyResult ?? null,
     instructionMarkdown: live.instructionMarkdown ?? null,
     contextMarkdown: live.contextMarkdown ?? null,

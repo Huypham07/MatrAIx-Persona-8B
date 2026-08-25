@@ -242,6 +242,7 @@ export interface PlaygroundJobView {
   sutDescription: string;
   status: string;
   phase?: string | null;
+  activeSurveyQuestion?: { id: string; prompt: string; type: string; index: number; total: number } | null;
   turns: TurnView[];
   draftTurn?: HarborDraftTurn | null;
   questionnaire?: PlaygroundQuestionnaire | null;
@@ -362,6 +363,7 @@ export interface SurveyEvalJobView {
   personaName: string;
   status: string;
   phase?: string | null;
+  activeSurveyQuestion?: { id: string; prompt: string; type: string; index: number; total: number } | null;
   surveyResult?: SurveyResult | null;
   instructionMarkdown?: string | null;
   contextMarkdown?: string | null;
