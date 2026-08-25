@@ -71,7 +71,14 @@ class PlaygroundConfig:
     persona_model: str = DEFAULT_PERSONA_MODEL
     ranker_mode: str = "native"
     resource_mode: str = "recai_resources"
-    max_turns: Optional[int] = None
+    min_turns: int = 5
+    max_turns: Optional[int] = 8
+
+    def __post_init__(self) -> None:
+        if self.min_turns < 1:
+            raise ValueError("min_turns must be at least 1")
+        if self.max_turns is not None and self.max_turns < self.min_turns:
+            raise ValueError("max_turns must be greater than or equal to min_turns")
 
     def to_dict(self) -> Dict[str, Any]:
         application_context = self.application_context or self.domain
@@ -84,6 +91,7 @@ class PlaygroundConfig:
             "personaModel": self.persona_model,
             "rankerMode": self.ranker_mode,
             "resourceMode": self.resource_mode,
+            "minTurns": self.min_turns,
             "maxTurns": self.max_turns,
         }
 

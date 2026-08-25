@@ -4,7 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from playground.inprocess.chatbot_eval import DirectApplicationSession
+from playground.inprocess.chatbot_eval import (
+    ApplicationUnavailable,
+    DirectApplicationSession,
+    HTTPChatbotApplication,
+    InProcessLLMChatbotApplication,
+    inprocess_chatbot_config,
+)
 from playground.inprocess.survey_eval import (
     InvalidSurveyResponse,
     InprocessSurveyEvalRunner,
@@ -445,3 +451,175 @@ def test_direct_meal_planning_session_uses_http_sidecar(monkeypatch):
     assert calls[0]["applicationId"] == "meal_planning_nutrition"
     assert calls[0]["applicationContext"] == "meal_planning"
     assert turn["assistantMessage"].startswith("I can help plan meals")
+
+
+def test_http_chatbot_retries_temporary_reply_then_returns_real_reply(monkeypatch):
+    app = HTTPChatbotApplication(
+        application_id="meal_planning_nutrition",
+        default_context="meal",
+        base_url="http://meal",
+    )
+    replies = iter(
+        [
+            {
+                "sessionId": "s",
+                "reply": "I'm temporarily unable to generate a reply. Please try again in a moment.",
+            },
+            {"sessionId": "s", "reply": "What foods do you dislike?"},
+        ]
+    )
+    monkeypatch.setattr(app, "_request_json", lambda *_args, **_kwargs: next(replies))
+
+    response = app.send_message(
+        session_id=None,
+        message="Help",
+        title=None,
+        context="meal",
+        engine=None,
+        bot_type="chat",
+    )
+
+    assert response["reply"] == "What foods do you dislike?"
+
+
+def test_http_chatbot_persistent_temporary_reply_fails_after_three_attempts(monkeypatch):
+    app = HTTPChatbotApplication(
+        application_id="meal_planning_nutrition",
+        default_context="meal",
+        base_url="http://meal",
+    )
+    calls = []
+
+    def temporary(*_args, **_kwargs):
+        calls.append(1)
+        return {
+            "sessionId": "s",
+            "reply": "I'm temporarily unable to generate a reply. Please try again in a moment.",
+        }
+
+    monkeypatch.setattr(app, "_request_json", temporary)
+
+    with pytest.raises(ApplicationUnavailable, match="temporary failure"):
+        app.send_message(
+            session_id=None,
+            message="Help",
+            title=None,
+            context="meal",
+            engine=None,
+            bot_type="chat",
+        )
+
+    assert len(calls) == 3
+
+
+def test_http_chatbot_persistent_transport_error_fails_after_three_attempts(monkeypatch):
+    app = HTTPChatbotApplication(
+        application_id="meal_planning_nutrition",
+        default_context="meal",
+        base_url="http://meal",
+    )
+    calls = []
+
+    def unavailable(*_args, **_kwargs):
+        calls.append(1)
+        raise TimeoutError("sidecar timed out")
+
+    monkeypatch.setattr(app, "_request_json", unavailable)
+
+    with pytest.raises(ApplicationUnavailable, match="sidecar timed out"):
+        app.send_message(
+            session_id=None,
+            message="Help",
+            title=None,
+            context="meal",
+            engine=None,
+            bot_type="chat",
+        )
+
+    assert len(calls) == 3
+
+
+def test_http_chatbot_blank_reply_fails_after_three_attempts(monkeypatch):
+    app = HTTPChatbotApplication(
+        application_id="meal_planning_nutrition",
+        default_context="meal",
+        base_url="http://meal",
+    )
+    calls = []
+
+    def blank(*_args, **_kwargs):
+        calls.append(1)
+        return {"sessionId": "s", "reply": ""}
+
+    monkeypatch.setattr(app, "_request_json", blank)
+
+    with pytest.raises(ApplicationUnavailable, match="application unavailable"):
+        app.send_message(
+            session_id=None,
+            message="Help",
+            title=None,
+            context="meal",
+            engine=None,
+            bot_type="chat",
+        )
+
+    assert len(calls) == 3
+
+
+def test_inprocess_chatbot_never_replaces_provider_failure_with_canned_reply(monkeypatch):
+    class FailingClient:
+        def __init__(self):
+            self.calls = 0
+
+        def complete_json(self, *_args, **_kwargs):
+            self.calls += 1
+            raise RuntimeError("model provider unavailable")
+
+    client = FailingClient()
+    monkeypatch.setattr(
+        "playground.model_client.build_json_client", lambda *_args, **_kwargs: client
+    )
+    app = InProcessLLMChatbotApplication("meal_planning_nutrition", "meal")
+
+    with pytest.raises(ApplicationUnavailable, match="model provider unavailable"):
+        app.send_message(
+            session_id=None,
+            message="Help",
+            title=None,
+            context="meal",
+            engine=None,
+            bot_type="chat",
+        )
+
+    assert client.calls == 3
+
+
+def test_inprocess_chatbot_config_uses_task_minimum_turns(tmp_path):
+    input_dir = tmp_path / "application" / "tasks" / "chat_test" / "input"
+    input_dir.mkdir(parents=True)
+    (input_dir / "chatbot.yaml").write_text(
+        "runtimeDefaults:\n  minTurns: 6\n  maxTurns: 8\n",
+        encoding="utf-8",
+    )
+
+    config = inprocess_chatbot_config(
+        "application/tasks/chat_test",
+        repo_root=tmp_path,
+        env={},
+        model_name="local/test-model",
+    )
+
+    assert config.min_turns == 6
+    assert config.max_turns == 8
+
+
+def test_inprocess_chatbot_config_defaults_to_eight_maximum_turns(tmp_path):
+    config = inprocess_chatbot_config(
+        "application/tasks/chat_test",
+        repo_root=tmp_path,
+        env={},
+        model_name="local/test-model",
+    )
+
+    assert config.min_turns == 5
+    assert config.max_turns == 8

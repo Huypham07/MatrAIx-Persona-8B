@@ -65,21 +65,33 @@ class UserSimSession:
     def messages(self) -> List[Dict[str, Any]]:
         return list(self._messages)
 
-    def next_action(self, observation: str) -> TurnAction:
-        self._messages.append({"role": "user", "content": observation})
-        calls = self._client.complete_with_tools(self._messages)
-        action = parse_tool_calls(calls)
-        if action.message:
-            stop = extract_stop_token(action.message)
-            if stop and not action.end_reason:
-                action.end_reason = stop
-        self._messages.append(
-            {
-                "role": "assistant",
-                "content": _format_assistant_turn(action),
-            }
+    def next_action(self, observation: str, *, allow_end: bool = True) -> TurnAction:
+        """Generate the next user step, rejecting premature termination briefly."""
+        prompt = observation
+        for _ in range(3):
+            self._messages.append({"role": "user", "content": prompt})
+            calls = self._client.complete_with_tools(self._messages)
+            action = parse_tool_calls(calls)
+            if action.message:
+                stop = extract_stop_token(action.message)
+                if stop and not action.end_reason:
+                    action.end_reason = stop
+            self._messages.append(
+                {
+                    "role": "assistant",
+                    "content": _format_assistant_turn(action),
+                }
+            )
+            if allow_end or not action.end_reason:
+                return action
+            prompt = (
+                "Latest application observation:\n\"\"\"{}\"\"\"\n\n"
+                "You have not completed the minimum number of meaningful exchanges. "
+                "Ask one specific natural follow-up based on the latest answer; do not end yet."
+            ).format(observation)
+        raise RuntimeError(
+            "persona model repeatedly ended before the minimum conversation depth"
         )
-        return action
 
-    def opening_action(self) -> TurnAction:
-        return self.next_action(_START_OBSERVATION)
+    def opening_action(self, *, allow_end: bool = True) -> TurnAction:
+        return self.next_action(_START_OBSERVATION, allow_end=allow_end)

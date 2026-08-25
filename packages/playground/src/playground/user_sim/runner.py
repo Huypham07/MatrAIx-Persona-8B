@@ -206,7 +206,7 @@ def run_playground(
     emit({"type": "prompts", "prompts": prompts})
 
     transcript: List[PlaygroundTurn] = []
-    action = sim.opening_action()
+    action = sim.opening_action(allow_end=False)
     emit({"type": "phase", "phase": "persona_kickoff"})
 
     for index in _turn_indices(config.max_turns):
@@ -236,7 +236,8 @@ def run_playground(
         )
         emit({"type": "phase", "phase": "persona_thinking"})
         action = sim.next_action(
-            _chatbot_observation(chatbot_label, assistant, structured_exposure)
+            _chatbot_observation(chatbot_label, assistant, structured_exposure),
+            allow_end=index >= config.min_turns,
         )
 
         decision = action.decision if action.end_reason else "continue"
@@ -333,7 +334,7 @@ async def run_playground_async(
     emit({"type": "prompts", "prompts": prompts})
 
     transcript: List[PlaygroundTurn] = []
-    action = sim.opening_action()
+    action = sim.opening_action(allow_end=False)
     emit({"type": "phase", "phase": "persona_kickoff"})
 
     for index in _turn_indices(config.max_turns):
@@ -363,7 +364,8 @@ async def run_playground_async(
         )
         emit({"type": "phase", "phase": "persona_thinking"})
         action = sim.next_action(
-            _chatbot_observation(chatbot_label, assistant, structured_exposure)
+            _chatbot_observation(chatbot_label, assistant, structured_exposure),
+            allow_end=index >= config.min_turns,
         )
 
         decision = action.decision if action.end_reason else "continue"

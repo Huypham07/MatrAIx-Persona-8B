@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
+import pytest
 
 from playground.task_content_bundle import TaskContentBundle
 from playground.types import Persona, PlaygroundConfig, Questionnaire
-from playground.user_sim.runner import run_playground
+from playground.user_sim.runner import run_playground, run_playground_async
 from playground.user_sim.session import UserSimSession
 from playground.user_sim.tool_client import FakeToolStepClient
 from playground.user_sim.tools import ToolCall, normalize_sim_message, parse_tool_calls
@@ -116,12 +118,18 @@ def test_run_playground_tool_loop(monkeypatch):
                 "assistantMessage": "Try Past Lives",
                 "recommendedItems": [{"itemId": "movie-1", "title": "Past Lives"}],
             },
+            {"assistantMessage": "Do you prefer a recent release?", "recommendedItems": []},
+            {"assistantMessage": "Would subtitles be okay?", "recommendedItems": []},
+            {"assistantMessage": "Then I recommend Past Lives.", "recommendedItems": []},
         ]
     )
     client = FakeToolStepClient(
         [
             [ToolCall("send_message", {"message": "Hi, looking for a warm drama"})],
             [ToolCall("send_message", {"message": "Something character-driven"})],
+            [ToolCall("send_message", {"message": "A newer movie would be nice"})],
+            [ToolCall("send_message", {"message": "Subtitles are fine"})],
+            [ToolCall("send_message", {"message": "That sounds right for tonight"})],
             [ToolCall("end_conversation", {"reason": "satisfied"})],
         ]
     )
@@ -139,11 +147,11 @@ def test_run_playground_tool_loop(monkeypatch):
         task_path="application/tasks/chat_meal-planning-nutrition",
         repo_root=repo,
     )
-    assert len(result.transcript) == 2
+    assert len(result.transcript) == 5
     assert result.transcript[0].user_message == "Hi, looking for a warm drama"
     assert result.transcript[-1].decision == "satisfied"
-    assert result.metric_scores.num_turns == 2
-    assert result.transcript[-1].structured_exposure[0]["value"] == [
+    assert result.metric_scores.num_turns == 5
+    assert result.transcript[1].structured_exposure[0]["value"] == [
         {"itemId": "movie-1", "title": "Past Lives"}
     ]
     assert isinstance(result.questionnaire, Questionnaire)
@@ -155,6 +163,145 @@ def test_run_playground_tool_loop(monkeypatch):
     third_step = client.calls[2]
     assert "Visible structured details" in third_step[-1]["content"]
     assert "Meal plans or suggestions: Past Lives (movie-1)" in third_step[-1]["content"]
+
+
+def test_runner_rejects_early_end_until_five_exchanges(monkeypatch):
+    monkeypatch.setattr(
+        "playground.user_sim.runner.build_json_client",
+        lambda *_args, **_kwargs: FakeSelfReportClient(),
+    )
+    session = FakeSession(
+        [{"assistantMessage": "reply-{}".format(index)} for index in range(1, 6)]
+    )
+    client = FakeToolStepClient(
+        [
+            [ToolCall("send_message", {"message": "start"})],
+            [ToolCall("end_conversation", {"reason": "satisfied"})],
+            [ToolCall("send_message", {"message": "Could you explain reply one?"})],
+            [ToolCall("send_message", {"message": "What would change for me?"})],
+            [ToolCall("send_message", {"message": "Can you make that specific?"})],
+            [ToolCall("send_message", {"message": "What is the final tradeoff?"})],
+            [ToolCall("end_conversation", {"reason": "satisfied"})],
+        ]
+    )
+    monkeypatch.setattr(
+        "playground.user_sim.runner.build_tool_step_client",
+        lambda *_args, **_kwargs: client,
+    )
+
+    result = run_playground(
+        session,
+        _persona(),
+        "Meal assistant",
+        PlaygroundConfig(min_turns=5, max_turns=8),
+        created_at="2026-08-25T00:00:00Z",
+    )
+
+    assert len(result.transcript) == 5
+    assert result.transcript[-1].decision == "satisfied"
+    retry_prompt = client.calls[2][-1]["content"]
+    assert 'Meal Planning Nutrition Answer:\n"""reply-1"""' in retry_prompt
+    assert "specific natural follow-up" in retry_prompt
+
+
+def test_runner_rejects_an_end_action_before_the_opening_message(monkeypatch):
+    monkeypatch.setattr(
+        "playground.user_sim.runner.build_json_client",
+        lambda *_args, **_kwargs: FakeSelfReportClient(),
+    )
+    client = FakeToolStepClient(
+        [
+            [ToolCall("end_conversation", {"reason": "satisfied"})],
+            [ToolCall("send_message", {"message": "I need help with dinner."})],
+            [ToolCall("send_message", {"message": "What fits a busy night?"})],
+            [ToolCall("send_message", {"message": "What can I prepare ahead?"})],
+            [ToolCall("send_message", {"message": "Can I keep the cost down?"})],
+            [ToolCall("send_message", {"message": "Please recap the plan."})],
+            [ToolCall("end_conversation", {"reason": "satisfied"})],
+        ]
+    )
+    monkeypatch.setattr(
+        "playground.user_sim.runner.build_tool_step_client",
+        lambda *_args, **_kwargs: client,
+    )
+
+    result = run_playground(
+        FakeSession(
+            [{"assistantMessage": "reply-{}".format(index)} for index in range(1, 6)]
+        ),
+        _persona(),
+        "Meal assistant",
+        PlaygroundConfig(min_turns=5, max_turns=8),
+        created_at="2026-08-25T00:00:00Z",
+    )
+
+    assert len(result.transcript) == 5
+    assert result.transcript[-1].decision == "satisfied"
+
+
+def test_session_stops_after_three_rejected_early_end_attempts():
+    client = FakeToolStepClient(
+        [[ToolCall("end_conversation", {"reason": "satisfied"})]] * 3
+    )
+    session = UserSimSession(client, _persona())
+
+    with pytest.raises(RuntimeError, match="minimum conversation depth"):
+        session.next_action("The chatbot replied with a concrete plan.", allow_end=False)
+
+    assert len(client.calls) == 3
+
+
+def test_async_runner_rejects_early_end_until_five_exchanges(monkeypatch):
+    class AsyncFakeSession(FakeSession):
+        async def run_turn_sync(self, message):
+            return super().run_turn_sync(message)
+
+    monkeypatch.setattr(
+        "playground.user_sim.runner.build_json_client",
+        lambda *_args, **_kwargs: FakeSelfReportClient(),
+    )
+    client = FakeToolStepClient(
+        [
+            [ToolCall("send_message", {"message": "start"})],
+            [ToolCall("end_conversation", {"reason": "satisfied"})],
+            [ToolCall("send_message", {"message": "What does that include?"})],
+            [ToolCall("send_message", {"message": "What can I swap?"})],
+            [ToolCall("send_message", {"message": "What is the cost?"})],
+            [ToolCall("send_message", {"message": "Can you recap it?"})],
+            [ToolCall("end_conversation", {"reason": "satisfied"})],
+        ]
+    )
+    monkeypatch.setattr(
+        "playground.user_sim.runner.build_tool_step_client",
+        lambda *_args, **_kwargs: client,
+    )
+
+    result = asyncio.run(
+        run_playground_async(
+            AsyncFakeSession(
+                [{"assistantMessage": "reply-{}".format(index)} for index in range(1, 6)]
+            ),
+            _persona(),
+            "Meal assistant",
+            PlaygroundConfig(min_turns=5, max_turns=8),
+            created_at="2026-08-25T00:00:00Z",
+        )
+    )
+
+    assert len(result.transcript) == 5
+    assert result.transcript[-1].decision == "satisfied"
+
+
+def test_playground_config_serializes_default_minimum_turns():
+    config = PlaygroundConfig()
+
+    assert config.min_turns == 5
+    assert config.to_dict()["minTurns"] == 5
+
+
+def test_maximum_below_minimum_is_rejected():
+    with pytest.raises(ValueError, match="max_turns.*min_turns"):
+        PlaygroundConfig(min_turns=5, max_turns=4)
 
 
 def test_prompt_bundle_separates_persona_and_task():
@@ -234,7 +381,7 @@ def test_public_runner_delegates_to_user_sim(monkeypatch):
 
     monkeypatch.setattr("playground.user_sim.runner.run_playground", fake_run)
     session = FakeSession([{"assistantMessage": "Hi", "recommendedItems": []}])
-    config = PlaygroundConfig(domain="movie", max_turns=3)
+    config = PlaygroundConfig(domain="movie", max_turns=5)
     result = run_playground(
         session,
         _persona(),

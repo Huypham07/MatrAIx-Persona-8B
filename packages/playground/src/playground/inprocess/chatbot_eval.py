@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Mapping, Optional
 
 try:
     from fastapi import HTTPException
@@ -20,7 +21,8 @@ from playground.chatbot_task_config import (
     load_chatbot_task_config_for_task_path,
 )
 from playground.structured_exposure import build_structured_exposure
-from playground.types import PlaygroundConfig
+from playground.task_content_bundle import load_task_content_bundle_for_task_path
+from playground.types import Persona, PlaygroundConfig, PlaygroundResult
 
 
 _SIDECAR_TASK_PATHS = {
@@ -28,6 +30,64 @@ _SIDECAR_TASK_PATHS = {
     "meal_planning_nutrition": "application/tasks/chat_meal-planning-nutrition",
     "acme_support_api": "application/tasks/example-chat-api_support_chatbot",
 }
+
+_MAX_APPLICATION_ATTEMPTS = 3
+_TEMPORARY_REPLY_MARKERS = (
+    "temporarily unable",
+    "temporary failure",
+    "please try again in a moment",
+)
+
+
+class ApplicationUnavailable(RuntimeError):
+    """The task-owned chatbot did not return a meaningful reply."""
+
+
+def _reply_from_response(response: Mapping[str, Any]) -> str:
+    turn = response.get("turn")
+    turn_data = turn if isinstance(turn, Mapping) else {}
+    return str(
+        turn_data.get("assistantMessage")
+        or turn_data.get("assistantReply")
+        or response.get("reply")
+        or response.get("assistantMessage")
+        or ""
+    ).strip()
+
+
+def _is_temporary_reply(reply: str) -> bool:
+    normalized = reply.casefold()
+    return not normalized or any(marker in normalized for marker in _TEMPORARY_REPLY_MARKERS)
+
+
+def _retry_meaningful_reply(
+    send: Callable[[], Dict[str, Any]],
+) -> Dict[str, Any]:
+    last_error: Exception | None = None
+    temporary_reply = False
+    for attempt in range(_MAX_APPLICATION_ATTEMPTS):
+        try:
+            response = send()
+            reply = _reply_from_response(response)
+            if not _is_temporary_reply(reply):
+                return response
+            temporary_reply = bool(reply)
+            last_error = ApplicationUnavailable(
+                "temporary failure reply: {}".format(reply or "blank reply")
+            )
+        except Exception as exc:
+            last_error = exc
+        if attempt < _MAX_APPLICATION_ATTEMPTS - 1:
+            time.sleep(0.05 * (attempt + 1))
+    if temporary_reply:
+        detail = "temporary failure after {} attempts".format(_MAX_APPLICATION_ATTEMPTS)
+    else:
+        detail = "application unavailable after {} attempts".format(
+            _MAX_APPLICATION_ATTEMPTS
+        )
+    if last_error is not None:
+        detail = "{}: {}".format(detail, last_error)
+    raise ApplicationUnavailable(detail) from last_error
 
 
 class DirectApplicationSession:
@@ -69,6 +129,94 @@ class DirectApplicationSession:
         }
         self.turns.append(view)
         return view
+
+
+def inprocess_chatbot_config(
+    task_path: str,
+    *,
+    repo_root: Path,
+    env: Mapping[str, str],
+    model_name: str,
+) -> PlaygroundConfig:
+    """Resolve direct-session settings from task metadata and launch settings."""
+    task_config = load_chatbot_task_config_for_task_path(
+        task_path,
+        repo_root=repo_root,
+    )
+    runtime = task_config.runtime_defaults if task_config is not None else None
+    folder = Path(task_path.replace("\\", "/")).name
+    fallback_id = folder.replace("chat_", "").replace("-", "_") or "chatbot"
+    max_turns_raw = str(env.get("MATRIX_CHATBOT_MAX_TURNS") or "").strip()
+    try:
+        max_turns = max(1, int(max_turns_raw)) if max_turns_raw else None
+    except ValueError:
+        max_turns = None
+    if max_turns is None and runtime is not None:
+        max_turns = runtime.max_turns
+    if max_turns is None:
+        max_turns = 8
+    application_id = (
+        str(env.get("MATRIX_CHATBOT_APPLICATION_ID") or "").strip()
+        or (runtime.application_id if runtime is not None else "")
+        or fallback_id
+    )
+    application_context = (
+        str(env.get("MATRIX_CHATBOT_APPLICATION_CONTEXT") or "").strip()
+        or (runtime.application_context if runtime is not None else "")
+        or application_id
+    )
+    domain = (
+        str(env.get("MATRIX_CHATBOT_DOMAIN") or "").strip()
+        or (runtime.domain if runtime is not None else "")
+        or application_context
+    )
+    return PlaygroundConfig(
+        domain=domain,
+        application_id=application_id,
+        application_context=application_context,
+        engine=str(env.get("MATRIX_CHATBOT_ENGINE") or "gpt-4o-mini"),
+        persona_model=model_name,
+        min_turns=(runtime.min_turns if runtime and runtime.min_turns is not None else 5),
+        max_turns=max_turns,
+    )
+
+
+def run_inprocess_chatbot_eval(
+    persona: Persona,
+    config: PlaygroundConfig,
+    *,
+    task_path: str,
+    persona_yaml_path: str,
+    repo_root: Path,
+    created_at: str,
+    on_event: Callable[[Dict[str, Any]], None] | None = None,
+    job_dir: Path | None = None,
+) -> PlaygroundResult:
+    """Run the canonical UserSim session loop against an in-process app session."""
+    from playground.user_sim.runner import run_playground
+
+    task_bundle = load_task_content_bundle_for_task_path(
+        task_path,
+        repo_root=repo_root,
+    )
+    sut_description = (
+        task_bundle.context_markdown
+        or task_bundle.instruction_markdown
+        or config.application_context
+        or config.domain
+    )
+    return run_playground(
+        DirectApplicationSession(config),
+        persona,
+        sut_description,
+        config,
+        created_at=created_at,
+        on_event=on_event,
+        task_path=task_path,
+        persona_yaml_path=persona_yaml_path,
+        repo_root=repo_root,
+        job_dir=job_dir,
+    )
 
 
 def _load_sidecar_task_config(application_id: str):
@@ -176,34 +324,36 @@ class InProcessLLMChatbotApplication:
             f"Domain/Context: {context or self.default_context}\n\n"
             "Generate a conversational assistant response in character. Return JSON: {\"reply\": \"<your response>\"}"
         )
-        try:
-            res = client.complete_json(system=sys_prompt, user=prompt)
-            assistant_message = str(res.get("reply") or res.get("assistantMessage") or res.get("message") or "")
-        except Exception:
-            assistant_message = f"Thank you for your message. I am here to help you with {context or self.default_context}."
-        if not assistant_message:
-            assistant_message = f"I understand. Let me help you with your {context or self.default_context} request."
 
-        return {
-            "sessionId": session_id,
-            "turn": {
+        def send() -> Dict[str, Any]:
+            response = client.complete_json(system=sys_prompt, user=prompt)
+            assistant_message = str(
+                response.get("reply")
+                or response.get("assistantMessage")
+                or response.get("message")
+                or ""
+            ).strip()
+            return {
+                "sessionId": session_id,
+                "turn": {
+                    "assistantMessage": assistant_message,
+                    "userMessage": message,
+                },
+                "reply": assistant_message,
                 "assistantMessage": assistant_message,
-                "userMessage": message,
-            },
-            "reply": assistant_message,
-            "assistantMessage": assistant_message,
-            "status": "ok",
-        }
+                "status": "ok",
+            }
+
+        return _retry_meaningful_reply(send)
 
 
 class HTTPChatbotApplication:
-    """HTTP client for task-owned chatbot application sidecars with in-process LLM fallback."""
+    """HTTP client for task-owned chatbot application sidecars."""
 
     def __init__(self, *, application_id: str, default_context: str, base_url: str) -> None:
         self.application_id = application_id
         self.default_context = default_context
         self.base_url = base_url.rstrip("/")
-        self._fallback = InProcessLLMChatbotApplication(application_id, default_context)
 
     def send_message(
         self,
@@ -224,18 +374,9 @@ class HTTPChatbotApplication:
             "engine": engine,
             "botType": bot_type,
         }
-        try:
-            return self._request_json("POST", "/v1/messages", body=body)
-        except Exception:
-            # Fall back to in-process local LLM assistant if sidecar server is unavailable
-            return self._fallback.send_message(
-                session_id=session_id,
-                message=message,
-                title=title,
-                context=context,
-                engine=engine,
-                bot_type=bot_type,
-            )
+        return _retry_meaningful_reply(
+            lambda: self._request_json("POST", "/v1/messages", body=body)
+        )
 
     def _request_json(
         self,

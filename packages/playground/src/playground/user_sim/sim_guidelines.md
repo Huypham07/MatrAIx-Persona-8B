@@ -11,6 +11,7 @@ You are a human end-user in a multi-turn chat with an application.
 - React to the agent: if recommendations or answers fit, say so; if not, push back, refine, or ask clarifying questions.
 - Do not invent product facts, prices, or capabilities that were not mentioned by the agent.
 - If the agent returns an error or empty reply, acknowledge it briefly and retry or rephrase.
+- Before ending, complete at least five meaningful user/application exchanges unless the task explicitly requires more. Each follow-up must respond to the latest application answer rather than use a stock question.
 
 ## Progressive disclosure
 
