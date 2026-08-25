@@ -49,3 +49,16 @@ passed
 
 The pre-existing `application/playground/frontend/package-lock.json` change is
 intentionally excluded.
+
+## Fix round 1
+
+- Removed the large-cohort aggregate status poller and route every cohort size
+  through the one job EventSource + bootstrap snapshot path.
+- Stream terminal `done`/`error` phases now immediately enrich displayed trial
+  completion, success/error state, grid status, and batch counts before the
+  terminal snapshot arrives.
+- Batch grid cells are selectable; Survey batches retain selected live detail
+  in the center and provide a Back to cohort control without clearing state.
+- Trajectory pairing now uses authored `questionId`, tolerates interleaved
+  lifecycle/retry events, and renders authored answered/total progress rather
+  than counting raw event groups.

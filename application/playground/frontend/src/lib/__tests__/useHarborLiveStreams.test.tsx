@@ -45,6 +45,8 @@ describe("useHarborBatchLive", () => {
 
     expect(result.current.liveByTrial.a.phase).toBe("persona_thinking");
     expect(result.current.liveByTrial.b.surveyResult?.answers).toHaveLength(1);
+    act(() => FakeEventSource.instances[0].emit({ id: 3, jobName: "job", trialName: "a", event: { type: "done", status: "completed", completed: true, succeeded: true } }));
+    await waitFor(() => expect(result.current.live?.trials.find((trial) => trial.trialName === "a")?.completed).toBe(true));
     await new Promise((resolve) => window.setTimeout(resolve, 20));
     expect(getLive).toHaveBeenCalledTimes(1);
     unmount();

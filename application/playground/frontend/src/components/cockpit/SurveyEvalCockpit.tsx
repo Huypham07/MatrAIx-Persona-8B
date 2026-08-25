@@ -252,6 +252,7 @@ export function SurveyEvalCockpit({
       isBatchActive,
       batchComplete,
       batchGridCells,
+      batchLive,
       expectedTrialCount,
       completedTrials: batchCompletedTrials,
       batchError,
@@ -590,6 +591,20 @@ export function SurveyEvalCockpit({
           liveContent={surveyLiveContent}
           batchJobName={batchJobName}
           batchCells={batchGridCells}
+          selectedBatchTrialId={batchLive.selectedTrial}
+          onSelectBatchTrial={(trial) => batchLive.selectTrial(trial.id)}
+          onBackToBatchGrid={() => batchLive.selectTrial("")}
+          batchLiveContent={batchLive.selectedLive ? (
+            <SurveyLive
+              instrument={activeQuestionnaire}
+              result={batchLive.selectedLive.surveyResult ?? null}
+              activeQuestion={batchLive.selectedLive.activeSurveyQuestion ?? null}
+              phase={batchLive.selectedLive.phase === "error" ? "error" : batchLive.selectedLive.phase === "done" ? "done" : "running"}
+              error={batchLive.selectedLive.phase === "error" ? "Trial failed." : null}
+              instructionMarkdown={centerInstructionMarkdown}
+              onRetry={() => undefined}
+            />
+          ) : null}
           runLaunchPhase={runLaunchPhase}
           progressPct={runProgressPct}
           progressLabel={runProgressLabel}
@@ -819,7 +834,7 @@ export function SurveyLive({
               </>
             )}
           </div>
-          {result.trajectory.length > 0 && <TrajectoryFold events={result.trajectory} />}
+          {result.trajectory.length > 0 && <TrajectoryFold events={result.trajectory} authoredTotal={total} answeredCount={answered} />}
         </>
       )}
     </section>
@@ -1013,7 +1028,7 @@ function AnswerValue({ answer, question }: { answer: SurveyAnswer; question: Sur
 }
 
 /** Collapsible Q&A trajectory timeline. */
-function TrajectoryFold({ events }: { events: SurveyTrajectoryEvent[] }) {
+function TrajectoryFold({ events, authoredTotal, answeredCount }: { events: SurveyTrajectoryEvent[]; authoredTotal: number; answeredCount: number }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const groups = groupSurveyTrajectory(events);
@@ -1029,7 +1044,7 @@ function TrajectoryFold({ events }: { events: SurveyTrajectoryEvent[] }) {
       >
         <span className="hud text-[12px] text-text-dim">{t("eval.survey.trajectory")}</span>
         <span className="flex items-center gap-2">
-          <span className="hud text-[11px] text-text-dim">{t("eval.survey.questions", { count: questionGroups.length })}</span>
+          <span className="hud text-[11px] text-text-dim">{t("eval.survey.answered", { answered: answeredCount, total: authoredTotal })}</span>
           <Sym name={open ? "expand_more" : "chevron_right"} size={18} className="text-text-dim" />
         </span>
       </button>

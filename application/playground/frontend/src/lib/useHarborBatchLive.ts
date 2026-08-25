@@ -33,12 +33,27 @@ function liveWithStream(snapshot: HarborJobLiveResponse, stream: HarborJobStream
   const byName = new Map(snapshot.trials.map((trial) => [trial.trialName, trial]));
   for (const trialName of stream.trialOrder) if (!byName.has(trialName)) byName.set(trialName, { trialName });
   const trials = [...byName.values()].map((trial) => ({
-    ...trial, phase: stream.liveByTrial[trial.trialName]?.phase ?? trial.phase ?? null,
+    ...trial,
+    phase: stream.liveByTrial[trial.trialName]?.phase ?? trial.phase ?? null,
+    completed:
+      stream.liveByTrial[trial.trialName]?.phase === "done" || stream.liveByTrial[trial.trialName]?.phase === "error"
+        ? true
+        : trial.completed,
+    succeeded:
+      stream.liveByTrial[trial.trialName]?.phase === "done"
+        ? true
+        : stream.liveByTrial[trial.trialName]?.phase === "error"
+          ? false
+          : trial.succeeded,
+    error:
+      stream.liveByTrial[trial.trialName]?.phase === "error"
+        ? trial.error ?? "Trial failed."
+        : trial.error,
   }));
   const launchStatus = stream.launchStatus ?? snapshot.launchStatus ?? null;
   return {
     ...snapshot, launchStatus, trials, trialCount: Math.max(snapshot.trialCount, trials.length),
-    completedTrials: launchStatus === "completed" ? Math.max(snapshot.completedTrials, trials.length) : snapshot.completedTrials,
+    completedTrials: trials.filter((trial) => trial.completed).length,
   };
 }
 
