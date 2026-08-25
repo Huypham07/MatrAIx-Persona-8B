@@ -400,6 +400,7 @@ def test_direct_finance_session_uses_http_sidecar(monkeypatch):
         )
 
     monkeypatch.setenv("CHATBOT_UPSTREAM_FINANCE", "http://finance.local")
+    monkeypatch.setenv("CHATBOT_REQUEST_TIMEOUT_SECONDS", "42")
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
 
     session = DirectApplicationSession(
@@ -411,6 +412,7 @@ def test_direct_finance_session_uses_http_sidecar(monkeypatch):
     turn = session.run_turn_sync("Can you compare low-cost broad market ETFs?")
 
     assert calls[0]["url"] == "http://finance.local/v1/messages"
+    assert calls[0]["timeout"] == 42
     assert calls[0]["body"]["applicationId"] == "finance_openbb"
     assert calls[0]["body"]["applicationContext"] == "financial_research"
     assert calls[0]["body"]["message"] == "Can you compare low-cost broad market ETFs?"

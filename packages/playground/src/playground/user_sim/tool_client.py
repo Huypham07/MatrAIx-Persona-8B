@@ -9,7 +9,7 @@ import urllib.request
 from typing import Any, Dict, List, Optional, Protocol, Sequence
 
 from playground.chatbot_capabilities import ChatbotCapability
-from playground.openai_client import openai_model_supports_custom_temperature
+from playground.openai_client import coerce_json, openai_model_supports_custom_temperature
 from playground.user_sim.tools import (
     ToolCall,
     anthropic_tool_definitions,
@@ -47,6 +47,7 @@ class OpenAIToolStepClient:
         base_url: Optional[str] = None,
         default_headers: Optional[Dict[str, str]] = None,
         extra_body: Optional[Dict[str, Any]] = None,
+        native_tools: bool = True,
         temperature: float = 0.7,
         capabilities: Sequence[ChatbotCapability] | None = None,
         provider: str = "openai",
@@ -55,6 +56,7 @@ class OpenAIToolStepClient:
         self.temperature = temperature
         self.provider = provider
         self.extra_body = extra_body
+        self.native_tools = native_tools
         self.usage_parts: list = []
         self._tools = tool_definitions(capabilities)
         if client is None:
@@ -76,9 +78,24 @@ class OpenAIToolStepClient:
         kwargs: Dict[str, Any] = {
             "model": self.model,
             "messages": messages,
-            "tools": self._tools,
-            "tool_choice": "auto",
         }
+        if self.native_tools:
+            kwargs["tools"] = self._tools
+            kwargs["tool_choice"] = "auto"
+        else:
+            allowed = [tool["function"]["name"] for tool in self._tools]
+            kwargs["messages"] = list(messages) + [
+                {
+                    "role": "system",
+                    "content": (
+                        "Choose exactly one next action and return only a JSON object. "
+                        'Use {{"action":"send_message","message":"..."}} to speak, '
+                        'or {{"action":"end_conversation","reason":"satisfied|give_up|out_of_scope|transferred"}} '
+                        "to finish. Additional allowed action names: {}."
+                    ).format(", ".join(allowed)),
+                }
+            ]
+            kwargs["response_format"] = {"type": "json_object"}
         if openai_model_supports_custom_temperature(self.model):
             kwargs["temperature"] = self.temperature
         if self.extra_body is not None:
@@ -91,6 +108,24 @@ class OpenAIToolStepClient:
         )
         message = completion.choices[0].message
         calls: List[ToolCall] = []
+        if not self.native_tools:
+            payload = coerce_json(str(message.content or ""))
+            action = str(
+                payload.get("action") or payload.get("tool") or payload.get("name") or ""
+            ).strip()
+            arguments = payload.get("arguments")
+            if not isinstance(arguments, dict):
+                arguments = {}
+            if action == "send_message":
+                arguments = {"message": payload.get("message") or arguments.get("message")}
+            elif action == "end_conversation":
+                arguments = {
+                    "reason": payload.get("reason") or arguments.get("reason"),
+                    "note": payload.get("note") or arguments.get("note"),
+                }
+            if action in {tool["function"]["name"] for tool in self._tools}:
+                calls.append(ToolCall(action, arguments))
+            return calls
         for tool_call in message.tool_calls or []:
             fn = tool_call.function
             calls.append(ToolCall(fn.name, _coerce_args(fn.arguments)))
@@ -244,6 +279,7 @@ def build_tool_step_client(
             base_url=kwargs["base_url"],
             default_headers=kwargs.get("default_headers"),
             extra_body=kwargs.get("extra_body"),
+            native_tools=False,
             temperature=temperature,
             capabilities=capabilities,
             provider="local",

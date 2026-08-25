@@ -423,8 +423,13 @@ class HTTPChatbotApplication:
         path: str,
         *,
         body: Optional[Dict[str, Any]] = None,
-        timeout: float = 5.0,
+        timeout: Optional[float] = None,
     ) -> Dict[str, Any]:
+        if timeout is None:
+            try:
+                timeout = float(os.environ.get("CHATBOT_REQUEST_TIMEOUT_SECONDS", "90"))
+            except ValueError:
+                timeout = 90.0
         url = "{}{}".format(self.base_url, path)
         data = None
         headers = {"Accept": "application/json"}

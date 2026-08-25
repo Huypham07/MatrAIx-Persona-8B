@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from llm import build_grounded_messages, llm_enabled
+from llm import build_grounded_messages, llm_enabled, model_name
 from server import SESSIONS, _SESSION_LOCKS, create_session, post_message
 
 
@@ -38,6 +38,31 @@ def test_llm_enabled_respects_flag_and_key() -> None:
             os.environ.pop("MEAL_PLAN_LLM", None)
         else:
             os.environ["MEAL_PLAN_LLM"] = prev_flag
+
+
+def test_local_llm_env_enables_qwen_sidecar() -> None:
+    names = (
+        "OPENAI_API_KEY",
+        "OPENAI_BASE_URL",
+        "LOCAL_LLM_BASE_URL",
+        "LOCAL_LLM_MODEL",
+        "MEAL_PLAN_MODEL",
+        "MEAL_PLAN_LLM",
+    )
+    previous = {name: os.environ.get(name) for name in names}
+    try:
+        for name in names:
+            os.environ.pop(name, None)
+        os.environ["LOCAL_LLM_BASE_URL"] = "http://local-qwen.test/v1"
+        os.environ["LOCAL_LLM_MODEL"] = "Qwen3-14B"
+        assert llm_enabled() is True
+        assert model_name() == "Qwen3-14B"
+    finally:
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
 
 
 def test_grounded_prompt_includes_plan_and_allergens() -> None:
