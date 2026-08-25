@@ -45,7 +45,7 @@ from typing import Any, AsyncIterator, Dict, List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
@@ -103,6 +103,16 @@ def _persona_blurb(persona: Any, max_chars: int = 160) -> str:
 def get_services(request: Request) -> AppState:
     """FastAPI dependency: the process-wide service singletons for this app."""
     return state_from_request(request)
+
+
+def _parse_sse_cursor(value: str | None, *, source: str) -> int:
+    """Validate the decimal byte cursor accepted by the job SSE endpoint."""
+    if value is None:
+        return 0
+    text = value.strip()
+    if not text or not text.isascii() or not text.isdecimal():
+        raise HTTPException(status_code=400, detail=f"invalid {source} cursor")
+    return int(text)
 
 
 # --------------------------------------------------------------------------- #
@@ -874,6 +884,47 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
             return services.harbor_jobs.get_job_live(job_name)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.get(
+        "/api/harbor/jobs/{job_name}/events",
+        tags=["harbor-jobs"],
+    )
+    async def stream_harbor_job_events(
+        job_name: str,
+        request: Request,
+        cursor: str | None = Query(default=None),
+        services: AppState = Depends(get_services),
+    ) -> StreamingResponse:
+        """Replay and tail the durable multiplexed journal for one Harbor job."""
+        query_cursor = _parse_sse_cursor(cursor, source="query")
+        header = request.headers.get("last-event-id")
+        after = (
+            _parse_sse_cursor(header, source="Last-Event-ID")
+            if header is not None and header.strip()
+            else query_cursor
+        )
+        try:
+            journal_path = services.harbor_jobs.job_events_path(job_name)
+            from playground.harbor.trial_events import validate_event_cursor
+
+            validate_event_cursor(journal_path, after)
+        except ValueError as exc:
+            message = str(exc)
+            status = 404 if "not found" in message.lower() else 400
+            raise HTTPException(status_code=status, detail=message) from exc
+
+        from backend.api.sse_stream import stream_job_events
+
+        return StreamingResponse(
+            stream_job_events(
+                journal_path.parent,
+                after=after,
+                is_disconnected=request.is_disconnected,
+                is_terminal=lambda: services.harbor_jobs.is_job_terminal(job_name),
+            ),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache"},
+        )
 
     @app.post(
         "/api/harbor/jobs/{job_name}/retry-failed",

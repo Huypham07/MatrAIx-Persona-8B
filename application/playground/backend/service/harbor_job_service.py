@@ -530,6 +530,95 @@ class HarborJobService:
             reverse=True,
         )
 
+    def _job_dir(self, job_name: str) -> Path:
+        """Resolve one job directory without allowing path traversal."""
+        _validate_job_name(job_name)
+        root = self.jobs_dir.resolve()
+        job_dir = (root / job_name).resolve()
+        try:
+            job_dir.relative_to(root)
+        except ValueError as exc:
+            raise ValueError("Invalid job name") from exc
+        return job_dir
+
+    def job_events_path(self, job_name: str) -> Path:
+        """Return the validated journal path for an existing or active job."""
+        job_dir = self._job_dir(job_name)
+        if not job_dir.is_dir():
+            with self._guard:
+                active = job_name in self._launches
+            if not active:
+                raise ValueError("Job not found: {}".format(job_name))
+        from playground.harbor.trial_events import JOB_EVENTS_FILENAME
+
+        return job_dir / JOB_EVENTS_FILENAME
+
+    def is_job_terminal(self, job_name: str) -> bool:
+        """Whether no further journaled job or trial events are expected."""
+        job_dir = self._job_dir(job_name)
+        if not job_dir.is_dir():
+            with self._guard:
+                record = self._launches.get(job_name)
+            if record is None:
+                raise ValueError("Job not found: {}".format(job_name))
+            return record.status in {"completed", "failed"}
+
+        with self._guard:
+            record = self._launches.get(job_name)
+        if record is not None:
+            return record.status in {"completed", "failed"}
+        job_result = self._read_json(job_dir / "result.json")
+        if job_result and job_result.get("finished_at"):
+            return True
+        trials = self._list_trial_names(job_name)
+        return bool(trials) and all(
+            self._trial_has_result(job_name, trial_name) for trial_name in trials
+        )
+
+    def _append_job_state(
+        self, job_name: str, state: str, *, error: str | None = None
+    ) -> None:
+        """Persist one lifecycle transition after its backing state is durable."""
+        from playground.harbor.trial_events import append_job_event
+
+        event: dict[str, Any] = {
+            "type": "job_state",
+            "state": state,
+            "terminal": state in {"completed", "failed"},
+        }
+        if error:
+            event["error"] = error
+        append_job_event(self._job_dir(job_name), trial_name=None, event=event)
+
+    def _mark_job_running(self, job_name: str) -> None:
+        with self._guard:
+            record = self._launches[job_name]
+            if record.status == "running":
+                return
+            record.status = "running"
+        self._append_job_state(job_name, "running")
+
+    def _finish_job(
+        self,
+        job_name: str,
+        *,
+        status: str,
+        exit_code: int,
+        error: str | None,
+    ) -> None:
+        with self._guard:
+            record = self._launches[job_name]
+            if record.status in {"completed", "failed"}:
+                return
+            # Keep the job non-terminal until its durable terminal envelope is
+            # present. Otherwise an SSE reader could observe terminal state,
+            # drain an older journal, and close before this final record lands.
+            self._append_job_state(job_name, status, error=error)
+            record.status = status
+            record.exit_code = exit_code
+            record.error = error
+            record.finished_at = _utc_now()
+
     def _list_trial_names(self, job_name: str) -> list[str]:
         job_dir = self.jobs_dir / job_name
         if not job_dir.is_dir():
@@ -1259,6 +1348,7 @@ class HarborJobService:
                 "jobConfig": job_config,
             },
         )
+        self._append_job_state(resolved_job_name, "queued")
 
         if use_local_distributed:
             self._executor.submit(
@@ -1343,9 +1433,7 @@ class HarborJobService:
         chat_max_turns: int | None = None,
         trial_profile: str | None = None,
     ) -> None:
-        with self._guard:
-            record = self._launches[job_name]
-            record.status = "running"
+        self._mark_job_running(job_name)
 
         env = self._build_harbor_launch_env(
             survey_task_path=survey_task_path,
@@ -1380,12 +1468,9 @@ class HarborJobService:
             error = str(exc)
             exit_code = 1
 
-        with self._guard:
-            record = self._launches[job_name]
-            record.status = status
-            record.exit_code = exit_code
-            record.error = error
-            record.finished_at = _utc_now()
+        self._finish_job(
+            job_name, status=status, exit_code=exit_code, error=error
+        )
         # Rescue anything the per-trial watcher missed (idempotent).
         self._maybe_run_host_verifier(job_name)
         self._maybe_generate_post_run_feedback(job_name)
@@ -1409,9 +1494,7 @@ class HarborJobService:
         chat_max_turns: int | None = None,
         trial_profile: str | None = None,
     ) -> None:
-        with self._guard:
-            record = self._launches[job_name]
-            record.status = "running"
+        self._mark_job_running(job_name)
 
         command = list(self.harbor_command) + [
             "--yes",
@@ -1447,12 +1530,9 @@ class HarborJobService:
             error = str(exc)
             status = "failed"
 
-        with self._guard:
-            record = self._launches[job_name]
-            record.status = status
-            record.exit_code = exit_code
-            record.error = error
-            record.finished_at = _utc_now()
+        self._finish_job(
+            job_name, status=status, exit_code=exit_code, error=error
+        )
         # Rescue anything the per-trial watcher missed (idempotent).
         self._maybe_run_host_verifier(job_name)
         self._maybe_generate_post_run_feedback(job_name)
@@ -1472,9 +1552,7 @@ class HarborJobService:
         trial_profile: str | None = None,
     ) -> None:
         del os_app_submission_profile
-        with self._guard:
-            record = self._launches[job_name]
-            record.status = "running"
+        self._mark_job_running(job_name)
 
         env = self._build_harbor_launch_env(
             survey_task_path=survey_task_path,
@@ -1508,12 +1586,9 @@ class HarborJobService:
             error = str(exc)
             exit_code = 1
 
-        with self._guard:
-            record = self._launches[job_name]
-            record.status = status
-            record.exit_code = exit_code
-            record.error = error
-            record.finished_at = _utc_now()
+        self._finish_job(
+            job_name, status=status, exit_code=exit_code, error=error
+        )
         # Remote trials land locally after wait; job-end scoring is the primary path.
         self._maybe_run_host_verifier(job_name)
         self._maybe_generate_post_run_feedback(job_name)

@@ -4,7 +4,60 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from backend.service.harbor_job_service import HarborJobService, HarborLaunchRecord
+from playground.harbor.trial_events import read_job_events_after
+
+
+def test_job_journal_state_transitions_are_terminal_and_contained(tmp_path):
+    service = HarborJobService(
+        repo_root=tmp_path,
+        jobs_dir=tmp_path / "jobs",
+        generated_configs_dir=tmp_path / "configs",
+    )
+    service._launches["job-1"] = HarborLaunchRecord(job_name="job-1", status="queued")
+
+    service._append_job_state("job-1", "queued")
+    service._mark_job_running("job-1")
+    service._finish_job("job-1", status="completed", exit_code=0, error=None)
+    service._finish_job("job-1", status="completed", exit_code=0, error=None)
+
+    events_path = service.job_events_path("job-1")
+    events, _ = read_job_events_after(events_path)
+    assert [event["event"]["state"] for event in events] == [
+        "queued",
+        "running",
+        "completed",
+    ]
+    assert events[-1]["event"]["terminal"] is True
+    assert service.is_job_terminal("job-1") is True
+    with pytest.raises(ValueError, match="Invalid job name"):
+        service.job_events_path("../escape")
+    service.shutdown()
+
+
+def test_job_terminal_state_is_not_visible_before_its_journal_event(tmp_path, monkeypatch):
+    service = HarborJobService(
+        repo_root=tmp_path,
+        jobs_dir=tmp_path / "jobs",
+        generated_configs_dir=tmp_path / "configs",
+    )
+    service._launches["job-1"] = HarborLaunchRecord(job_name="job-1", status="running")
+    observed_statuses: list[str] = []
+
+    def capture_append(job_dir, *, trial_name, event):
+        del job_dir, trial_name
+        if event["terminal"]:
+            observed_statuses.append(service._launches["job-1"].status)
+        return 1
+
+    monkeypatch.setattr("playground.harbor.trial_events.append_job_event", capture_append)
+    service._finish_job("job-1", status="completed", exit_code=0, error=None)
+
+    assert observed_statuses == ["running"]
+    assert service.is_job_terminal("job-1") is True
+    service.shutdown()
 
 
 def test_inprocess_worker_delegates_to_focused_trial_worker(tmp_path, monkeypatch):
