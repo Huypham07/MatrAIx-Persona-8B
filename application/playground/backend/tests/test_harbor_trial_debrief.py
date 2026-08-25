@@ -6,7 +6,15 @@ import json
 import sys
 from pathlib import Path
 
-from backend.service.harbor_trial_debrief import map_trial_debrief
+import pytest
+
+from backend.service.harbor_trial_debrief import (
+    _load_playground_persona,
+    _render_persona_prompt,
+    map_trial_debrief,
+)
+from playground.types import Persona
+from playground.user_sim.prompt import render_persona_block
 
 
 def _write_chat_trial(repo: Path, job_name: str, trial_name: str) -> None:
@@ -195,7 +203,15 @@ def test_map_trial_debrief_chatbot_enriches_prompts_from_events(tmp_path: Path) 
         job_name="job-prompts",
         trial_name="trial-prompts",
     )
-    assert "You are Casey Brooks." in debrief["prompts"]["personaPrompt"]
+    canonical_path = (
+        repo / "persona" / "datasets" / "matraix-persona-dev-sample" / "persona_0042.yaml"
+    )
+    inference_persona = Persona.from_dict(
+        {"persona_id": "0042", "version": "1.0", "source": "Nemotron", "dimensions": {}},
+        persona_path=str(canonical_path),
+    )
+    assert debrief["prompts"]["personaPrompt"] == render_persona_block(inference_persona)
+    assert debrief["persona"]["context"] == debrief["prompts"]["personaPrompt"]
     assert "Simulated person" not in debrief["prompts"]["personaPrompt"]
     assert "## Persona" not in debrief["prompts"]["personaPrompt"]
     assert "Task context" in debrief["prompts"]["harborPrompt"]
@@ -415,7 +431,9 @@ def test_map_trial_debrief_survey_responses(tmp_path: Path) -> None:
     assert debrief["surveyResult"]["completion"]["meanLikert"] == 4.0
 
 
-def test_map_trial_debrief_survey_enriches_persona_dimensions(tmp_path: Path) -> None:
+def test_map_trial_debrief_survey_uses_inference_prompt_and_raw_dimensions(
+    tmp_path: Path,
+) -> None:
     repo = tmp_path
     persona_dir = repo / "persona" / "datasets" / "matraix-persona-dev-sample"
     persona_dir.mkdir(parents=True)
@@ -428,6 +446,9 @@ def test_map_trial_debrief_survey_enriches_persona_dimensions(tmp_path: Path) ->
                 "  age_bracket: 65+",
                 "  region: East Asia",
                 "  gender_identity: Non-binary",
+                "  survey_count: 0",
+                "  opted_in: false",
+                "  optional_note:",
             ]
         ),
         encoding="utf-8",
@@ -477,9 +498,56 @@ def test_map_trial_debrief_survey_enriches_persona_dimensions(tmp_path: Path) ->
         trial_name="trial-a",
     )
     persona_prompt = debrief["prompts"]["personaPrompt"]
-    assert "Profile dimensions" in persona_prompt
+    canonical_path = persona_dir / "persona_0174.yaml"
+    inference_persona = Persona.from_dict(
+        {
+            "persona_id": "0174",
+            "source": "PRIMEX",
+            "dimensions": {
+                "age_bracket": "65+",
+                "region": "East Asia",
+                "gender_identity": "Non-binary",
+                "survey_count": 0,
+                "opted_in": False,
+                "optional_note": None,
+            },
+        },
+        persona_path=str(canonical_path),
+    )
+    assert persona_prompt == render_persona_block(inference_persona)
+    assert debrief["persona"]["context"] == persona_prompt
     assert "Non-binary" in persona_prompt
-    assert debrief["persona"]["dimensions"]["region"] == "East Asia"
+    assert debrief["persona"]["dimensions"] == inference_persona.dimensions
+
+
+def test_render_persona_prompt_preserves_thin_canonical_prompt(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    persona_path = tmp_path / "personas" / "mai.yaml"
+    persona_path.parent.mkdir()
+    persona_path.write_text(
+        "persona_id: mai\ndimensions:\n  cog_attention_span: Long\n",
+        encoding="utf-8",
+    )
+    persona = Persona.from_dict(
+        {"persona_id": "mai", "dimensions": {"cog_attention_span": "Long"}},
+        persona_path=str(persona_path),
+    )
+    monkeypatch.setattr(
+        "playground.user_sim.prompt.render_persona_block",
+        lambda *_args, **_kwargs: "Persona mai",
+    )
+
+    assert _render_persona_prompt(tmp_path, "personas/mai.yaml", persona) == "Persona mai"
+
+
+def test_path_backed_persona_loader_propagates_canonical_errors(tmp_path: Path) -> None:
+    broken_path = tmp_path / "personas" / "broken.yaml"
+    broken_path.parent.mkdir()
+    broken_path.write_text("- not-a-persona-mapping\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="canonical persona"):
+        _load_playground_persona(tmp_path, "personas/broken.yaml")
 
 
 def test_map_trial_debrief_survey_result_resolves_registered_instrument(tmp_path: Path) -> None:

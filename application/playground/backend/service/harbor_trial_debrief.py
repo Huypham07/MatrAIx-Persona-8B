@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-import yaml
 
 from backend.service import run_store
 from backend.service.application_types import normalize_metadata_type
@@ -124,56 +121,30 @@ def _persona_path_from_trial(trial_dir: Path, repo_root: Path) -> str | None:
     return None
 
 
-def _persona_from_catalog_stem(stem: str) -> Persona | None:
-    """Lookup a curated catalog persona by stem/id. Avoid on path-backed loads."""
-    try:
-        from playground.persona_catalog import get_persona
-
-        return get_persona(stem)
-    except KeyError:
-        return None
-
-
 def _load_playground_persona(repo_root: Path, persona_rel: str | None) -> Persona:
     if persona_rel:
         abs_path = (repo_root / persona_rel).resolve()
-        stem = abs_path.stem if abs_path.name else Path(persona_rel).stem
-        # Path-backed personas (wiki cohorts, trial snapshots): load that file
-        # only. Never scan the curated catalog first — get_persona() reloads
-        # every curated YAML and dominated trail-report open latency (~3s).
-        if abs_path.is_file():
-            try:
-                from matraix.agents.persona.loader import load_persona as load_harbor_persona
+        if not abs_path.is_file():
+            raise FileNotFoundError("canonical persona source not found: {}".format(persona_rel))
+        try:
+            from playground.user_sim.prompt import (
+                _ensure_persona_agents_package,
+                render_persona_block,
+            )
 
-                prev = os.getcwd()
-                try:
-                    os.chdir(repo_root)
-                    loaded = load_harbor_persona(persona_rel)
-                finally:
-                    os.chdir(prev)
-            except Exception:  # noqa: BLE001
-                loaded = None
-            if loaded is not None:
-                raw = loaded.data
-                persona = Persona.from_dict(raw, persona_path=str(abs_path))
-                from playground.user_sim.prompt import render_persona_block
+            _ensure_persona_agents_package()
+            from matraix.agents.persona.loader import load_persona as load_harbor_persona
 
-                persona.context = render_persona_block(persona)
-                return persona
-            try:
-                raw = yaml.safe_load(abs_path.read_text(encoding="utf-8"))
-            except Exception:  # noqa: BLE001
-                raw = None
-            if isinstance(raw, dict):
-                persona = Persona.from_dict(raw, persona_path=str(abs_path))
-                from playground.user_sim.prompt import render_persona_block
-
-                persona.context = render_persona_block(persona)
-                return persona
-        catalog = _persona_from_catalog_stem(stem)
-        if catalog is not None:
-            return catalog
+            loaded = load_harbor_persona(str(abs_path))
+        except Exception as exc:  # noqa: BLE001
+            raise ValueError(
+                "failed to load canonical persona source {}: {}".format(persona_rel, exc)
+            ) from exc
+        persona = Persona.from_dict(loaded.data, persona_path=str(abs_path))
+        persona.context = render_persona_block(persona)
+        return persona
     return Persona(id="unknown", name="Persona", source="", context="")
+
 
 def _task_path_from_trial(trial_dir: Path) -> str | None:
     config_path = trial_dir / "config.json"
@@ -653,74 +624,13 @@ def _persona_prompt_abs_path(repo_root: Path, persona_rel: str | None) -> str | 
     return str(abs_path) if abs_path.is_file() else None
 
 
-def _humanize_dimension_key(key: str) -> str:
-    return " ".join(part.capitalize() for part in str(key).replace("-", "_").split("_") if part)
-
-
-def _format_persona_dimensions_from_yaml(raw: dict[str, Any]) -> str:
-    if raw.get("system_prompt"):
-        return str(raw.get("system_prompt")).strip()
-    if raw.get("summary"):
-        return str(raw.get("summary")).strip()
-    try:
-        from matraix.agents.persona.loader import Persona as LoaderPersona
-        from matraix.agents.persona.templating import (
-            PERSONA_SYSTEM_TEMPLATE,
-            render_persona_template,
-            resolve_persona_template,
-        )
-
-        lp = LoaderPersona.from_dict(raw)
-        tmpl = resolve_persona_template(lp, None, PERSONA_SYSTEM_TEMPLATE)
-        rendered = render_persona_template(tmpl, lp).strip()
-        if rendered:
-            return rendered
-    except Exception:
-        pass
-
-    display_name = str(raw.get("display_name") or "").strip()
-    lines: list[str] = []
-    if display_name:
-        lines.append("You are {}.".format(display_name))
-        lines.append("")
-    dims = raw.get("dimensions")
-    if isinstance(dims, dict) and dims:
-        lines.append("## Who you are")
-        lines.append("")
-        for key in sorted(dims.keys()):
-            value = dims.get(key)
-            if value is None or str(value).strip() == "":
-                continue
-            lines.append("- {}: {}".format(_humanize_dimension_key(key), value))
-    return "\n".join(lines).strip()
-
-
-def _read_persona_yaml_raw(repo_root: Path, persona_rel: str | None) -> dict[str, Any] | None:
-    yaml_path = _persona_prompt_abs_path(repo_root, persona_rel)
-    if not yaml_path:
-        return None
-    try:
-        raw = yaml.safe_load(Path(yaml_path).read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001
-        return None
-    return raw if isinstance(raw, dict) else None
-
-
 def _render_persona_prompt(
     repo_root: Path, persona_rel: str | None, persona: Persona
 ) -> str:
     from playground.user_sim.prompt import render_persona_block
 
-    yaml_path = _persona_prompt_abs_path(repo_root, persona_rel)
-    block = render_persona_block(persona, persona_yaml_path=yaml_path).strip()
-    if block and not _is_thin_persona_prompt(block, persona=persona):
-        return block
-    raw = _read_persona_yaml_raw(repo_root, persona_rel)
-    if raw:
-        fallback = _format_persona_dimensions_from_yaml(raw)
-        if fallback and not _is_thin_persona_prompt(fallback, persona=persona):
-            return fallback
-    return block
+    yaml_path = _persona_prompt_abs_path(repo_root, persona_rel) or persona.persona_path
+    return render_persona_block(persona, persona_yaml_path=yaml_path).strip()
 
 
 def _is_thin_persona_prompt(text: str, *, persona: Persona) -> bool:
@@ -795,7 +705,7 @@ def _enrich_debrief_prompts(
     persona_prompt = str(prompts.get("personaPrompt") or "").strip()
     harbor_prompt = str(prompts.get("harborPrompt") or "").strip()
     rendered = _render_persona_prompt(repo_root, persona_rel, persona)
-    if rendered and not _is_thin_persona_prompt(rendered, persona=persona):
+    if rendered and (persona.persona_path or _persona_prompt_abs_path(repo_root, persona_rel)):
         persona_prompt = rendered
         prompts["personaPrompt"] = persona_prompt
     elif not persona_prompt or _is_thin_persona_prompt(persona_prompt, persona=persona):
