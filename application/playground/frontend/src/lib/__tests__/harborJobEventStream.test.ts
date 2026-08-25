@@ -32,6 +32,10 @@ class FakeEventSource {
     this.closed = true;
   }
 
+  listenerCount(): number {
+    return [...this.listeners.values()].flat().length;
+  }
+
   emit(type: string, data: unknown, lastEventId = ""): void {
     for (const listener of this.listeners.get(type) ?? []) {
       listener({ data: JSON.stringify(data), lastEventId } as MessageEvent<string>);
@@ -118,7 +122,7 @@ describe("connectHarborJobEvents", () => {
       id: 6,
       jobName: "job",
       trialName: null,
-      event: { type: "job_state", state: "running" },
+      event: { type: "job_state", state: "running", terminal: false },
     });
 
     expect(onError).toHaveBeenCalledTimes(3);
@@ -131,10 +135,57 @@ describe("connectHarborJobEvents", () => {
     expect(received[0].id).toBe(6);
   });
 
-  it("distinguishes a server stream error envelope from a transport disconnect", () => {
+  it("rejects cross-channel and mismatched SSE-ID payloads without dispatching them", () => {
     vi.stubGlobal("EventSource", FakeEventSource);
+    const received: HarborJobEventEnvelope[] = [];
     const onError = vi.fn();
-    connectHarborJobEvents({ jobName: "job", onEnvelope: vi.fn(), onError });
+    connectHarborJobEvents({
+      jobName: "job",
+      onEnvelope: (envelope) => received.push(envelope),
+      onError,
+    });
+    const source = FakeEventSource.instances[0];
+
+    source.emit("job", {
+      id: 1,
+      jobName: "job",
+      trialName: "a",
+      event: { type: "job_state", state: "running", terminal: false },
+    }, "1");
+    source.emit("trial", {
+      id: 2,
+      jobName: "job",
+      trialName: null,
+      event: { type: "phase", phase: "running" },
+    }, "2");
+    source.emit("trial", {
+      id: 3,
+      jobName: "job",
+      trialName: "a",
+      event: { type: "job_state", state: "running", terminal: false },
+    }, "3");
+    source.emit("trial", {
+      id: 4,
+      jobName: "job",
+      trialName: "a",
+      event: { type: "phase", phase: "running" },
+    }, "99");
+    source.emit("trial", {
+      id: 5,
+      jobName: "job",
+      trialName: "a",
+      event: { type: "phase", phase: "running" },
+    }, "5");
+
+    expect(onError).toHaveBeenCalledTimes(4);
+    expect(received.map((event) => event.id)).toEqual([5]);
+  });
+
+  it("closes after a server stream error and prevents later callbacks", () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    const onEnvelope = vi.fn();
+    const onError = vi.fn();
+    connectHarborJobEvents({ jobName: "job", onEnvelope, onError });
     const source = FakeEventSource.instances[0];
 
     source.emit("stream_error", {
@@ -143,9 +194,39 @@ describe("connectHarborJobEvents", () => {
       event: { type: "stream_error", message: "journal read failed" },
     });
     source.onerror?.(new Event("error"));
+    source.emit("trial", {
+      id: 7,
+      jobName: "job",
+      trialName: "a",
+      event: { type: "phase", phase: "running" },
+    });
 
     expect(onError.mock.calls.map(([error]) => (error as Error).message)).toEqual([
       "Harbor job event stream failed: journal read failed",
+    ]);
+    expect(source.closed).toBe(true);
+    expect(source.listenerCount()).toBe(0);
+    expect(onEnvelope).not.toHaveBeenCalled();
+  });
+
+  it("reports one transport outage until a valid envelope proves recovery", () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    const onError = vi.fn();
+    connectHarborJobEvents({ jobName: "job", onEnvelope: vi.fn(), onError });
+    const source = FakeEventSource.instances[0];
+
+    source.onerror?.(new Event("error"));
+    source.onerror?.(new Event("error"));
+    source.emit("trial", {
+      id: 8,
+      jobName: "job",
+      trialName: "a",
+      event: { type: "phase", phase: "running" },
+    }, "8");
+    source.onerror?.(new Event("error"));
+
+    expect(onError.mock.calls.map(([error]) => (error as Error).message)).toEqual([
+      "Harbor job event stream disconnected. Realtime updates may be delayed while it reconnects.",
       "Harbor job event stream disconnected. Realtime updates may be delayed while it reconnects.",
     ]);
   });

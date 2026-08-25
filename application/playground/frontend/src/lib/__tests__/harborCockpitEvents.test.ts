@@ -57,12 +57,29 @@ describe("applyHarborJobEnvelope", () => {
       id: 2,
       jobName: "job",
       trialName: null,
-      event: { type: "job_state", state: "failed", error: "provider unavailable" },
+      event: { type: "job_state", state: "failed", terminal: true, error: "provider unavailable" },
     });
 
     expect(state.launchStatus).toBe("failed");
     expect(state.terminalError).toBe("provider unavailable");
     expect(state.liveByTrial).toEqual({});
+  });
+
+  it("does not retain a stray completed-job error as a terminal failure", () => {
+    const state = applyHarborJobEnvelope(EMPTY_HARBOR_JOB_STREAM_STATE, {
+      id: 1,
+      jobName: "job",
+      trialName: null,
+      event: {
+        type: "job_state",
+        state: "completed",
+        terminal: true,
+        error: "already recovered",
+      },
+    });
+
+    expect(state.launchStatus).toBe("completed");
+    expect(state.terminalError).toBeNull();
   });
 });
 
@@ -99,5 +116,40 @@ describe("applyHarborTrialEvents", () => {
       answered: 1,
       total: 2,
     });
+  });
+
+  it("maps durable terminal done events without an embedded result", () => {
+    const pending = {
+      turns: [],
+      draftTurn: { turnIndex: 1, userMessage: "hello", assistantMessage: "" },
+      activeSurveyQuestion: { id: "q1", prompt: "How was it?", type: "likert", index: 1, total: 2 },
+      phase: "survey_answering",
+      prompts: null,
+    };
+    const completed = applyHarborTrialEvents(
+      [
+        {
+          type: "done",
+          status: "completed",
+          completed: true,
+          succeeded: true,
+        } as Parameters<typeof applyHarborTrialEvents>[0][number],
+      ],
+      pending,
+    );
+    const failed = applyHarborTrialEvents(
+      [
+        {
+          type: "done",
+          status: "failed",
+          completed: false,
+          succeeded: false,
+        } as Parameters<typeof applyHarborTrialEvents>[0][number],
+      ],
+      pending,
+    );
+
+    expect(completed).toMatchObject({ phase: "done", draftTurn: null, activeSurveyQuestion: null });
+    expect(failed).toMatchObject({ phase: "error", draftTurn: null, activeSurveyQuestion: null });
   });
 });

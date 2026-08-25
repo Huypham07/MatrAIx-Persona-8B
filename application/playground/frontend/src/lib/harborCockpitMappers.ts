@@ -214,6 +214,9 @@ export function applyHarborTrialEvents(
     value?: SurveyAnswer["value"];
     rationale?: string | null;
     confidence?: number | null;
+    status?: string;
+    completed?: boolean;
+    succeeded?: boolean;
     userMessage?: string;
     assistantMessage?: string;
     structuredExposure?: StructuredExposureField[];
@@ -331,17 +334,20 @@ export function applyHarborTrialEvents(
       if (extracted) {
         surveyResult = extracted;
       }
-    } else if (event.type === "done" && event.result) {
-      const payload = event.result;
-      const extracted = surveyResultFromDonePayload(payload);
-      if (extracted) {
-        surveyResult = extracted;
+    } else if (event.type === "done") {
+      if (event.result) {
+        const payload = event.result;
+        const extracted = surveyResultFromDonePayload(payload);
+        if (extracted) {
+          surveyResult = extracted;
+        }
+        if (Array.isArray(payload.transcript)) {
+          turns = asTurns(payload.transcript);
+        }
       }
-      if (Array.isArray(payload.transcript)) {
-        turns = asTurns(payload.transcript);
-      }
-      phase = "done";
+      phase = failedTrialDoneEvent(event) ? "error" : "done";
       draftTurn = null;
+      activeSurveyQuestion = null;
     }
   }
 
@@ -380,6 +386,15 @@ function emptyLiveSurveyResult(total: number): SurveyResult {
     },
     trajectory: [],
   };
+}
+
+function failedTrialDoneEvent(event: {
+  status?: string;
+  completed?: boolean;
+  succeeded?: boolean;
+}): boolean {
+  const status = event.status?.toLowerCase();
+  return status === "failed" || status === "error" || event.completed === false || event.succeeded === false;
 }
 
 export function surveyResultFromDonePayload(payload: Record<string, unknown>): SurveyResult | null {
