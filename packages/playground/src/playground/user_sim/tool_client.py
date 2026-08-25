@@ -45,6 +45,8 @@ class OpenAIToolStepClient:
         client: Optional[Any] = None,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        default_headers: Optional[Dict[str, str]] = None,
+        extra_body: Optional[Dict[str, Any]] = None,
         temperature: float = 0.7,
         capabilities: Sequence[ChatbotCapability] | None = None,
         provider: str = "openai",
@@ -52,6 +54,7 @@ class OpenAIToolStepClient:
         self.model = model
         self.temperature = temperature
         self.provider = provider
+        self.extra_body = extra_body
         self.usage_parts: list = []
         self._tools = tool_definitions(capabilities)
         if client is None:
@@ -62,6 +65,8 @@ class OpenAIToolStepClient:
                 client_kwargs["api_key"] = api_key
             if base_url is not None:
                 client_kwargs["base_url"] = base_url
+            if default_headers is not None:
+                client_kwargs["default_headers"] = default_headers
             client = OpenAI(**client_kwargs)
         self._client = client
 
@@ -76,6 +81,8 @@ class OpenAIToolStepClient:
         }
         if openai_model_supports_custom_temperature(self.model):
             kwargs["temperature"] = self.temperature
+        if self.extra_body is not None:
+            kwargs["extra_body"] = self.extra_body
         completion = self._client.chat.completions.create(**kwargs)
         self.usage_parts.append(
             usage_from_openai_completion(
@@ -215,10 +222,32 @@ def build_tool_step_client(
 ) -> ToolStepClient:
     from playground.model_client import (
         dashscope_openai_client_kwargs,
+        local_llm_openai_client_kwargs,
         openrouter_openai_client_kwargs,
     )
 
     value = (model or "openai/gpt-4o-mini").strip()
+    if (
+        value.startswith("local")
+        or value.startswith("custom")
+        or (
+            "qwen" in value.lower()
+            and not value.startswith(
+                ("anthropic/", "dashscope/", "openrouter/", "openai/")
+            )
+        )
+    ):
+        kwargs = local_llm_openai_client_kwargs(value)
+        return OpenAIToolStepClient(
+            kwargs["model"],
+            api_key=kwargs["api_key"],
+            base_url=kwargs["base_url"],
+            default_headers=kwargs.get("default_headers"),
+            extra_body=kwargs.get("extra_body"),
+            temperature=temperature,
+            capabilities=capabilities,
+            provider="local",
+        )
     if value.startswith("anthropic/"):
         proxy_base = (
             os.environ.get("OPENAI_BASE_URL") or os.environ.get("OPENAI_API_BASE") or ""

@@ -250,7 +250,12 @@ def build_json_client(model: Optional[str] = None, *, temperature: float = 0.7) 
     if (
         value.startswith("local")
         or value.startswith("custom")
-        or "qwen" in value.lower()
+        or (
+            "qwen" in value.lower()
+            and not value.startswith(
+                ("anthropic/", "dashscope/", "openrouter/", "openai/")
+            )
+        )
         or (
             not value.startswith("anthropic/")
             and not value.startswith("claude-")
