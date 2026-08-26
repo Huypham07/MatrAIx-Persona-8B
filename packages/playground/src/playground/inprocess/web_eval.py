@@ -350,8 +350,13 @@ _FAST_CURSOR_AND_SOM_SCRIPT = """
 """
 
 
-def _render_persona_for_web(persona: Persona, repo_root: Optional[Path] = None) -> str:
+def _render_persona_for_web(
+    persona: Persona,
+    repo_root: Optional[Path] = None,
+    task: Optional[WebEvalTask] = None,
+) -> str:
     """Render full natural language persona prompt for web agent."""
+    task_dir = task.task_path if task else None
     if repo_root:
         for candidate_dir in [
             repo_root / "persona" / "datasets" / "matraix-persona-dev-sample",
@@ -377,10 +382,16 @@ def _render_persona_for_web(persona: Persona, repo_root: Optional[Path] = None) 
 
                             loaded = load_persona(str(candidate))
                             template = resolve_persona_template(loaded, None, PERSONA_SYSTEM_TEMPLATE)
-                            return render_persona_template(template, loaded).strip()
+                            return render_persona_template(
+                                template, loaded, task_dir=task_dir
+                            ).strip()
                         except Exception:
                             pass
-    return render_persona_block(persona, persona_yaml_path="").strip()
+    return render_persona_block(
+        persona,
+        persona_yaml_path="",
+        task_path=str(task_dir) if task_dir else None,
+    ).strip()
 
 
 def _derive_persona_tiers(persona: Persona) -> Dict[str, Any]:
@@ -432,7 +443,7 @@ class InprocessWebEvalRunner:
                 on_event(event)
 
         task_prompt = build_web_task_prompt(task, repo_root=self.repo_root)
-        persona_body = _render_persona_for_web(persona, self.repo_root)
+        persona_body = _render_persona_for_web(persona, self.repo_root, task=task)
         
         # Enforce that the exported persona context matches the exact rendered prompt
         persona.context = persona_body

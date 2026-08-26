@@ -31,9 +31,22 @@ from playground.user_sim.prompt import (
 )
 
 
-def persona_system_prompt(persona: Persona, *, persona_yaml_path: Optional[str] = None) -> str:
+def persona_system_prompt(
+    persona: Persona,
+    *,
+    persona_yaml_path: Optional[str] = None,
+    task_path: Optional[str] = None,
+    task_dir: Optional[Path | str] = None,
+    include_fields: Optional[list[str] | set[str]] = None,
+    exclude_fields: Optional[list[str] | set[str]] = None,
+) -> str:
     persona_body = render_persona_block(
-        persona, persona_yaml_path=persona_yaml_path
+        persona,
+        persona_yaml_path=persona_yaml_path,
+        task_path=task_path,
+        task_dir=task_dir,
+        include_fields=include_fields,
+        exclude_fields=exclude_fields,
     ).strip()
     if not persona_body:
         persona_body = persona.context or f"I am {persona.name} (Persona ID: {persona.id})."
@@ -187,6 +200,8 @@ class InprocessSurveyEvalRunner:
         job_dir: Optional[Any] = None,
         trace_dir: Optional[Any] = None,
         segment_id: Optional[str] = None,
+        task_path: Optional[str] = None,
+        task_dir: Optional[Path | str] = None,
         client: Any | None = None,
         client_factory: Optional[Callable[[str], Any]] = None,
     ) -> SurveyEvalResult:
@@ -199,7 +214,10 @@ class InprocessSurveyEvalRunner:
 
         task_prompt = build_survey_task_prompt(instrument=instrument)
         persona_prompt = persona_system_prompt(
-            persona, persona_yaml_path=persona_yaml_path
+            persona,
+            persona_yaml_path=persona_yaml_path,
+            task_path=task_path,
+            task_dir=task_dir,
         )
         prompts = {
             "personaPrompt": persona_prompt,

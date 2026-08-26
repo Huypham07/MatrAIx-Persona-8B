@@ -451,6 +451,7 @@ def run_inprocess_trial(
                 config=SurveyEvalConfig(persona_model=model_name),
                 created_at=started_at,
                 persona_yaml_path=persona_yaml_path,
+                task_path=task_path,
                 on_event=on_survey_event,
                 job_dir=trial_dir.parent,
                 trace_dir=trial_dir,

@@ -1,0 +1,84 @@
+# ==============================================================================
+# Persona Dimensions Configuration for Task: web_search-laptop-choice
+# Cấu hình ~50 trường Persona phục vụ bài toán tìm kiếm và lựa chọn Laptop
+# ==============================================================================
+
+dimensions:
+  # ----------------------------------------------------------------------------
+  # 1. NHÂN KHẨU HỌC & CƠ BẢN (Demographics & Basic Identity)
+  # ----------------------------------------------------------------------------
+  - age_bracket                # Độ tuổi (18-24, 25-34, 35-44...)
+  - gender_identity            # Giới tính (Nam, Nữ, Khác)
+  - region                     # Khu vực sinh sống (North America, Asia, Europe...)
+  - urbanicity                 # Môi trường sống (Đô thị, ngoại ô, nông thôn)
+  - life_stage                 # Giai đoạn cuộc sống (Sinh viên, mới đi làm, có con...)
+  - major_life_events          # Sự kiện lớn gần đây (Bắt đầu học đại học, đổi nghề...)
+  - primary_language           # Ngôn ngữ chính
+  - english_proficiency        # Mức độ thông thạo tiếng Anh
+
+  # ----------------------------------------------------------------------------
+  # 2. TÀI CHÍNH, GIÁ CẢ & NGÂN SÁCH (Financial & Budgeting)
+  # ----------------------------------------------------------------------------
+  - socioeconomic_band         # Tầng lớp thu nhập (Low, Middle, High income)
+  - economic_motivation        # Động lực kinh tế (Cost-sensitive, Value-driven, Premium-seeking)
+  - price_sensitivity          # Độ nhạy cảm về giá
+  - att_subscription_services  # Thái độ với dịch vụ định kỳ / bảo hành mở rộng
+  - att_consumerism            # Mức độ chi tiêu tiêu dùng
+  - att_fast_fashion           # Thói quen thay đổi đồ công nghệ nhanh hay dùng bền
+  - att_minimalism             # Xu hướng tối giản / thực dụng
+
+  # ----------------------------------------------------------------------------
+  # 3. CÔNG VIỆC, HỌC VẤN & MỤC ĐÍCH SỬ DỤNG (Career, Education & Workload)
+  # ----------------------------------------------------------------------------
+  - domain                     # Ngành nghề chính (Software, Design, Finance, Education...)
+  - subject_specialty          # Chuyên môn chi tiết (AI, Graphic Design, Accounting...)
+  - domain_characteristics     # Đặc điểm vai trò (Practitioner, Manager, Student, Executive)
+  - highest_education          # Trình độ học vấn cao nhất
+  - academic_field             # Lĩnh vực học tập
+  - seniority                  # Cấp bậc công việc (Entry, Mid, Senior, Lead)
+  - company_size               # Quy mô công ty làm việc
+  - role_function              # Chức năng công việc
+  - years_experience           # Số năm kinh nghiệm làm việc
+  - att_remote_work            # Mức độ làm việc từ xa (Yêu cầu pin, webcam, gọn nhẹ)
+  - att_working_from_office    # Mức độ làm việc tại văn phòng (Cần màn hình lớn, docking)
+
+  # ----------------------------------------------------------------------------
+  # 4. KỸ THUẬT, THIẾT BỊ & HỆ SINH THÁI (Tech Savviness & Ecosystem)
+  # ----------------------------------------------------------------------------
+  - tech_savviness             # Độ am hiểu công nghệ (Digital native, Early adopter, Tech-averse)
+  - device_context             # Thiết bị đang sử dụng (MacBook, Windows Laptop, iPad, Phone)
+  - modality_pref              # Ưu tiên giao tiếp / thao tác
+  - att_new_technology         # Thái độ với công nghệ mới (AI chip, OLED, ARM architecture)
+  - att_brand_loyalty          # Mức độ trung thành thương hiệu (Apple, Dell, ThinkPad, Asus, HP)
+  - att_open_source            # Ưu tiên nguồn mở / Linux compatibility
+  - att_data_privacy           # Mức độ quan tâm bảo mật dữ liệu / vân tay / Windows Hello
+  - att_ai                     # Mức độ ứng dụng AI trong công việc
+  - att_automation             # Mức độ sử dụng tự động hóa
+  - fam_software_engineering   # Mức độ am hiểu về phần mềm / lập trình
+  - topic_gaming               # Sở thích chơi game (Ảnh hưởng GPU / Tản nhiệt)
+  - topic_programming          # Nhu cầu lập trình / compile mã nguồn (Cần RAM/CPU mạnh)
+  - ind_technology             # Có làm việc trong ngành công nghệ không
+  - ind_gaming                 # Có liên quan ngành game / đồ họa không
+
+  # ----------------------------------------------------------------------------
+  # 5. PHONG CÁCH QUYẾT ĐỊNH & MUA SẮM (Decision Style & Buying Behavior)
+  # ----------------------------------------------------------------------------
+  - dominant_trait             # Nét tính cách nổi bật (Cẩn thận, Nóng vội, Cầu toàn)
+  - risk_tolerance             # Khả năng chấp nhận rủi ro (Hàng xách tay vs Chính hãng)
+  - decision_style             # Phong cách ra quyết định (Phân tích so sánh vs Mua nhanh)
+  - values_priority            # Giá trị ưu tiên hàng đầu (Hiệu năng, Độ bền, Thẩm mỹ)
+  - trust_level                # Mức độ tin tưởng thông tin (Hoài nghi, Dễ tin cậy)
+  - safety_sensitivity         # Mức độ quan tâm an toàn / uy tín cửa hàng
+  - time_pressure              # Mức độ vội vàng trong quyết định mua
+  - query_complexity           # Độ phức tạp của câu hỏi / tiêu chí tìm kiếm
+  - expertise_gap              # Khoảng cách kiến thức về phần cứng máy tính
+  - att_online_reviews         # Mức độ tin vào đánh giá / review mạng (YouTube, Reddit, Tinhte)
+  - att_advertising            # Thái độ đối với quảng cáo
+
+  # ----------------------------------------------------------------------------
+  # 6. SỨC KHỎE, CÔNG THÁI HỌC & KHẢ NĂNG TIẾP CẬN (Health & Ergonomics)
+  # ----------------------------------------------------------------------------
+  - accessibility_needs        # Nhu cầu đặc biệt về trợ năng / kích thước màn hình / thị lực
+  - learning_style             # Cách tiếp thu thông tin sản phẩm (Hình ảnh, Video, Bảng thông số)
+  - emotional_state            # Trạng thái cảm xúc khi tìm kiếm
+  - neurotype                  # Kiểu thần kinh / phong cách tập trung

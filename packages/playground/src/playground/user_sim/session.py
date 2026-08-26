@@ -48,6 +48,10 @@ class UserSimSession:
         *,
         persona_yaml_path: Optional[str] = None,
         task_bundle: Optional[TaskContentBundle] = None,
+        task_path: Optional[str] = None,
+        task_dir: Optional[Path | str] = None,
+        include_fields: Optional[list[str] | set[str]] = None,
+        exclude_fields: Optional[list[str] | set[str]] = None,
     ) -> None:
         self._client = client
         self._persona = persona
@@ -56,6 +60,10 @@ class UserSimSession:
             persona,
             persona_yaml_path=persona_yaml_path,
             task_bundle=task_bundle,
+            task_path=task_path,
+            task_dir=task_dir,
+            include_fields=include_fields,
+            exclude_fields=exclude_fields,
         )
         self._messages: List[Dict[str, Any]] = [{"role": "system", "content": system}]
         self.system_prompt = system

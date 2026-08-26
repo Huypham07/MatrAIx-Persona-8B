@@ -38,21 +38,41 @@ def _create_llm(model: str):
 
     from browser_use import ChatOpenAI
 
-    if provider == "dashscope":
-        api_key = (
-            os.environ.get("DASHSCOPE_API_KEY")
-            or os.environ.get("OPENAI_API_KEY")
-            or os.environ.get("LLM_API_KEY")
-            or ""
-        ).strip()
-        base_url = (
-            os.environ.get("DASHSCOPE_API_BASE")
-            or os.environ.get("LLM_BASE_URL")
-            or "https://dashscope.aliyuncs.com/compatible-mode/v1"
-        ).strip()
-        return ChatOpenAI(model=bare, api_key=api_key, base_url=base_url)
+    base_url = (
+        os.environ.get("LOCAL_LLM_BASE_URL")
+        or os.environ.get("OPENAI_BASE_URL")
+        or os.environ.get("OPENAI_API_BASE")
+        or os.environ.get("LLM_BASE_URL")
+        or (
+            "https://dashscope.aliyuncs.com/compatible-mode/v1"
+            if provider == "dashscope"
+            else None
+        )
+    )
+    if base_url:
+        base_url = base_url.strip()
 
-    return ChatOpenAI(model=bare)
+    api_key = (
+        os.environ.get("OPENAI_API_KEY")
+        or os.environ.get("LOCAL_LLM_AUTH_HEADER")
+        or os.environ.get("LOCAL_LLM_API_KEY")
+        or os.environ.get("LLM_API_KEY")
+        or os.environ.get("DASHSCOPE_API_KEY")
+        or "dummy"
+    ).strip()
+
+    model_name = (
+        os.environ.get("LOCAL_LLM_MODEL")
+        or bare
+    ).strip()
+
+    kwargs: dict[str, Any] = {"model": model_name}
+    if api_key:
+        kwargs["api_key"] = api_key
+    if base_url:
+        kwargs["base_url"] = base_url
+
+    return ChatOpenAI(**kwargs)
 
 
 def available_task_input_paths(input_dir: Path = TASK_INPUT_DIR) -> list[str]:

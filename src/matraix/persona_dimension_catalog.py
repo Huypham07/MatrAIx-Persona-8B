@@ -274,10 +274,121 @@ def _format_section(heading: str, items: list[tuple[str, str]]) -> str:
     return "\n".join(lines)
 
 
-def resolve_profile_max_chars(max_chars: int | None = None) -> int | None:
+def load_task_persona_dimensions(task_dir: Path | str | None) -> dict[str, Any]:
+    """Load dimensions configuration from persona_dimensions.yaml or task config.
+
+    Looks for:
+    - <task_dir>/persona_dimensions.yaml (or .yml)
+    - <task_dir>/input/persona_dimensions.yaml (or .yml)
+    - <task_dir>/persona_strategy.json (fields / include_fields / dimensions)
+    - <task_dir>/task.toml ([persona].fields or [metadata].persona_fields)
+    """
+    if not task_dir:
+        return {}
+    base = Path(task_dir)
+    if not base.is_absolute():
+        base = Path.cwd() / base
+
+    # 1. Check candidates for persona_dimensions.yaml
+    yaml_candidates = [
+        base / "persona_dimensions.yaml",
+        base / "persona_dimensions.yml",
+        base / "input" / "persona_dimensions.yaml",
+        base / "input" / "persona_dimensions.yml",
+    ]
+    try:
+        import yaml
+        for candidate in yaml_candidates:
+            if candidate.is_file():
+                data = yaml.safe_load(candidate.read_text(encoding="utf-8"))
+                if isinstance(data, list):
+                    return {"dimensions": [str(x).strip() for x in data if str(x).strip()]}
+                if isinstance(data, dict):
+                    dims = (
+                        data.get("dimensions")
+                        or data.get("fields")
+                        or data.get("include_dimensions")
+                        or data.get("include_fields")
+                        or []
+                    )
+                    excludes = (
+                        data.get("exclude_dimensions")
+                        or data.get("exclude_fields")
+                        or []
+                    )
+                    return {
+                        "dimensions": [str(x).strip() for x in dims if str(x).strip()],
+                        "exclude_dimensions": [str(x).strip() for x in excludes if str(x).strip()],
+                        "max_chars": data.get("max_chars"),
+                    }
+    except Exception:
+        pass
+
+    # 2. Fallback to persona_strategy.json
+    strategy_path = base / "persona_strategy.json"
+    if strategy_path.is_file():
+        try:
+            data = json.loads(strategy_path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                dims = (
+                    data.get("dimensions")
+                    or data.get("fields")
+                    or data.get("include_fields")
+                    or []
+                )
+                if isinstance(dims, list) and dims:
+                    return {"dimensions": [str(x).strip() for x in dims if str(x).strip()]}
+        except Exception:
+            pass
+
+    # 3. Fallback to task.toml
+    toml_path = base / "task.toml"
+    if toml_path.is_file():
+        try:
+            import tomllib
+            data = tomllib.loads(toml_path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                persona_sec = data.get("persona")
+                if isinstance(persona_sec, dict) and "fields" in persona_sec:
+                    return {"dimensions": [str(x).strip() for x in persona_sec["fields"] if str(x).strip()]}
+                meta_sec = data.get("metadata")
+                if isinstance(meta_sec, dict) and "persona_fields" in meta_sec:
+                    return {"dimensions": [str(x).strip() for x in meta_sec["persona_fields"] if str(x).strip()]}
+        except Exception:
+            pass
+
+    return {}
+
+
+def resolve_included_fields(
+    include_fields: list[str] | set[str] | None = None,
+    task_dir: Path | str | None = None,
+) -> set[str] | None:
+    """Resolve dimension whitelist from explicit arg, task config, or environment."""
+    if include_fields:
+        return {str(f).strip() for f in include_fields if str(f).strip()}
+    if task_dir:
+        loaded = load_task_persona_dimensions(task_dir)
+        dims = loaded.get("dimensions")
+        if dims:
+            return {str(f).strip() for f in dims if str(f).strip()}
+    raw = os.environ.get("MATRAIX_PERSONA_FIELDS", "").strip()
+    if raw:
+        return {str(f).strip() for f in raw.split(",") if str(f).strip()}
+    return None
+
+
+def resolve_profile_max_chars(
+    max_chars: int | None = None, task_dir: Path | str | None = None
+) -> int | None:
     """Return char budget for persona profile text (None = unlimited)."""
     if max_chars is not None:
         return None if max_chars <= 0 else max_chars
+    if task_dir:
+        loaded = load_task_persona_dimensions(task_dir)
+        task_max = loaded.get("max_chars")
+        if isinstance(task_max, int) and task_max > 0:
+            return task_max
     raw = os.environ.get("MATRAIX_PERSONA_PROFILE_MAX_CHARS", "").strip()
     if raw:
         if raw.lower() in {"0", "none", "unlimited", "-1"}:
@@ -294,6 +405,9 @@ def collect_dimension_items(
     dimensions: dict[str, Any],
     *,
     catalog_path: str = DEFAULT_CATALOG_PATH,
+    include_fields: list[str] | set[str] | None = None,
+    exclude_fields: list[str] | set[str] | None = None,
+    task_dir: Path | str | None = None,
 ) -> dict[str, list[tuple[str, str, str]]]:
     """Group keepable dims into section -> [(dim_id, label, value), ...]."""
     catalog = load_dimension_catalog(catalog_path)
@@ -301,11 +415,29 @@ def collect_dimension_items(
     grouped: dict[str, list[tuple[str, str, str]]] = {h: [] for h, _ in _SECTIONS}
     grouped["Other attributes"] = []
 
+    whitelist = resolve_included_fields(include_fields, task_dir=task_dir)
+    blacklist = set(exclude_fields or [])
+    if task_dir and not blacklist:
+        loaded = load_task_persona_dimensions(task_dir)
+        blacklist = set(loaded.get("exclude_dimensions") or [])
+
     # Stable order: known catalog ids first (schema order), then extras.
     ordered_ids = [dim_id for dim_id in by_id if dim_id in dimensions]
     ordered_ids.extend(dim_id for dim_id in dimensions if dim_id not in by_id)
 
     for dim_id in ordered_ids:
+        # Check whitelist if configured
+        if whitelist is not None:
+            normalized = dim_id.replace("demo_", "").replace("att_", "")
+            if dim_id not in whitelist and normalized not in whitelist:
+                continue
+
+        # Check blacklist if configured
+        if blacklist:
+            normalized = dim_id.replace("demo_", "").replace("att_", "")
+            if dim_id in blacklist or normalized in blacklist:
+                continue
+
         meta = by_id.get(dim_id)
         if _should_skip_dim(dim_id, meta):
             continue
@@ -332,13 +464,22 @@ def build_dimension_narrative(
     *,
     catalog_path: str = DEFAULT_CATALOG_PATH,
     max_chars: int | None = None,
+    include_fields: list[str] | set[str] | None = None,
+    exclude_fields: list[str] | set[str] | None = None,
+    task_dir: Path | str | None = None,
 ) -> list[str]:
     """Schema-driven profile sections for agent roleplay (full 1290, adaptive).
 
     Returns a list of markdown section blocks for the Jinja persona macros.
     """
-    budget = resolve_profile_max_chars(max_chars)
-    grouped = collect_dimension_items(dimensions, catalog_path=catalog_path)
+    budget = resolve_profile_max_chars(max_chars, task_dir=task_dir)
+    grouped = collect_dimension_items(
+        dimensions,
+        catalog_path=catalog_path,
+        include_fields=include_fields,
+        exclude_fields=exclude_fields,
+        task_dir=task_dir,
+    )
     if not grouped:
         return []
 
@@ -401,10 +542,18 @@ def build_template_context_extras(
     *,
     catalog_path: str = DEFAULT_CATALOG_PATH,
     max_chars: int | None = None,
+    include_fields: list[str] | set[str] | None = None,
+    exclude_fields: list[str] | set[str] | None = None,
+    task_dir: Path | str | None = None,
 ) -> dict[str, Any]:
     return {
         "dimension_profile_narrative": build_dimension_narrative(
-            dimensions, catalog_path=catalog_path, max_chars=max_chars
+            dimensions,
+            catalog_path=catalog_path,
+            max_chars=max_chars,
+            include_fields=include_fields,
+            exclude_fields=exclude_fields,
+            task_dir=task_dir,
         ),
         "dimension_catalog_path": catalog_path,
     }

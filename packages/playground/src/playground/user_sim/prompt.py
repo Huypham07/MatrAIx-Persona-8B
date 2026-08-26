@@ -60,8 +60,17 @@ def _persona_context(persona: Persona) -> str:
     return "\n".join(parts)
 
 
-def render_persona_block(persona: Persona, *, persona_yaml_path: Optional[str] = None) -> str:
+def render_persona_block(
+    persona: Persona,
+    *,
+    persona_yaml_path: Optional[str] = None,
+    task_path: Optional[str] = None,
+    task_dir: Optional[Path | str] = None,
+    include_fields: Optional[list[str] | set[str]] = None,
+    exclude_fields: Optional[list[str] | set[str]] = None,
+) -> str:
     canonical_path = persona_yaml_path or persona.persona_path
+    resolved_task_dir = task_dir or (Path(task_path) if task_path else None)
     if canonical_path:
         _ensure_persona_agents_package()
         from matraix.agents.persona.loader import load_persona
@@ -73,7 +82,13 @@ def render_persona_block(persona: Persona, *, persona_yaml_path: Optional[str] =
 
         loaded = load_persona(canonical_path)
         template = resolve_persona_template(loaded, None, PERSONA_SYSTEM_TEMPLATE)
-        return render_persona_template(template, loaded).strip()
+        return render_persona_template(
+            template,
+            loaded,
+            include_fields=include_fields,
+            exclude_fields=exclude_fields,
+            task_dir=resolved_task_dir,
+        ).strip()
     if persona.dimensions:
         raise ValueError("dimension-backed persona requires a canonical persona path")
     return _persona_context(persona)
@@ -111,10 +126,21 @@ def assemble_system_prompt(
     *,
     persona_yaml_path: Optional[str] = None,
     task_bundle: Optional[TaskContentBundle] = None,
+    task_path: Optional[str] = None,
+    task_dir: Optional[Path | str] = None,
+    include_fields: Optional[list[str] | set[str]] = None,
+    exclude_fields: Optional[list[str] | set[str]] = None,
 ) -> str:
     task_bundle = task_bundle or TaskContentBundle()
+    resolved_task_dir = task_dir or task_path
     blocks = [
-        render_persona_block(persona, persona_yaml_path=persona_yaml_path),
+        render_persona_block(
+            persona,
+            persona_yaml_path=persona_yaml_path,
+            task_dir=resolved_task_dir,
+            include_fields=include_fields,
+            exclude_fields=exclude_fields,
+        ),
         current_date_block(),
         load_sim_guidelines(),
         _section("Task instruction", task_bundle.instruction_markdown),
@@ -129,10 +155,21 @@ def assemble_report_system_prompt(
     *,
     persona_yaml_path: Optional[str] = None,
     task_bundle: Optional[TaskContentBundle] = None,
+    task_path: Optional[str] = None,
+    task_dir: Optional[Path | str] = None,
+    include_fields: Optional[list[str] | set[str]] = None,
+    exclude_fields: Optional[list[str] | set[str]] = None,
 ) -> str:
     task_bundle = task_bundle or TaskContentBundle()
+    resolved_task_dir = task_dir or task_path
     blocks = [
-        render_persona_block(persona, persona_yaml_path=persona_yaml_path),
+        render_persona_block(
+            persona,
+            persona_yaml_path=persona_yaml_path,
+            task_dir=resolved_task_dir,
+            include_fields=include_fields,
+            exclude_fields=exclude_fields,
+        ),
         current_date_block(),
         _section("Task instruction", task_bundle.instruction_markdown),
         _section("Task context", task_bundle.context_markdown),
@@ -147,13 +184,27 @@ def prompt_bundle(
     persona_yaml_path: Optional[str] = None,
     task_bundle: Optional[TaskContentBundle] = None,
     task_prompt: str = "",
+    task_path: Optional[str] = None,
+    task_dir: Optional[Path | str] = None,
+    include_fields: Optional[list[str] | set[str]] = None,
+    exclude_fields: Optional[list[str] | set[str]] = None,
 ) -> dict[str, str]:
     task_bundle = task_bundle or TaskContentBundle()
-    persona_block = render_persona_block(persona, persona_yaml_path=persona_yaml_path)
+    resolved_task_dir = task_dir or task_path
+    persona_block = render_persona_block(
+        persona,
+        persona_yaml_path=persona_yaml_path,
+        task_dir=resolved_task_dir,
+        include_fields=include_fields,
+        exclude_fields=exclude_fields,
+    )
     system = assemble_system_prompt(
         persona,
         persona_yaml_path=persona_yaml_path,
         task_bundle=task_bundle,
+        task_dir=resolved_task_dir,
+        include_fields=include_fields,
+        exclude_fields=exclude_fields,
     )
 
     task_parts: list[str] = []

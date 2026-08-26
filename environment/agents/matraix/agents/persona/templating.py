@@ -46,6 +46,9 @@ def render_persona_template(
     persona: Persona,
     *,
     instruction: str | None = None,
+    include_fields: list[str] | set[str] | None = None,
+    exclude_fields: list[str] | set[str] | None = None,
+    task_dir: Path | str | None = None,
 ) -> str:
     env = Environment(
         loader=FileSystemLoader(template_path.parent),
@@ -60,5 +63,10 @@ def render_persona_template(
 
     return template.render(
         **persona.template_context(instruction=instruction),
-        **build_template_context_extras(persona.dimensions),
+        **build_template_context_extras(
+            persona.dimensions,
+            include_fields=include_fields,
+            exclude_fields=exclude_fields,
+            task_dir=task_dir,
+        ),
     ).strip()

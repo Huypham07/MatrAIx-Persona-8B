@@ -150,11 +150,50 @@ class BrowserUseHarborAgent(BaseInstalledAgent):
                 "OPENAI_API_KEY",
                 "LLM_API_KEY",
                 "DASHSCOPE_API_KEY",
+                "LOCAL_LLM_AUTH_HEADER",
+                "LOCAL_LLM_API_KEY",
+                "LOCAL_LLM_BASE_URL",
+                "OPENAI_BASE_URL",
             )
         ):
             raise ValueError(
-                "Set ANTHROPIC_API_KEY, OPENAI_API_KEY, DASHSCOPE_API_KEY, or LLM_API_KEY for browser-use"
+                "Set ANTHROPIC_API_KEY, OPENAI_API_KEY, DASHSCOPE_API_KEY, LLM_API_KEY, or LOCAL_LLM_BASE_URL for browser-use"
             )
+
+        # Forward custom endpoints and auth if present
+        for var_name in (
+            "OPENAI_BASE_URL",
+            "OPENAI_API_BASE",
+            "LOCAL_LLM_BASE_URL",
+            "LLM_BASE_URL",
+            "LOCAL_LLM_AUTH_HEADER",
+            "LOCAL_LLM_API_KEY",
+            "LOCAL_LLM_MODEL",
+            "DASHSCOPE_API_BASE",
+        ):
+            val = self._get_env(var_name)
+            if val is not None:
+                env[var_name] = val
+
+        base_url = (
+            self._get_env("OPENAI_BASE_URL")
+            or self._get_env("LOCAL_LLM_BASE_URL")
+            or self._get_env("LLM_BASE_URL")
+        )
+        if base_url:
+            env["OPENAI_BASE_URL"] = base_url
+            env["LOCAL_LLM_BASE_URL"] = base_url
+            env["LLM_BASE_URL"] = base_url
+
+        api_key = (
+            self._get_env("OPENAI_API_KEY")
+            or self._get_env("LOCAL_LLM_AUTH_HEADER")
+            or self._get_env("LOCAL_LLM_API_KEY")
+            or self._get_env("LLM_API_KEY")
+        )
+        if api_key:
+            env["OPENAI_API_KEY"] = api_key
+            env["LLM_API_KEY"] = api_key
 
         llm_api_key = self._get_env("LLM_API_KEY")
         if (

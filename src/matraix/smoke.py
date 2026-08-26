@@ -19,7 +19,21 @@ DEFAULT_SMOKE_PERSONA = (
     "persona/datasets/matraix-persona-dev-sample/persona_0042.yaml"
 )
 
-
+def _default_answer_value(question: Any) -> Any:
+        qtype = getattr(question, "type", "single_choice")
+        if qtype == "likert":
+            min_v = getattr(question, "min_value", 1)
+            max_v = getattr(question, "max_value", 5)
+            return (min_v + max_v) // 2
+        if qtype == "single_choice":
+            options = getattr(question, "options", [])
+            return options[0] if options else "option_1"
+        if qtype == "multi_choice":
+            options = getattr(question, "options", [])
+            return [options[0]] if options else ["option_1"]
+        if qtype == "free_text":
+            return "Synthetic smoke answer."
+        return "default"
 @dataclass
 class SmokeReport:
     ok: bool

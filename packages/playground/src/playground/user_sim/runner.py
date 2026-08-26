@@ -1,3 +1,4 @@
+
 """Tool-driven user simulator chat eval runner."""
 
 from __future__ import annotations
@@ -292,17 +293,20 @@ def run_playground(
         persona,
         persona_yaml_path=persona_yaml_path,
         task_bundle=task_bundle,
+        task_path=task_path,
     )
     prompts = prompt_bundle(
         persona,
         persona_yaml_path=persona_yaml_path,
         task_bundle=task_bundle,
         task_prompt=goal_context.description,
+        task_path=task_path,
     )
     report_prompt = assemble_report_system_prompt(
         persona,
         persona_yaml_path=persona_yaml_path,
         task_bundle=task_bundle,
+        task_path=task_path,
     )
     emit({"type": "prompts", "prompts": prompts})
 
@@ -452,17 +456,20 @@ async def run_playground_async(
         persona,
         persona_yaml_path=persona_yaml_path,
         task_bundle=task_bundle,
+        task_path=task_path,
     )
     prompts = prompt_bundle(
         persona,
         persona_yaml_path=persona_yaml_path,
         task_bundle=task_bundle,
         task_prompt=goal_context.description,
+        task_path=task_path,
     )
     report_prompt = assemble_report_system_prompt(
         persona,
         persona_yaml_path=persona_yaml_path,
         task_bundle=task_bundle,
+        task_path=task_path,
     )
     emit({"type": "prompts", "prompts": prompts})
 

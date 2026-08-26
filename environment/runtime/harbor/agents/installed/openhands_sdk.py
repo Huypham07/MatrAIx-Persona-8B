@@ -227,6 +227,12 @@ class OpenHandsSDK(BaseInstalledAgent):
         if llm_api_key is None and self.model_name and self.model_name.startswith("dashscope/"):
             llm_api_key = self._get_env("DASHSCOPE_API_KEY")
         if llm_api_key is None:
+            llm_api_key = (
+                self._get_env("OPENAI_API_KEY")
+                or self._get_env("LOCAL_LLM_AUTH_HEADER")
+                or self._get_env("LOCAL_LLM_API_KEY")
+            )
+        if llm_api_key is None:
             raise ValueError("LLM_API_KEY environment variable must be set")
         env["LLM_API_KEY"] = llm_api_key
 
@@ -239,9 +245,14 @@ class OpenHandsSDK(BaseInstalledAgent):
                 or "https://dashscope.aliyuncs.com/compatible-mode/v1"
             )
         else:
-            llm_base_url = self._get_env("LLM_BASE_URL")
+            llm_base_url = (
+                self._get_env("LLM_BASE_URL")
+                or self._get_env("OPENAI_BASE_URL")
+                or self._get_env("LOCAL_LLM_BASE_URL")
+            )
         if llm_base_url is not None:
             env["LLM_BASE_URL"] = llm_base_url
+            env["OPENAI_BASE_URL"] = llm_base_url
 
         # Set model name
         if self.model_name:
