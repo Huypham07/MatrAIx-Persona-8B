@@ -23,9 +23,28 @@ def _names(payload: bytes) -> set[str]:
         return set(archive.namelist())
 
 
+def _text(payload: bytes, name: str) -> str:
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        return archive.read(name).decode("utf-8")
+
+
 def test_trial_trace_zip_contains_prompts_trajectory_and_outputs(tmp_path: Path) -> None:
     trial = tmp_path / "job-1" / "trial-1"
-    _write(trial / "llm_calls.jsonl", json.dumps({"messages": [], "rawOutput": "ok"}))
+    _write(
+        trial / "llm_calls.jsonl",
+        json.dumps(
+            {
+                "step": "survey_answer",
+                "model": "test-model",
+                "messages": [
+                    {"role": "system", "content": "Line one\nLine two"},
+                    {"role": "user", "content": "Question one\nQuestion two"},
+                ],
+                "rawOutput": json.dumps({"answer": "Answer one\nAnswer two"}),
+                "parsedOutput": {"answer": "Answer one\nAnswer two"},
+            }
+        ),
+    )
     _write(trial / "events.jsonl")
     _write(trial / "agent" / "trajectory.json")
     _write(trial / "artifacts" / "app" / "output" / "answers.json")
@@ -36,17 +55,26 @@ def test_trial_trace_zip_contains_prompts_trajectory_and_outputs(tmp_path: Path)
     assert filename == "job-1-trial-1-trace.zip"
     assert _names(payload) == {
         "trial-1/llm_calls.jsonl",
+        "trial-1/readable/llm_calls.md",
         "trial-1/events.jsonl",
         "trial-1/agent/trajectory.json",
         "trial-1/artifacts/app/output/answers.json",
     }
+    readable = _text(payload, "trial-1/readable/llm_calls.md")
+    assert "Line one\nLine two" in readable
+    assert "Question one\nQuestion two" in readable
+    assert "Answer one\nAnswer two" in readable
+    assert r"Line one\nLine two" not in readable
 
 
 def test_job_trace_zip_contains_each_persona_trial(tmp_path: Path) -> None:
     job = tmp_path / "job-1"
     _write(job / "config.json")
     _write(job / "trial-a" / "persona_meta.json")
-    _write(job / "trial-a" / "llm_calls.jsonl")
+    _write(
+        job / "trial-a" / "llm_calls.jsonl",
+        json.dumps({"messages": [{"role": "user", "content": "hello\nworld"}]}),
+    )
     _write(job / "trial-b" / "events.jsonl")
 
     payload, filename = build_job_trace_zip(tmp_path, "job-1")
@@ -56,6 +84,7 @@ def test_job_trace_zip_contains_each_persona_trial(tmp_path: Path) -> None:
         "job-1/config.json",
         "job-1/trial-a/persona_meta.json",
         "job-1/trial-a/llm_calls.jsonl",
+        "job-1/trial-a/readable/llm_calls.md",
         "job-1/trial-b/events.jsonl",
     }
 
