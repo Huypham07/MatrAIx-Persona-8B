@@ -5,7 +5,10 @@ import {
   defaultPersonaSetup,
   setupFromPersonaStrategy,
 } from "./cockpitPersonaSetupStorage";
-import { readStrategySampling } from "./personaSamplingTypes";
+import {
+  pinnedStrategyPersonaIds,
+  readStrategySampling,
+} from "./personaSamplingTypes";
 import type { TaskPersonaStrategy } from "@/lib/types";
 
 const strategy: TaskPersonaStrategy = {
@@ -47,6 +50,15 @@ describe("pinned task persona segments", () => {
     expect(setup.selectedPersonaIds).toEqual(["0001", "0002", "0003", "0004"]);
     expect(setup.selectedCount).toBe(4);
     expect(setup.useTaskDefaultStrategy).toBe(true);
+  });
+
+  it("pulls the declared ids directly without sampling", () => {
+    expect(pinnedStrategyPersonaIds(strategy)).toEqual([
+      "0001",
+      "0002",
+      "0003",
+      "0004",
+    ]);
   });
 
   it("rejects stale persona ids persisted for a pinned task", () => {

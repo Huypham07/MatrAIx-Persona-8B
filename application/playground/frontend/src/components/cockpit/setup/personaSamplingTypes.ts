@@ -38,6 +38,18 @@ export interface StrategySamplingView {
   perCell: number | null;
 }
 
+/** Return the exact cohort declared by a pinned-segment task, in segment order. */
+export function pinnedStrategyPersonaIds(
+  strategy: TaskPersonaStrategy | null | undefined,
+): string[] {
+  if (strategy?.sampling?.mode !== "pinnedSegments") return [];
+  return (strategy.segments ?? []).flatMap((segment) =>
+    (segment.personaIds ?? [])
+      .map((personaId) => personaId.trim())
+      .filter(Boolean),
+  );
+}
+
 function asSamplingMode(value: string | null | undefined): PersonaSamplingMode {
   if (value === "random" || value === "stratified" || value === "all" || value === "single") {
     return value;

@@ -42,6 +42,7 @@ import {
   activeFilterCount,
   emptyPersonaDimensionFilters,
   filtersForSampleApi,
+  pinnedStrategyPersonaIds,
   readStrategySampling,
   type PersonaDimensionFilters,
   type PersonaSamplingMode,
@@ -766,6 +767,9 @@ export function PersonaSamplingRail({
   const strategyView = taskPersonaStrategy
     ? readStrategySampling(taskPersonaStrategy)
     : null;
+  const isPinnedStrategy = Boolean(
+    strategyLocked && strategyView?.isPinnedSegments,
+  );
   const panelMode = strategyLocked && strategyView ? strategyView.mode : mode;
   const panelAllocation =
     strategyLocked && strategyView
@@ -839,6 +843,7 @@ export function PersonaSamplingRail({
   }, [defaultCardsQuery.data?.personas, defaultCardsQuery.isError]);
 
   const displayCards = useMemo(() => {
+    if (isPinnedStrategy) return previewCards;
     if (panelMode === "single") return quickPickCards;
     if (disabled && selectedPersonaIds.length > 0) {
       const locked = lockedCohortQuery.data?.personas ?? [];
@@ -854,6 +859,7 @@ export function PersonaSamplingRail({
   }, [
     quickPickCards,
     previewCards,
+    isPinnedStrategy,
     panelMode,
     disabled,
     selectedPersonaIds,
@@ -955,6 +961,46 @@ export function PersonaSamplingRail({
   ]);
 
   const handlePull = useCallback(async () => {
+    if (isPinnedStrategy) {
+      const personaIds = pinnedStrategyPersonaIds(taskPersonaStrategy);
+      if (personaIds.length === 0) {
+        setPullError(
+          classifyPersonaPoolSampleError(t("personaSetup.errors.noPersonaFiles")),
+        );
+        return;
+      }
+
+      setPulling(true);
+      setPullError(null);
+      const pool = taskPersonaStrategy?.pool?.trim() || sourcePool;
+      onSelectedPersonaIdsChange(personaIds);
+      onSelectedCountChange?.(personaIds.length);
+      onUseEntirePoolChange?.(false);
+      onPersonaPoolChange?.(pool);
+      try {
+        const preview = await api.getPersonaPoolCards({
+          pool,
+          personaIds: personaIds.slice(0, PERSONA_CARD_PREVIEW_LIMIT),
+          limit: Math.min(personaIds.length, PERSONA_CARD_PREVIEW_LIMIT),
+        });
+        setPreviewCards(preview.personas);
+      } catch {
+        // The pinned ids remain the launch cohort; card loading is cosmetic.
+        setPreviewCards(
+          personaIds.slice(0, PERSONA_CARD_PREVIEW_LIMIT).map((personaId) => ({
+            personaId,
+            name: syntheticDisplayName(personaId),
+            source: "synthetic",
+            dimensions: {},
+          })),
+        );
+      } finally {
+        setPulling(false);
+      }
+      setStrategySummaryOpen(false);
+      return;
+    }
+
     if (panelMode === "all") {
       await handleSelectAll();
       if (strategyLocked) setStrategySummaryOpen(false);
@@ -1020,6 +1066,7 @@ export function PersonaSamplingRail({
   }, [
     filters,
     handleSelectAll,
+    isPinnedStrategy,
     onPersonaPoolChange,
     onSelectedCountChange,
     onSelectedPersonaIdsChange,
@@ -1032,6 +1079,7 @@ export function PersonaSamplingRail({
     seed,
     sourcePool,
     strategyLocked,
+    taskPersonaStrategy,
     taskPath,
     t,
   ]);
@@ -2097,6 +2145,7 @@ export function PersonaSamplingRail({
               <div className="flex-1">
                 <div className="space-y-2">
                   {panelMode === "single" &&
+                    !isPinnedStrategy &&
                     defaultCardsQuery.isLoading &&
                     quickPickCards.length === 0 && (
                       <p className="text-[13px] text-text-variant">
@@ -2108,6 +2157,7 @@ export function PersonaSamplingRail({
                       </p>
                     )}
                   {panelMode === "single" &&
+                    !isPinnedStrategy &&
                     defaultCardsQuery.isError &&
                     quickPickCards.length > 0 && (
                       <p className="text-[12px] text-warn">
@@ -2119,7 +2169,7 @@ export function PersonaSamplingRail({
                       key={persona.personaId}
                       persona={persona}
                       selected={selectedPersonaIds.includes(persona.personaId)}
-                      disabled={disabled}
+                      disabled={disabled || strategyLocked}
                       onToggle={() => togglePersona(persona.personaId)}
                       onOpenDetail={() => setDetailPersona(persona)}
                     />
