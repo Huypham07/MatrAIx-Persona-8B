@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 _DECISIONS = {"continue", "satisfied", "give_up"}
-DEFAULT_PERSONA_MODEL = "anthropic/claude-haiku-4-5"
+DEFAULT_PERSONA_MODEL = "local/qwen3-14b"
 
 
 @dataclass
@@ -19,6 +19,9 @@ class Persona:
     constraints: List[str] = field(default_factory=list)
     goal: str = ""
     communication_style: str = ""
+    dimensions: Dict[str, Any] = field(default_factory=dict)
+    schema_version: str = ""
+    persona_path: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -32,24 +35,30 @@ class Persona:
             "constraints": list(self.constraints),
             "goal": self.goal,
             "communicationStyle": self.communication_style,
+            "dimensions": dict(self.dimensions),
+            "schemaVersion": self.schema_version,
+            "personaPath": self.persona_path,
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Persona":
-        # Back-compat: tolerate an old "domain" key by ignoring it.
+    def from_dict(cls, d: Dict[str, Any], *, persona_path: str = "") -> "Persona":
+        dimensions = d.get("dimensions")
         return cls(
-            id=d["id"],
-            name=d["name"],
-            summary=d.get("summary", ""),
-            context=d.get("context", ""),
-            source=d.get("source", ""),
+            id=str(d.get("id") or d.get("persona_id") or "unknown"),
+            name=str(d.get("name") or d.get("display_name") or d.get("persona_id") or "unknown"),
+            summary=str(d.get("summary") or ""),
+            context=str(d.get("context") or ""),
+            source=str(d.get("source") or ""),
             preferences=list(d.get("preferences", [])),
             dislikes=list(d.get("dislikes", [])),
             constraints=list(d.get("constraints", [])),
-            goal=d.get("goal", ""),
-            communication_style=d.get(
-                "communicationStyle", d.get("communication_style", "")
+            goal=str(d.get("goal") or ""),
+            communication_style=str(
+                d.get("communicationStyle", d.get("communication_style", ""))
             ),
+            dimensions=dict(dimensions) if isinstance(dimensions, dict) else {},
+            schema_version=str(d.get("schema_version", d.get("schemaVersion", "")) or ""),
+            persona_path=str(persona_path or d.get("persona_path") or d.get("personaPath") or ""),
         )
 
 
@@ -62,7 +71,14 @@ class PlaygroundConfig:
     persona_model: str = DEFAULT_PERSONA_MODEL
     ranker_mode: str = "native"
     resource_mode: str = "recai_resources"
-    max_turns: Optional[int] = None
+    min_turns: int = 5
+    max_turns: Optional[int] = 8
+
+    def __post_init__(self) -> None:
+        if self.min_turns < 1:
+            raise ValueError("min_turns must be at least 1")
+        if self.max_turns is not None and self.max_turns < self.min_turns:
+            raise ValueError("max_turns must be greater than or equal to min_turns")
 
     def to_dict(self) -> Dict[str, Any]:
         application_context = self.application_context or self.domain
@@ -75,6 +91,7 @@ class PlaygroundConfig:
             "personaModel": self.persona_model,
             "rankerMode": self.ranker_mode,
             "resourceMode": self.resource_mode,
+            "minTurns": self.min_turns,
             "maxTurns": self.max_turns,
         }
 

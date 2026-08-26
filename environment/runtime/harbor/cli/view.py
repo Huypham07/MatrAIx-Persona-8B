@@ -1,4 +1,6 @@
 """CLI command for trajectory web viewer."""
+from __future__ import annotations
+
 
 import os
 import socket

@@ -146,7 +146,9 @@ export function TrialDebriefRails({
   const sections = prompts
     ? resolvePromptSections(prompts)
     : { persona: "", task: "" };
-  const personaCandidate = sections.persona || (persona?.context ?? "").trim();
+  // The durable personaPrompt is the exact block sent to inference.  Only
+  // older artifacts without it may use sectioned/context/dimension fallbacks.
+  const personaCandidate = prompts?.personaPrompt?.trim() || sections.persona || (persona?.context ?? "").trim();
   const dimensionFallback = formatPersonaDimensionFallback(persona, t);
   const personaBody = isMeaningfulPromptBody(personaCandidate)
     ? personaCandidate

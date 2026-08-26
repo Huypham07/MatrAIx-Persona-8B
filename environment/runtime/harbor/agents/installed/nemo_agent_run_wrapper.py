@@ -13,6 +13,8 @@ Usage:
     python3 nemo-agent-run-wrapper.py <config_file> <instruction>
     python3 nemo-agent-run-wrapper.py <config_file> <instruction> --trajectory-output /logs/agent/trajectory.json
 """
+from __future__ import annotations
+
 
 import asyncio
 import json

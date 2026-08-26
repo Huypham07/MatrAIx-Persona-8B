@@ -2,6 +2,8 @@
 
 Added in ATIF-v1.6 to support multimodal content (images) in trajectories.
 """
+from __future__ import annotations
+
 
 from typing import Literal
 

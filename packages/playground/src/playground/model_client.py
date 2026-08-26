@@ -20,6 +20,57 @@ from playground.openai_client import (
 
 DASHSCOPE_DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
+LOCAL_LLM_DEFAULT_BASE_URL = "http://localhost:8000/v1"
+LOCAL_LLM_DEFAULT_AUTH = ""
+
+
+def local_llm_model_id(model: str) -> str:
+    """Return the bare model id from a local model string."""
+    value = (model or "").strip()
+    if value.startswith("local/") or value.startswith("custom/"):
+        return value.split("/", 1)[1]
+    return value
+
+
+def local_llm_openai_client_kwargs(model: str) -> Dict[str, Any]:
+    """OpenAI SDK kwargs for Local Qwen/Custom endpoint."""
+    base_url = (
+        os.environ.get("LOCAL_LLM_BASE_URL")
+        or os.environ.get("LLM_BASE_URL")
+        or os.environ.get("OPENAI_BASE_URL")
+        or LOCAL_LLM_DEFAULT_BASE_URL
+    ).strip()
+    auth_header = (
+        os.environ.get("LOCAL_LLM_AUTH_HEADER")
+        or os.environ.get("LOCAL_LLM_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or ""
+    ).strip()
+    model_name = (
+        os.environ.get("LOCAL_LLM_MODEL")
+        or local_llm_model_id(model)
+        or "custom_model"
+    ).strip()
+    if model_name.lower() in {"local", "default"}:
+        model_name = "custom_model"
+    if auth_header:
+        if " " in auth_header:
+            headers = {"Authorization": auth_header}
+        else:
+            headers = {"Authorization": f"Bearer {auth_header}"}
+    else:
+        headers = None
+    enable_thinking = os.environ.get("LOCAL_LLM_ENABLE_THINKING", "false").strip().lower() in {"1", "true", "yes"}
+    extra_body = {}
+    if not enable_thinking:
+        extra_body["chat_template_kwargs"] = {"enable_thinking": False}
+    return {
+        "model": model_name,
+        "api_key": auth_header or "dummy",
+        "base_url": base_url,
+        "default_headers": headers,
+        "extra_body": extra_body or None,
+    }
 
 
 def dashscope_model_id(model: str) -> str:
@@ -192,10 +243,47 @@ def _llm_request_timeout_seconds() -> float:
         return DEFAULT_REQUEST_TIMEOUT_SECONDS
 
 
-def build_json_client(model: str, *, temperature: float = 0.7) -> Any:
+def build_json_client(
+    model: Optional[str] = None,
+    *,
+    temperature: float = 0.7,
+    trace_writer: Any = None,
+    trace_step: str = "json_completion",
+) -> Any:
     """Return a JSON-mode client for a configured persona model string."""
-    value = (model or "openai/gpt-4o-mini").strip()
+    value = ((model or "") or os.environ.get("MATRIX_PERSONA_MODEL") or os.environ.get("LOCAL_LLM_MODEL") or "custom_model").strip()
     timeout_seconds = _llm_request_timeout_seconds()
+    if (
+        value.startswith("local")
+        or value.startswith("custom")
+        or (
+            "qwen" in value.lower()
+            and not value.startswith(
+                ("anthropic/", "dashscope/", "openrouter/", "openai/")
+            )
+        )
+        or (
+            not value.startswith("anthropic/")
+            and not value.startswith("claude-")
+            and not value.startswith("dashscope/")
+            and not value.startswith("openrouter/")
+            and not value.startswith("openai/")
+            and not value.startswith("gpt-")
+        )
+    ):
+        kwargs = local_llm_openai_client_kwargs(value)
+        return OpenAIChatClient(
+            model=kwargs["model"],
+            api_key=kwargs["api_key"],
+            base_url=kwargs["base_url"],
+            default_headers=kwargs.get("default_headers"),
+            extra_body=kwargs.get("extra_body"),
+            temperature=temperature,
+            timeout_seconds=timeout_seconds,
+            provider="local",
+            trace_writer=trace_writer,
+            trace_step=trace_step,
+        )
     if value.startswith("anthropic/"):
         if _llm_proxy_base_url():
             # Route Claude through the proxy's OpenAI-compatible endpoint; base
@@ -205,6 +293,8 @@ def build_json_client(model: str, *, temperature: float = 0.7) -> Any:
                 temperature=temperature,
                 timeout_seconds=timeout_seconds,
                 provider="anthropic",
+                trace_writer=trace_writer,
+                trace_step=trace_step,
             )
         return AnthropicJSONClient(value.split("/", 1)[1], temperature=temperature)
     if value.startswith("dashscope/"):
@@ -216,6 +306,8 @@ def build_json_client(model: str, *, temperature: float = 0.7) -> Any:
             temperature=temperature,
             timeout_seconds=timeout_seconds,
             provider="dashscope",
+            trace_writer=trace_writer,
+            trace_step=trace_step,
         )
     if value.startswith("openrouter/"):
         kwargs = openrouter_openai_client_kwargs(value)
@@ -226,6 +318,8 @@ def build_json_client(model: str, *, temperature: float = 0.7) -> Any:
             temperature=temperature,
             timeout_seconds=timeout_seconds,
             provider="openrouter",
+            trace_writer=trace_writer,
+            trace_step=trace_step,
         )
     if value.startswith("openai/"):
         return OpenAIChatClient(
@@ -233,6 +327,8 @@ def build_json_client(model: str, *, temperature: float = 0.7) -> Any:
             temperature=temperature,
             timeout_seconds=timeout_seconds,
             provider="openai",
+            trace_writer=trace_writer,
+            trace_step=trace_step,
         )
     if value.startswith("gpt-"):
         return OpenAIChatClient(
@@ -240,5 +336,7 @@ def build_json_client(model: str, *, temperature: float = 0.7) -> Any:
             temperature=temperature,
             timeout_seconds=timeout_seconds,
             provider="openai",
+            trace_writer=trace_writer,
+            trace_step=trace_step,
         )
     return AnthropicJSONClient(value, temperature=temperature)

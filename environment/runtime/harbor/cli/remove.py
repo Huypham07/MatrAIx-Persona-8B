@@ -1,4 +1,6 @@
 """Harbor remove command — remove tasks from a dataset.toml manifest."""
+from __future__ import annotations
+
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated

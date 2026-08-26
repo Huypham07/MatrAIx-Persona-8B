@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
 

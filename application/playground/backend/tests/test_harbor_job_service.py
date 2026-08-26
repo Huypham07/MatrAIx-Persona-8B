@@ -4,7 +4,132 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from backend.service.harbor_job_service import HarborJobService, HarborLaunchRecord
+from playground.harbor.trial_events import read_job_events_after
+
+
+def test_job_journal_state_transitions_are_terminal_and_contained(tmp_path):
+    service = HarborJobService(
+        repo_root=tmp_path,
+        jobs_dir=tmp_path / "jobs",
+        generated_configs_dir=tmp_path / "configs",
+    )
+    service._launches["job-1"] = HarborLaunchRecord(job_name="job-1", status="queued")
+
+    service._append_job_state("job-1", "queued")
+    service._mark_job_running("job-1")
+    service._finish_job("job-1", status="completed", exit_code=0, error=None)
+    service._finish_job("job-1", status="completed", exit_code=0, error=None)
+
+    events_path = service.job_events_path("job-1")
+    events, _ = read_job_events_after(events_path)
+    assert [event["event"]["state"] for event in events] == [
+        "queued",
+        "running",
+        "completed",
+    ]
+    assert events[-1]["event"]["terminal"] is True
+    assert service.is_job_terminal("job-1") is True
+    with pytest.raises(ValueError, match="Invalid job name"):
+        service.job_events_path("../escape")
+    service.shutdown()
+
+
+def test_job_terminal_state_is_not_visible_before_its_journal_event(tmp_path, monkeypatch):
+    service = HarborJobService(
+        repo_root=tmp_path,
+        jobs_dir=tmp_path / "jobs",
+        generated_configs_dir=tmp_path / "configs",
+    )
+    service._launches["job-1"] = HarborLaunchRecord(job_name="job-1", status="running")
+    observed_statuses: list[str] = []
+
+    def capture_append(job_dir, *, trial_name, event):
+        del job_dir, trial_name
+        if event["terminal"]:
+            observed_statuses.append(service._launches["job-1"].status)
+        return 1
+
+    monkeypatch.setattr("playground.harbor.trial_events.append_job_event", capture_append)
+    service._finish_job("job-1", status="completed", exit_code=0, error=None)
+
+    assert observed_statuses == ["running"]
+    assert service.is_job_terminal("job-1") is True
+    service.shutdown()
+
+
+def test_retry_journals_fresh_queued_lifecycle_before_running(tmp_path):
+    service = HarborJobService(
+        repo_root=tmp_path,
+        jobs_dir=tmp_path / "jobs",
+        generated_configs_dir=tmp_path / "configs",
+    )
+    job_dir = tmp_path / "jobs" / "job-1"
+    failed_trial = job_dir / "trial-0"
+    failed_trial.mkdir(parents=True)
+    (failed_trial / "result.json").write_text(
+        json.dumps({"exception_info": {"exception_message": "old failure"}}),
+        encoding="utf-8",
+    )
+    config_path = tmp_path / "configs" / "job-1.yaml"
+    config_path.parent.mkdir()
+    config_path.write_text("jobs_dir: jobs\n", encoding="utf-8")
+    service._launch_meta_path("job-1").write_text(
+        json.dumps(
+            {
+                "configPath": "configs/job-1.yaml",
+                "executionPlane": "harbor",
+                "useLocalDistributed": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    service._launches["job-1"] = HarborLaunchRecord(job_name="job-1", status="running")
+    service._finish_job("job-1", status="failed", exit_code=1, error="old failure")
+    service._executor = _FakeExecutor()
+
+    assert service.retry_failed("job-1") == {"jobName": "job-1", "retried": 1}
+    service._mark_job_running("job-1")
+    service._finish_job("job-1", status="completed", exit_code=0, error=None)
+
+    events, _ = read_job_events_after(service.job_events_path("job-1"))
+    assert [event["event"]["state"] for event in events] == [
+        "failed",
+        "queued",
+        "running",
+        "completed",
+    ]
+    service.shutdown()
+
+
+def test_inprocess_worker_delegates_to_focused_trial_worker(tmp_path, monkeypatch):
+    """Keeping Harbor's old inline worker would bypass the faithful runner boundary."""
+    service = HarborJobService(
+        repo_root=tmp_path,
+        jobs_dir=tmp_path / "jobs",
+        generated_configs_dir=tmp_path / "configs",
+    )
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text("{}", encoding="utf-8")
+    captured = {}
+
+    def fake_run(manifest_path, env, *, repo_root):
+        captured.update(manifest_path=manifest_path, env=env, repo_root=repo_root)
+        return 7
+
+    monkeypatch.setattr(
+        "backend.service.inprocess_trial_worker.run_inprocess_trial", fake_run
+    )
+
+    assert service._inprocess_trial_worker(manifest, {"RUN": "test"}) == 7
+    assert captured == {
+        "manifest_path": manifest,
+        "env": {"RUN": "test"},
+        "repo_root": tmp_path,
+    }
+    service.shutdown()
 
 
 def test_launch_writes_job_config(tmp_path, monkeypatch):

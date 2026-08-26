@@ -1,4 +1,6 @@
 """Core orchestrator for uploading job results to Supabase."""
+from __future__ import annotations
+
 
 import asyncio
 import logging

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, ApiError } from "./api";
 import {
-  applyHarborTrialEvents,
   createHarborCockpitRestoreMappers,
   harborTrialErrorFromResult,
   isRewardOnlyTrialFailure,
@@ -10,6 +9,11 @@ import {
   type HarborCockpitLiveState,
   type HarborCockpitTaskKind,
 } from "./harborCockpitMappers";
+import {
+  EMPTY_HARBOR_JOB_STREAM_STATE,
+  applyHarborJobEnvelope,
+  connectHarborJobEvents,
+} from "./harborJobEventStream";
 import type { PlaygroundResult } from "./types";
 import { useUrlState } from "./useUrlState";
 
@@ -19,6 +23,7 @@ export type HarborCockpitPhase = "idle" | "launching" | "running" | "done" | "er
 export interface HarborCockpitRunInput<TJob> {
   taskPath: string;
   personaId: string;
+  personaPool: string;
   personaModel: string;
   mode?: HarborLaunchMode;
   chatDomain?: string;
@@ -36,7 +41,25 @@ export interface UseHarborCockpitRunOptions {
   taskKind: HarborCockpitTaskKind;
 }
 
-const POLL_MS = 500;
+export function singleHarborLaunchBody<TJob>(input: HarborCockpitRunInput<TJob>) {
+  return {
+    taskPath: input.taskPath,
+    sampleSize: 1,
+    personaPool: input.personaPool,
+    personaIds: [input.personaId],
+    personaModel: input.personaModel,
+    agentName: input.agentName,
+    nConcurrentTrials: 1,
+    mode: input.mode ?? ("auto" as const),
+    chatDomain: input.chatDomain,
+    chatApplicationId: input.chatApplicationId,
+    chatApplicationContext: input.chatApplicationContext,
+    chatMaxTurns: input.chatMaxTurns,
+    osAppSubmissionProfile: input.osAppSubmissionProfile,
+    osAppBackend: input.osAppBackend,
+  };
+}
+
 const TIMEOUT_MS = 30 * 60 * 1_000;
 
 const EMPTY_LIVE: HarborCockpitLiveState = {
@@ -69,7 +92,9 @@ export function useHarborCockpitRun<TJob>(options: UseHarborCockpitRunOptions) {
   const lastInput = useRef<HarborCockpitRunInput<TJob> | null>(null);
   const startedAt = useRef(0);
   const liveStateRef = useRef<HarborCockpitLiveState>(EMPTY_LIVE);
-  const eventOffsetRef = useRef(0);
+  const streamStateRef = useRef(EMPTY_HARBOR_JOB_STREAM_STATE);
+  const cursorRef = useRef(0);
+  const terminalReconciledRef = useRef(false);
   const restoreAttemptedRef = useRef(false);
 
   const clearCockpitUrl = useCallback(() => {
@@ -86,26 +111,17 @@ export function useHarborCockpitRun<TJob>(options: UseHarborCockpitRunOptions) {
     setVncUrl(null);
     setSandboxId(null);
     liveStateRef.current = EMPTY_LIVE;
-    eventOffsetRef.current = 0;
+    streamStateRef.current = EMPTY_HARBOR_JOB_STREAM_STATE;
+    cursorRef.current = 0;
+    terminalReconciledRef.current = false;
     clearCockpitUrl();
   }, [clearCockpitUrl]);
-
-  const refreshLiveState = useCallback(async (jobName: string, trialName: string) => {
-    try {
-      const payload = await api.getHarborTrialEvents(jobName, trialName, 0);
-      liveStateRef.current = applyHarborTrialEvents(payload.events, EMPTY_LIVE);
-      eventOffsetRef.current = payload.offset;
-    } catch {
-      // events.jsonl may not exist yet for some task kinds.
-    }
-  }, []);
 
   const finishFromDebrief = useCallback(
     async (input: HarborCockpitRunInput<TJob>, jobName: string, resolvedTrial: string) => {
       setHarborTrialName(resolvedTrial);
       setUrlState({ cockpitJob: jobName, cockpitTrial: resolvedTrial, cockpitBatch: null });
       setHarborPhase("collecting");
-      await refreshLiveState(jobName, resolvedTrial);
       const jobDetail = await api.getHarborJob(jobName);
       const finishedTrial = jobDetail.trials.find((trial) => trial.trialName === resolvedTrial);
       const trialError =
@@ -149,7 +165,7 @@ export function useHarborCockpitRun<TJob>(options: UseHarborCockpitRunOptions) {
       setPhase("done");
       setHarborPhase(null);
     },
-    [refreshLiveState, setUrlState],
+    [setUrlState],
   );
 
   const run = useCallback(
@@ -157,7 +173,9 @@ export function useHarborCockpitRun<TJob>(options: UseHarborCockpitRunOptions) {
       lastInput.current = input;
       startedAt.current = Date.now();
       liveStateRef.current = EMPTY_LIVE;
-      eventOffsetRef.current = 0;
+      streamStateRef.current = EMPTY_HARBOR_JOB_STREAM_STATE;
+      cursorRef.current = 0;
+      terminalReconciledRef.current = false;
       setJob(null);
       setError(null);
       setHarborJobName(null);
@@ -165,21 +183,7 @@ export function useHarborCockpitRun<TJob>(options: UseHarborCockpitRunOptions) {
       setHarborPhase("launching");
       setPhase("launching");
       try {
-        const launched = await api.launchHarborJob({
-          taskPath: input.taskPath,
-          sampleSize: 1,
-          personaIds: [input.personaId],
-          personaModel: input.personaModel,
-          agentName: input.agentName,
-          nConcurrentTrials: 1,
-          mode: input.mode ?? "auto",
-          chatDomain: input.chatDomain,
-          chatApplicationId: input.chatApplicationId,
-          chatApplicationContext: input.chatApplicationContext,
-          chatMaxTurns: input.chatMaxTurns,
-          osAppSubmissionProfile: input.osAppSubmissionProfile,
-          osAppBackend: input.osAppBackend,
-        });
+        const launched = await api.launchHarborJob(singleHarborLaunchBody(input));
         setHarborJobName(launched.jobName);
         setUrlState({
           pgTask: taskKind,
@@ -220,6 +224,7 @@ export function useHarborCockpitRun<TJob>(options: UseHarborCockpitRunOptions) {
     const restoreInput = {
       taskPath: "",
       personaId: "",
+      personaPool: "",
       personaModel: "",
       mapDebrief: restoreMappers.mapDebrief as HarborCockpitRunInput<TJob>["mapDebrief"],
       mapLive: restoreMappers.mapLive as HarborCockpitRunInput<TJob>["mapLive"],
@@ -268,7 +273,9 @@ export function useHarborCockpitRun<TJob>(options: UseHarborCockpitRunOptions) {
         lastInput.current = restoreInput;
         startedAt.current = Date.now();
         liveStateRef.current = EMPTY_LIVE;
-        eventOffsetRef.current = 0;
+        streamStateRef.current = EMPTY_HARBOR_JOB_STREAM_STATE;
+        cursorRef.current = 0;
+        terminalReconciledRef.current = false;
         setHarborJobName(jobName);
 
         if (jobDetail.launch?.status === "failed") {
@@ -318,90 +325,81 @@ export function useHarborCockpitRun<TJob>(options: UseHarborCockpitRunOptions) {
 
     const input = lastInput.current;
     let cancelled = false;
-    let trialName: string | null = harborTrialName;
-
-    const finish = async (resolvedTrial: string) => {
-      if (cancelled) return;
-      await finishFromDebrief(input, harborJobName, resolvedTrial);
-    };
-
-    const tick = async () => {
-      if (cancelled) return;
-      if (Date.now() - startedAt.current > TIMEOUT_MS) {
-        setError("This run is taking longer than expected.");
-        setPhase("timeout");
-        return;
-      }
-
+    let resolvedTrial = harborTrialName;
+    const reconcileTerminal = async () => {
+      if (terminalReconciledRef.current || cancelled) return;
+      terminalReconciledRef.current = true;
       try {
-        const jobDetail = await api.getHarborJob(harborJobName);
-        if (cancelled) return;
-        const launch = jobDetail.launch;
-        if (launch?.status === "failed") {
-          setError(launch.error ?? "Batch run failed.");
-          setPhase("error");
-          return;
-        }
-
-        if (!trialName) {
-          const active = jobDetail.trials.find((trial) => !trial.completed) ?? jobDetail.trials[0];
-          if (active) trialName = active.trialName;
-        }
-
-        const activeTrial = trialName
-          ? jobDetail.trials.find((t) => t.trialName === trialName) ?? null
-          : null;
-        const trialVnc = (activeTrial as Record<string, unknown> | null)?.vncUrl;
-        if (typeof trialVnc === "string" && trialVnc) setVncUrl(trialVnc);
-        else if (activeTrial?.completed) setVncUrl(null);
-        const trialSandbox = (activeTrial as Record<string, unknown> | null)?.sandboxId;
-        if (typeof trialSandbox === "string" && trialSandbox) setSandboxId(trialSandbox);
-        else if (activeTrial?.completed) setSandboxId(null);
-
-        if (trialName) {
-          setHarborTrialName(trialName);
-          setUrlState({ cockpitTrial: trialName });
-          try {
-            const payload = await api.getHarborTrialEvents(harborJobName, trialName, eventOffsetRef.current);
-            eventOffsetRef.current = payload.offset;
-            if (payload.events.length > 0) {
-              liveStateRef.current = applyHarborTrialEvents(payload.events, liveStateRef.current);
-            }
-          } catch {
-            // Trial dir may exist before events.jsonl is created.
-          }
-        }
-
-        const live = liveStateRef.current;
-        setHarborPhase(live.phase ?? (trialName ? "trial_running" : "harbor_running"));
-        if (trialName && input.mapLive) {
-          setJob(input.mapLive(live, { jobName: harborJobName, trialName }));
-        }
-
-        const completed = jobDetail.trials.find((trial) => trial.completed);
-        if (completed) {
-          await finish(completed.trialName);
-          return;
-        }
-        if (launch?.status === "completed" && jobDetail.trials.length === 0) {
+        if (!resolvedTrial) {
           setError("Run finished without producing a trial.");
           setPhase("error");
+          return;
         }
+        await finishFromDebrief(input, harborJobName, resolvedTrial);
       } catch (exc) {
-        if (cancelled) return;
-        const message = exc instanceof ApiError ? exc.message : exc instanceof Error ? exc.message : String(exc);
-        setError(message);
-        setPhase("error");
+        if (!cancelled) {
+          setError(exc instanceof Error ? exc.message : String(exc));
+          setPhase("error");
+        }
       }
     };
 
-    void tick();
-    const id = window.setInterval(() => void tick(), POLL_MS);
+    const close = connectHarborJobEvents({
+      jobName: harborJobName,
+      cursor: cursorRef.current,
+      onEnvelope: (envelope) => {
+        cursorRef.current = envelope.id;
+        const next = applyHarborJobEnvelope(streamStateRef.current, envelope);
+        streamStateRef.current = next;
+        if (envelope.trialName) {
+          resolvedTrial = envelope.trialName;
+          setHarborTrialName(envelope.trialName);
+          setUrlState({ cockpitTrial: envelope.trialName });
+          liveStateRef.current = next.liveByTrial[envelope.trialName] ?? liveStateRef.current;
+          setHarborPhase(liveStateRef.current.phase ?? "trial_running");
+          if (input.mapLive) setJob(input.mapLive(liveStateRef.current, { jobName: harborJobName, trialName: envelope.trialName }));
+        }
+        if (envelope.trialName === null && envelope.event.type === "job_state") {
+          const jobPhase = typeof envelope.event.state === "string"
+            ? envelope.event.state
+            : typeof envelope.event.status === "string"
+              ? envelope.event.status
+              : "harbor_running";
+          setHarborPhase(jobPhase);
+          if (envelope.event.terminal) void reconcileTerminal();
+        }
+      },
+      onError: (cause) => {
+        if (!cancelled) setError(`Realtime updates degraded: ${cause.message}`);
+      },
+    });
+    // A single bootstrap identifies an already-created trial after refresh or
+    // a slow worker start; it never drives rendering after the stream begins.
+    void (async () => {
+      try {
+        const detail = await api.getHarborJob(harborJobName);
+        if (cancelled) return;
+        const active = detail.trials.find((trial) => !trial.completed) ?? detail.trials[0];
+        if (!active || resolvedTrial) return;
+        resolvedTrial = active.trialName;
+        setHarborTrialName(active.trialName);
+        setUrlState({ cockpitTrial: active.trialName });
+      } catch (cause) {
+        if (!cancelled) setError(`Realtime updates degraded: ${cause instanceof Error ? cause.message : String(cause)}`);
+      }
+    })();
+    const timeout = window.setTimeout(() => {
+      if (!cancelled && Date.now() - startedAt.current >= TIMEOUT_MS) {
+        setError("This run is taking longer than expected.");
+        setPhase("timeout");
+      }
+    }, TIMEOUT_MS);
     return () => {
       cancelled = true;
-      window.clearInterval(id);
+      window.clearTimeout(timeout);
+      close();
     };
-  }, [finishFromDebrief, harborJobName, harborTrialName, phase, setUrlState]);
+  }, [finishFromDebrief, harborJobName, phase, setUrlState]);
 
   const retry = useCallback(() => {
     if (lastInput.current) void run(lastInput.current);
@@ -426,7 +424,9 @@ export function useHarborCockpitRun<TJob>(options: UseHarborCockpitRunOptions) {
       setVncUrl(null);
       setSandboxId(null);
       liveStateRef.current = EMPTY_LIVE;
-      eventOffsetRef.current = 0;
+      streamStateRef.current = EMPTY_HARBOR_JOB_STREAM_STATE;
+      cursorRef.current = 0;
+      terminalReconciledRef.current = false;
       clearCockpitUrl();
       setPhase("error");
       setError("Run stopped. Reset to change setup and launch again.");

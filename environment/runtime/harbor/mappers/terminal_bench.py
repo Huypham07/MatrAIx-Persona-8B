@@ -1,4 +1,6 @@
 """Terminal-Bench to Harbor task mapper."""
+from __future__ import annotations
+
 
 import copy
 import json

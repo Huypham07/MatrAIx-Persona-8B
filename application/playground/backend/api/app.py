@@ -45,7 +45,7 @@ from typing import Any, AsyncIterator, Dict, List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
@@ -103,6 +103,16 @@ def _persona_blurb(persona: Any, max_chars: int = 160) -> str:
 def get_services(request: Request) -> AppState:
     """FastAPI dependency: the process-wide service singletons for this app."""
     return state_from_request(request)
+
+
+def _parse_sse_cursor(value: Optional[str], *, source: str) -> int:
+    """Validate the decimal byte cursor accepted by the job SSE endpoint."""
+    if value is None:
+        return 0
+    text = value.strip()
+    if not text or not text.isascii() or not text.isdecimal():
+        raise HTTPException(status_code=400, detail=f"invalid {source} cursor")
+    return int(text)
 
 
 # --------------------------------------------------------------------------- #
@@ -303,7 +313,20 @@ def preflight_checks() -> List[Dict[str, Any]]:
     """
     checks: List[Dict[str, Any]] = []
 
-    # ---- Core — required model credentials + optional per-provider ---- #
+    local_llm_url = (
+        os.environ.get("LOCAL_LLM_BASE_URL")
+        or os.environ.get("LLM_BASE_URL")
+        or os.environ.get("OPENAI_BASE_URL")
+        or "http://localhost:8000/v1"
+    ).strip()
+    local_model_label = os.environ.get("LOCAL_LLM_MODEL") or os.environ.get("MATRIX_PERSONA_MODEL") or "Local LLM"
+    local_llm_configured = bool(
+        os.environ.get("LOCAL_LLM_BASE_URL")
+        or os.environ.get("LOCAL_LLM_AUTH_HEADER")
+        or os.environ.get("LLM_BASE_URL")
+        or (os.environ.get("OPENAI_BASE_URL") and not os.environ.get("OPENAI_BASE_URL", "").startswith("https://api.openai.com"))
+        or bool(os.environ.get("LOCAL_LLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL"))
+    )
     openai_key = bool(os.environ.get("OPENAI_API_KEY"))
     anthropic_key = bool(
         os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_API_KEY")
@@ -313,6 +336,7 @@ def preflight_checks() -> List[Dict[str, Any]]:
     configured = [
         label
         for label, present in (
+            (f"Local LLM ({local_model_label})", local_llm_configured),
             ("OpenAI", openai_key),
             ("Anthropic", anthropic_key),
             ("DashScope", dashscope_key),
@@ -328,8 +352,21 @@ def preflight_checks() -> List[Dict[str, Any]]:
             "detail": (
                 "Configured: {}.".format(", ".join(configured))
                 if configured
-                else "Not configured. Set OpenAI, Anthropic, DashScope, or "
+                else "Not configured. Set Local LLM, OpenAI, Anthropic, DashScope, or "
                 "OpenRouter credentials to run application tasks."
+            ),
+        }
+    )
+    checks.append(
+        {
+            "group": "Core",
+            "name": "Local LLM (Qwen3-14B)",
+            "ok": local_llm_configured,
+            "optional": True,
+            "detail": (
+                "Configured ({}). Default persona model.".format(local_llm_url)
+                if local_llm_configured
+                else "Not configured."
             ),
         }
     )
@@ -747,6 +784,29 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
+    @app.get(
+        "/api/harbor/jobs/{job_name}/trace.zip",
+        tags=["harbor-jobs"],
+    )
+    def download_harbor_job_trace_zip(
+        job_name: str, services: AppState = Depends(get_services)
+    ):
+        from fastapi.responses import Response
+
+        from backend.service.trace_export_service import build_job_trace_zip
+
+        try:
+            payload, filename = build_job_trace_zip(
+                services.harbor_jobs.jobs_dir, job_name
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return Response(
+            content=payload,
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
     @app.delete(
         "/api/harbor/jobs/{job_name}",
         tags=["harbor-jobs"],
@@ -848,6 +908,47 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    @app.get(
+        "/api/harbor/jobs/{job_name}/events",
+        tags=["harbor-jobs"],
+    )
+    async def stream_harbor_job_events(
+        job_name: str,
+        request: Request,
+        cursor: Optional[str] = Query(default=None),
+        services: AppState = Depends(get_services),
+    ) -> StreamingResponse:
+        """Replay and tail the durable multiplexed journal for one Harbor job."""
+        query_cursor = _parse_sse_cursor(cursor, source="query")
+        header = request.headers.get("last-event-id")
+        after = (
+            _parse_sse_cursor(header, source="Last-Event-ID")
+            if header is not None and header.strip()
+            else query_cursor
+        )
+        try:
+            journal_path = services.harbor_jobs.job_events_path(job_name)
+            from playground.harbor.trial_events import validate_event_cursor
+
+            validate_event_cursor(journal_path, after)
+        except ValueError as exc:
+            message = str(exc)
+            status = 404 if "not found" in message.lower() else 400
+            raise HTTPException(status_code=status, detail=message) from exc
+
+        from backend.api.sse_stream import stream_job_events
+
+        return StreamingResponse(
+            stream_job_events(
+                journal_path.parent,
+                after=after,
+                is_disconnected=request.is_disconnected,
+                is_terminal=lambda: services.harbor_jobs.is_job_terminal(job_name),
+            ),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache"},
+        )
+
     @app.post(
         "/api/harbor/jobs/{job_name}/retry-failed",
         tags=["harbor-jobs"],
@@ -896,6 +997,51 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.get(
+        "/api/harbor/jobs/{job_name}/trials/{trial_name}/events/stream",
+        tags=["harbor-jobs"],
+    )
+    def stream_harbor_trial_events(
+        job_name: str,
+        trial_name: str,
+        services: AppState = Depends(get_services),
+    ) -> StreamingResponse:
+        import asyncio
+        import json
+        from starlette.responses import StreamingResponse
+
+        async def event_stream():
+            try:
+                job_dir = services.harbor_jobs.jobs_dir / job_name
+                trial_dir = job_dir / trial_name
+                events_file = trial_dir / "events.jsonl"
+                result_file = trial_dir / "result.json"
+
+                # wait for file
+                for _ in range(50):
+                    if events_file.exists() or result_file.exists():
+                        break
+                    await asyncio.sleep(0.1)
+
+                if not events_file.exists():
+                    return
+
+                with open(events_file, "r") as f:
+                    while True:
+                        line = f.readline()
+                        if line:
+                            yield line
+                        else:
+                            if result_file.exists():
+                                for remaining in f:
+                                    yield remaining
+                                break
+                            await asyncio.sleep(0.1)
+            except Exception:
+                pass
+
+        return StreamingResponse(event_stream(), media_type="application/x-ndjson")
+
+    @app.get(
         "/api/harbor/jobs/{job_name}/trials/{trial_name}/debrief",
         tags=["harbor-jobs"],
     )
@@ -935,6 +1081,31 @@ def create_app(catalog_path: Optional[str] = None) -> FastAPI:
         return Response(
             content=payload,
             media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    @app.get(
+        "/api/harbor/jobs/{job_name}/trials/{trial_name}/trace.zip",
+        tags=["harbor-jobs"],
+    )
+    def download_harbor_trial_trace_zip(
+        job_name: str,
+        trial_name: str,
+        services: AppState = Depends(get_services),
+    ):
+        from fastapi.responses import Response
+
+        from backend.service.trace_export_service import build_trial_trace_zip
+
+        try:
+            payload, filename = build_trial_trace_zip(
+                services.harbor_jobs.jobs_dir, job_name, trial_name
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return Response(
+            content=payload,
+            media_type="application/zip",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 

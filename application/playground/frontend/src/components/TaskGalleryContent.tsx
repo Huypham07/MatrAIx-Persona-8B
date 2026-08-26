@@ -47,7 +47,6 @@ const TYPE_FILTERS: ReadonlyArray<TypeFilter> = [
   "survey",
   "chatbot",
   "web",
-  "os-app",
 ];
 
 function typeFilterLabel(value: TypeFilter, t: I18nContextValue["t"]): string {

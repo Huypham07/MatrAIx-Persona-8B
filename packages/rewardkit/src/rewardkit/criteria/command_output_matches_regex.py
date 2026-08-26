@@ -1,4 +1,6 @@
 """Criterion: check that a command's stdout matches a regex pattern."""
+from __future__ import annotations
+
 
 import re
 from pathlib import Path

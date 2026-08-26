@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import webbrowser
 from urllib.parse import parse_qs, urlparse

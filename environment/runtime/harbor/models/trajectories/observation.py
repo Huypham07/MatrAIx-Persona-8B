@@ -1,4 +1,6 @@
 """Observation model for ATIF trajectories."""
+from __future__ import annotations
+
 
 from pydantic import BaseModel, Field
 

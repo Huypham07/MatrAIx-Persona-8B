@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import json
 from typing import Any, Callable, Dict, List, Optional
 
 from backend.service.survey_instruction_builder import (
@@ -20,56 +21,155 @@ from backend.service.survey_types import (
     TrajectoryEvent,
 )
 from playground.budget import assert_budget_allows_request, record_trial_cost
+from playground.llm_usage import LlmUsage, merge_usage
 from playground.model_client import build_json_client
 from playground.types import Persona
-from playground.user_sim.prompt import render_persona_block
+from playground.user_sim.prompt import (
+    persona_language_contract,
+    persona_primary_language,
+    render_persona_block,
+)
 
 
-def persona_system_prompt(persona: Persona, *, persona_yaml_path: str) -> str:
+def persona_system_prompt(persona: Persona, *, persona_yaml_path: Optional[str] = None) -> str:
     persona_body = render_persona_block(
         persona, persona_yaml_path=persona_yaml_path
     ).strip()
     if not persona_body:
-        raise ValueError(f"empty persona render for yaml path: {persona_yaml_path}")
-    return persona_body
+        persona_body = persona.context or f"I am {persona.name} (Persona ID: {persona.id})."
+    return "{}\n\n{}".format(persona_body, persona_language_contract(persona))
 
 
 def build_survey_task_prompt(*, instrument: SurveyInstrument) -> str:
-    from playground.harbor.playground import _repo_root
-    from playground.survey_task_content import (
-        load_survey_task_content_for_questionnaire_id,
-    )
+    return SurveyTaskContent(
+        title=instrument.title,
+        instruction_markdown=render_survey_task_instruction_markdown(instrument),
+        context_markdown=render_survey_context_markdown(instrument),
+        questionnaire_markdown=render_survey_questionnaire_markdown(instrument),
+        output_schema_markdown=render_survey_output_schema_markdown(instrument),
+        instrument=instrument,
+    ).combined_markdown()
 
-    task_content = load_survey_task_content_for_questionnaire_id(
-        instrument.id,
-        repo_root=_repo_root(),
-        fallback_questionnaire=instrument,
-    )
-    if task_content is None:
-        task_content = SurveyTaskContent(
-            title=instrument.title,
-            instruction_markdown=render_survey_task_instruction_markdown(instrument).strip(),
-            context_markdown=render_survey_context_markdown(instrument).strip(),
-            questionnaire_markdown=render_survey_questionnaire_markdown(instrument).strip(),
-            output_schema_markdown=render_survey_output_schema_markdown(instrument).strip(),
-            instrument=instrument,
+
+class InvalidSurveyResponse(ValueError):
+    def __init__(self, question_id: str, detail: str) -> None:
+        super().__init__(
+            f"Invalid model response for survey question {question_id}: {detail}"
         )
-    lines: list[str] = []
-    if task_content.instruction_markdown.strip():
-        lines.extend(["## Task instruction", "", task_content.instruction_markdown.strip(), ""])
-    if task_content.context_markdown.strip():
-        lines.extend(["## Context", "", task_content.context_markdown.strip(), ""])
-    if task_content.questionnaire_markdown.strip():
-        lines.extend(["## Questionnaire", "", task_content.questionnaire_markdown.strip(), ""])
-    # Answer envelope is derived from questionnaire flags; keep a short derived
-    # schema section so the model sees the JSON shape without a task-owned file.
-    derived_schema = (
-        task_content.output_schema_markdown.strip()
-        or render_survey_output_schema_markdown(instrument).strip()
+        self.question_id = question_id
+        self.detail = detail
+
+
+def _validate_answer(
+    raw: Any, question: SurveyQuestion, instrument: SurveyInstrument
+) -> SurveyAnswer:
+    payload = raw.get("answer") if isinstance(raw, dict) else None
+    if not isinstance(payload, dict):
+        raise InvalidSurveyResponse(question.id, "answer must be an object")
+    try:
+        answer = SurveyAnswer.from_dict(payload)
+    except (TypeError, ValueError) as exc:
+        raise InvalidSurveyResponse(question.id, str(exc)) from exc
+    if answer.question_id != question.id:
+        raise InvalidSurveyResponse(question.id, "questionId does not match")
+    if question.type == "likert":
+        if isinstance(answer.value, bool) or not str(answer.value).strip().isdigit():
+            raise InvalidSurveyResponse(question.id, "value must be an integer")
+        answer.value = int(answer.value)
+        if not question.min_value <= answer.value <= question.max_value:
+            raise InvalidSurveyResponse(
+                question.id, "value is outside the authored range"
+            )
+    elif question.type == "single_choice" and str(answer.value) not in question.options:
+        raise InvalidSurveyResponse(
+            question.id, "value is not one of the authored option ids"
+        )
+    elif question.type == "multi_choice":
+        if (
+            not isinstance(answer.value, list)
+            or not answer.value
+            or any(str(value) not in question.options for value in answer.value)
+        ):
+            raise InvalidSurveyResponse(
+                question.id, "values must be authored option ids"
+            )
+        answer.value = [str(value) for value in answer.value]
+    elif question.type == "free_text" and not str(answer.value or "").strip():
+        raise InvalidSurveyResponse(question.id, "free-text value must not be empty")
+    answer.rationale = (
+        answer.rationale if question.resolves_ask_rationale(instrument) else ""
     )
-    if derived_schema:
-        lines.extend(["## Answer envelope", "", derived_schema, ""])
-    return "\n".join(lines).strip()
+    answer.confidence = (
+        answer.confidence if question.resolves_ask_confidence(instrument) else None
+    )
+    return answer
+
+
+def _question_completion_prompt(
+    *,
+    instrument: SurveyInstrument,
+    question: SurveyQuestion,
+    answers: list[SurveyAnswer],
+    correction_detail: str | None = None,
+) -> str:
+    question_instrument = SurveyInstrument(
+        id=instrument.id,
+        title=instrument.title,
+        description=instrument.description,
+        questions=[question],
+        ask_rationale=instrument.ask_rationale,
+        ask_confidence=instrument.ask_confidence,
+    )
+    parts = [
+        f"# {instrument.title}",
+        "",
+        "## Task instruction",
+        "",
+        render_survey_task_instruction_markdown(instrument).strip(),
+        "",
+        "## Context",
+        "",
+        render_survey_context_markdown(instrument).strip(),
+        "",
+        "## Current question",
+        "",
+        render_survey_questionnaire_markdown(question_instrument).strip(),
+        "",
+        "## Required JSON format",
+        "",
+        "```json",
+        '{"answer": {"questionId": "%s", "value": "<answer value>"}}'
+        % question.id,
+        "```",
+        "",
+        "Respond with valid JSON only.",
+    ]
+    if answers:
+        continuity = [
+            {"questionId": answer.question_id, "value": answer.value}
+            for answer in answers
+        ]
+        parts.extend(
+            [
+                "",
+                "## Previously answered questions",
+                "",
+                json.dumps(continuity, ensure_ascii=False),
+            ]
+        )
+    if correction_detail is not None:
+        parts.extend(
+            [
+                "",
+                "## Correction required",
+                "",
+                "Your previous response was invalid: {}. Return a corrected answer for "
+                "the current question using the required JSON format.".format(
+                    correction_detail
+                ),
+            ]
+        )
+    return "\n".join(parts).strip()
 
 
 class InprocessSurveyEvalRunner:
@@ -81,14 +181,17 @@ class InprocessSurveyEvalRunner:
         instrument: SurveyInstrument,
         config: Optional[SurveyEvalConfig] = None,
         *,
-        created_at: str,
-        persona_yaml_path: str,
+        created_at: Optional[str] = None,
+        persona_yaml_path: Optional[str] = None,
         on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
         job_dir: Optional[Any] = None,
+        trace_dir: Optional[Any] = None,
+        segment_id: Optional[str] = None,
         client: Any | None = None,
         client_factory: Optional[Callable[[str], Any]] = None,
     ) -> SurveyEvalResult:
         config = config or SurveyEvalConfig()
+        created_at = created_at or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         def emit(event: Dict[str, Any]) -> None:
             if on_event is not None:
@@ -103,29 +206,142 @@ class InprocessSurveyEvalRunner:
             "harborPrompt": persona_prompt,
             "taskPrompt": task_prompt,
         }
-        emit({"type": "prompts", "prompts": prompts})
-        emit({"type": "phase", "phase": "survey_answering"})
+        expected_language = persona_primary_language(persona)
+        trace_writer = None
+        if trace_dir is not None:
+            from pathlib import Path
 
-        assert_budget_allows_request(job_dir)
-        if client is not None:
-            pass
-        elif client_factory is not None:
-            client = client_factory(config.persona_model)
-        else:
-            client = build_json_client(config.persona_model)
-        if hasattr(client, "complete_json_with_usage"):
-            completion = client.complete_json_with_usage(
-                prompts["personaPrompt"], task_prompt
+            from playground.llm_trace import LlmTraceWriter
+
+            trace_root = Path(trace_dir)
+            trace_writer = LlmTraceWriter(
+                trace_root / "llm_calls.jsonl",
+                metadata={
+                    "jobId": trace_root.parent.name,
+                    "trialId": trace_root.name,
+                    "taskId": instrument.id,
+                    "personaId": persona.id,
+                    "segmentId": segment_id,
+                    "expectedLanguage": expected_language,
+                },
             )
-            raw = completion.data
-            usage = completion.usage
-        else:
-            raw = client.complete_json(prompts["personaPrompt"], task_prompt)
-            usage = None
-        if usage is not None:
-            record_trial_cost(job_dir, usage.cost_usd)
-            emit({"type": "usage", "usage": usage.to_dict()})
-        answers = _normalize_answers(raw.get("answers"), instrument)
+        if client is None:
+            if client_factory is not None:
+                client = client_factory(config.persona_model)
+            elif trace_writer is None:
+                client = build_json_client(config.persona_model)
+            else:
+                client = build_json_client(
+                    config.persona_model,
+                    trace_writer=trace_writer,
+                    trace_step="survey_answer",
+                )
+
+        all_answers: list[SurveyAnswer] = []
+        usage_parts: list[LlmUsage | None] = []
+
+        for index, question in enumerate(instrument.questions, start=1):
+            emit(
+                {
+                    "type": "survey_question_started",
+                    "questionId": question.id,
+                    "prompt": question.prompt,
+                    "questionType": question.type,
+                    "questionIndex": index,
+                    "numQuestions": len(instrument.questions),
+                    "expectedLanguage": expected_language,
+                }
+            )
+            emit(
+                {
+                    "type": "stage",
+                    "stage": "running_agent",
+                    "message": "Answering Q{}/{}: {}...".format(
+                        index, len(instrument.questions), question.prompt[:60]
+                    ),
+                }
+            )
+            emit({"type": "phase", "phase": "survey_answering"})
+
+            correction_detail: str | None = None
+            for attempt in range(2):
+                question_prompt = _question_completion_prompt(
+                    instrument=instrument,
+                    question=question,
+                    answers=all_answers,
+                    correction_detail=correction_detail,
+                )
+                assert_budget_allows_request(job_dir)
+                try:
+                    if hasattr(client, "complete_json_with_usage"):
+                        completion = client.complete_json_with_usage(
+                            prompts["personaPrompt"], question_prompt
+                        )
+                        raw = completion.data
+                        usage = completion.usage
+                    else:
+                        raw = client.complete_json(
+                            prompts["personaPrompt"], question_prompt
+                        )
+                        usage = None
+                except ValueError as exc:
+                    invalid_response = InvalidSurveyResponse(question.id, str(exc))
+                    if attempt == 1:
+                        raise invalid_response from exc
+                    correction_detail = invalid_response.detail
+                    continue
+                usage_parts.append(usage)
+                if usage is not None:
+                    record_trial_cost(job_dir, usage.cost_usd)
+
+                try:
+                    answer = _validate_answer(raw, question, instrument)
+                except InvalidSurveyResponse as exc:
+                    if attempt == 1:
+                        raise
+                    correction_detail = exc.detail
+                    continue
+                break
+            else:  # pragma: no cover - the second attempt either breaks or raises.
+                raise AssertionError("survey answer loop exhausted without a response")
+
+            all_answers.append(answer)
+            total_usage = merge_usage(*usage_parts)
+            emit(
+                {
+                    "type": "survey_answer",
+                    "questionId": answer.question_id,
+                    "value": answer.value,
+                    "rationale": answer.rationale,
+                    "confidence": answer.confidence,
+                    "progress": f"{len(all_answers)}/{len(instrument.questions)}",
+                    "message": f"Answered [{answer.question_id}]: {answer.value}",
+                    "expectedLanguage": expected_language,
+                }
+            )
+            intermediate_result = SurveyEvalResult(
+                config=config,
+                persona=persona,
+                instrument=instrument,
+                answers=list(all_answers),
+                trajectory=_build_trajectory(
+                    instrument, all_answers, created_at, completed=False
+                ),
+                metrics=_metrics(all_answers, instrument),
+                created_at=created_at,
+                prompts=prompts,
+                usage=total_usage.to_dict() if total_usage is not None else None,
+            )
+            emit(
+                {
+                    "type": "survey_progress",
+                    "progress": f"{len(all_answers)}/{len(instrument.questions)}",
+                    "result": intermediate_result.to_dict(),
+                }
+            )
+
+        answers = all_answers
+        total_usage = merge_usage(*usage_parts)
         metrics = _metrics(answers, instrument)
         trajectory = _build_trajectory(instrument, answers, created_at)
         result = SurveyEvalResult(
@@ -137,8 +353,13 @@ class InprocessSurveyEvalRunner:
             metrics=metrics,
             created_at=created_at,
             prompts=prompts,
-            usage=usage.to_dict() if usage is not None else None,
+            usage=total_usage.to_dict() if total_usage is not None else None,
         )
+        emit({
+            "type": "stage",
+            "stage": "completed",
+            "message": f"All {len(answers)} questions answered successfully.",
+        })
         emit({"type": "done", "result": result.to_dict()})
         return result
 
@@ -157,6 +378,8 @@ def _build_trajectory(
     instrument: SurveyInstrument,
     answers: List[SurveyAnswer],
     created_at: str,
+    *,
+    completed: bool = True,
 ) -> List[TrajectoryEvent]:
     answer_by_id = {answer.question_id: answer for answer in answers}
     missing_required = [
@@ -180,6 +403,9 @@ def _build_trajectory(
 
     offset = 1
     for index, question in enumerate(instrument.questions, start=1):
+        answer = answer_by_id.get(question.id)
+        if answer is None and not completed:
+            break
         question_context = {
             "instrumentId": instrument.id,
             "questionId": question.id,
@@ -201,7 +427,6 @@ def _build_trajectory(
         )
         offset += 1
 
-        answer = answer_by_id.get(question.id)
         if answer is None:
             continue
         events.append(
@@ -220,90 +445,21 @@ def _build_trajectory(
         )
         offset += 1
 
-    events.append(
-        TrajectoryEvent(
-            timestamp=_event_timestamp(created_at, offset),
-            actor="system",
-            action="survey_completed",
-            context={"instrumentId": instrument.id},
-            outcome={
-                "numAnswered": len(answers),
-                "missingRequiredQuestionIds": missing_required,
-                "valid": not missing_required,
-            },
-        )
-    )
-    return events
-
-
-def _normalize_answers(raw_answers: Any, instrument: SurveyInstrument) -> List[SurveyAnswer]:
-    by_id = {question.id: question for question in instrument.questions}
-    answers: List[SurveyAnswer] = []
-    if not isinstance(raw_answers, list):
-        raw_answers = []
-    seen = set()
-    for raw in raw_answers:
-        if not isinstance(raw, dict):
-            continue
-        answer = SurveyAnswer.from_dict(raw)
-        question = by_id.get(answer.question_id)
-        if question is None or answer.question_id in seen:
-            continue
-        answer.value = _normalize_value(answer.value, question)
-        if not question.resolves_ask_rationale(instrument):
-            answer.rationale = ""
-        if not question.resolves_ask_confidence(instrument):
-            answer.confidence = None
-        answers.append(answer)
-        seen.add(answer.question_id)
-    for question in instrument.questions:
-        if question.required and question.id not in seen:
-            answers.append(
-                SurveyAnswer(
-                    question_id=question.id,
-                    value=_default_value(question),
-                    rationale=(
-                        "No persona-specific answer was produced, so a neutral answer was used."
-                        if question.resolves_ask_rationale(instrument)
-                        else ""
-                    ),
-                    confidence=(
-                        0.0 if question.resolves_ask_confidence(instrument) else None
-                    ),
-                )
+    if completed:
+        events.append(
+            TrajectoryEvent(
+                timestamp=_event_timestamp(created_at, offset),
+                actor="system",
+                action="survey_completed",
+                context={"instrumentId": instrument.id},
+                outcome={
+                    "numAnswered": len(answers),
+                    "missingRequiredQuestionIds": missing_required,
+                    "valid": not missing_required,
+                },
             )
-    return answers
-
-
-def _normalize_value(value: Any, question: SurveyQuestion) -> Any:
-    if question.type == "likert":
-        try:
-            number = int(round(float(value)))
-        except (TypeError, ValueError):
-            low = question.min_value or 1
-            high = question.max_value or 5
-            number = int(round((low + high) / 2))
-        return max(question.min_value or 1, min(question.max_value or 5, number))
-    if question.type == "single_choice":
-        text = str(value)
-        return text if text in question.options else question.options[0]
-    if question.type == "multi_choice":
-        values = value if isinstance(value, list) else [value]
-        selected = [str(item) for item in values if str(item) in question.options]
-        return selected or [question.options[0]]
-    return str(value or "").strip()
-
-
-def _default_value(question: SurveyQuestion) -> Any:
-    if question.type == "likert":
-        low = question.min_value or 1
-        high = question.max_value or 5
-        return int(round((low + high) / 2))
-    if question.type == "single_choice":
-        return question.options[0]
-    if question.type == "multi_choice":
-        return [question.options[0]]
-    return ""
+        )
+    return events
 
 
 def _metrics(answers: List[SurveyAnswer], instrument: SurveyInstrument) -> SurveyMetrics:

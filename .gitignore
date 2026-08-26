@@ -218,6 +218,9 @@ tempCodeRunnerFile.py
 # PyPI configuration file
 .pypirc
 
+# Local isolated implementation worktrees
+.worktrees/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/

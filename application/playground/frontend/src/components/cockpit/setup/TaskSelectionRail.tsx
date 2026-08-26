@@ -537,7 +537,9 @@ export function TaskSelectionRail({
   };
 
   return (
-    <aside className="glass-panel glass-panel-rail relative flex h-full min-h-0 flex-col rounded-xl p-4">
+    <aside className="glass-panel glass-panel-rail relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl">
+      <div ref={listRef} className="custom-scrollbar flex h-full w-full flex-col overflow-y-auto p-4 pr-3">
+      <div className="shrink-0 pb-3">
       <CockpitRailHeader label={t("taskSetup.title")} />
 
       <label className="mb-2.5 flex flex-col gap-1">
@@ -583,10 +585,8 @@ export function TaskSelectionRail({
         <p className="mb-2 text-[13px] text-danger">{tasksError}</p>
       )}
 
-      <div
-        ref={listRef}
-        className="custom-scrollbar min-h-0 flex-1 overflow-y-auto pr-0.5"
-      >
+      </div>
+      <div className="flex-1">
         {filteredCards.length === 0 && !tasksLoading && (
           <p className="glass-tile glass-tile--dim rounded-lg px-3 py-4 text-center text-[13px] text-text-dim">
             {searchQuery.trim() || domainFilter
@@ -625,6 +625,7 @@ export function TaskSelectionRail({
         card={detailCard}
         onClose={() => setDetailCard(null)}
       />
+    </div>
     </aside>
   );
 }

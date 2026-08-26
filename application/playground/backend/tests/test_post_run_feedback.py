@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 
 from backend.service.harbor_job_service import HarborJobService
@@ -76,6 +78,9 @@ def _write_trial(repo, *, task_path: str):
 
 def test_maybe_write_trial_user_feedback_for_web(monkeypatch, tmp_path):
     repo = tmp_path
+    process_cwd = tmp_path / "application" / "playground"
+    process_cwd.mkdir(parents=True)
+    monkeypatch.chdir(process_cwd)
     _write_task(
         repo,
         "application/tasks/example-web-playwright_quote-choice",

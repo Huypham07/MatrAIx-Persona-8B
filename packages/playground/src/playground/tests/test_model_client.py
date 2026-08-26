@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 from playground.model_client import (
@@ -68,6 +70,64 @@ def test_build_tool_step_client_routes_dashscope(monkeypatch):
             "base_url": DASHSCOPE_DEFAULT_BASE_URL,
         }
     ]
+
+
+def test_build_tool_step_client_routes_local_qwen_to_local_openai_endpoint(monkeypatch):
+    monkeypatch.setenv("LOCAL_LLM_BASE_URL", "http://local-qwen.test/v1")
+    monkeypatch.setenv("LOCAL_LLM_AUTH_HEADER", "Basic local-secret")
+    monkeypatch.setenv("LOCAL_LLM_MODEL", "Qwen3-14B")
+    monkeypatch.setenv("LOCAL_LLM_ENABLE_THINKING", "false")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
+    created: list[dict[str, object]] = []
+
+    def fake_openai(**kwargs):
+        created.append(kwargs)
+        return _FakeOpenAI(**kwargs)
+
+    monkeypatch.setattr("openai.OpenAI", fake_openai)
+
+    client = build_tool_step_client("local/qwen3-14b")
+
+    assert isinstance(client, OpenAIToolStepClient)
+    assert client.model == "Qwen3-14B"
+    assert client.extra_body == {"chat_template_kwargs": {"enable_thinking": False}}
+    assert created == [
+        {
+            "api_key": "Basic local-secret",
+            "base_url": "http://local-qwen.test/v1",
+            "default_headers": {"Authorization": "Basic local-secret"},
+        }
+    ]
+
+
+def test_local_qwen_tool_client_uses_json_actions_without_native_tool_choice():
+    captured: list[dict[str, object]] = []
+
+    class _Completions:
+        def create(self, **kwargs):
+            captured.append(kwargs)
+            message = type("Message", (), {"content": '{"action":"send_message","message":"I need a simple meal plan."}', "tool_calls": None})()
+            choice = type("Choice", (), {"message": message})()
+            usage = type("Usage", (), {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2})()
+            return type("Completion", (), {"choices": [choice], "usage": usage})()
+
+    fake_client = type(
+        "Client",
+        (),
+        {"chat": type("Chat", (), {"completions": _Completions()})()},
+    )()
+    client = OpenAIToolStepClient(
+        "Qwen3-14B", client=fake_client, provider="local", native_tools=False
+    )
+
+    calls = client.complete_with_tools([{"role": "system", "content": "persona"}])
+
+    assert calls[0].name == "send_message"
+    assert calls[0].arguments == {"message": "I need a simple meal plan."}
+    assert "tools" not in captured[0]
+    assert "tool_choice" not in captured[0]
+    assert captured[0]["response_format"] == {"type": "json_object"}
 
 
 def test_build_json_client_requires_dashscope_key(monkeypatch):

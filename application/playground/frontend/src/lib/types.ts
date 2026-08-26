@@ -242,6 +242,7 @@ export interface PlaygroundJobView {
   sutDescription: string;
   status: string;
   phase?: string | null;
+  activeSurveyQuestion?: { id: string; prompt: string; type: string; index: number; total: number } | null;
   turns: TurnView[];
   draftTurn?: HarborDraftTurn | null;
   questionnaire?: PlaygroundQuestionnaire | null;
@@ -362,6 +363,7 @@ export interface SurveyEvalJobView {
   personaName: string;
   status: string;
   phase?: string | null;
+  activeSurveyQuestion?: { id: string; prompt: string; type: string; index: number; total: number } | null;
   surveyResult?: SurveyResult | null;
   instructionMarkdown?: string | null;
   contextMarkdown?: string | null;
@@ -448,9 +450,21 @@ export interface WebTrace {
   raw?: Record<string, unknown>;
 }
 
+export interface ComparedCandidate {
+  name: string;
+  price?: string | null;
+  specs?: string | null;
+  prosCons?: string | null;
+  pros_cons?: string | null;
+}
+
 export interface WebResult {
   selectedProductId: string;
   selectedProductName: string;
+  taskPriceText?: string | null;
+  comparedCandidates?: ComparedCandidate[] | null;
+  basisPrimary?: string | null;
+  explorationStyle?: string | null;
   needSatisfaction: number;
   easeOfUse: number;
   informationQuality?: number | null;
@@ -584,6 +598,26 @@ export interface HarborTrialEvent {
   turn?: TurnView;
   prompts?: PlaygroundPrompts;
   [key: string]: unknown;
+}
+
+/** Durable job-journal lifecycle payload carried by the job SSE channel. */
+export interface HarborJobStateEvent {
+  type: "job_state";
+  /** Current backend field. */
+  state?: string;
+  /** Compatibility spelling accepted from older or remote workers. */
+  status?: string;
+  terminal?: boolean;
+  error?: string | null;
+  [key: string]: unknown;
+}
+
+/** One replayable record from `/api/harbor/jobs/{jobName}/events`. */
+export interface HarborJobEventEnvelope {
+  id: number;
+  jobName: string;
+  trialName: string | null;
+  event: HarborTrialEvent | HarborJobStateEvent;
 }
 
 export interface HarborTrialEventsResponse {
@@ -1111,6 +1145,15 @@ export interface TaskPersonaSampling {
   fields?: string[];
   allocation?: "perCell" | "proportional" | "equalTotal" | string | null;
   perCell?: number | null;
+  personasPerSegment?: number | null;
+}
+
+export interface TaskPersonaSegment {
+  id: string;
+  label: string;
+  hypothesis: string;
+  dimensions: Record<string, string[]>;
+  personaIds: string[];
 }
 
 export interface TaskPersonaStrategy {
@@ -1120,6 +1163,8 @@ export interface TaskPersonaStrategy {
   dimensionFilters?: Record<string, string[]>;
   seed?: number | null;
   cohortId?: string | null;
+  segments?: TaskPersonaSegment[];
+  personaIds?: string[];
   sampling?: TaskPersonaSampling | null;
 }
 

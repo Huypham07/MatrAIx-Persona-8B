@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from backend.service.example_task_catalog import repo_root
 from backend.service.survey_questionnaire_catalog import get_survey_questionnaire
 from backend.service.survey_types import SurveyEvalConfig, SurveyInstrument, SurveyQuestion
@@ -84,6 +86,52 @@ def test_persona_system_prompt_renders_dimensions_yaml(tmp_path: Path):
     assert "65" in prompt or "South Asia" in prompt or "Retirement" in prompt
 
 
+def test_persona_system_prompt_uses_primary_language_without_translating_ids(
+    tmp_path: Path,
+):
+    yaml_path = _write_dims_yaml(
+        tmp_path / "persona_0903.yaml",
+        persona_id="0903",
+        region="Latin America",
+        primary_language="Spanish",
+    )
+    persona = Persona(
+        id="0903",
+        name="persona-0903",
+        dimensions={"region": "Latin America", "primary_language": "Spanish"},
+    )
+
+    prompt = persona_system_prompt(persona, persona_yaml_path=str(yaml_path))
+
+    assert "Respond in Spanish" in prompt
+    assert "JSON keys" in prompt
+    assert "option IDs" in prompt
+
+
+def test_persona_prompt_renders_late_dimension_from_canonical_path(tmp_path: Path):
+    path = _write_dims_yaml(
+        tmp_path / "mai.yaml",
+        persona_id="mai",
+        **{f"dimension_{i}": f"value-{i}" for i in range(49)},
+        cog_attention_span="Long",
+    )
+    persona = Persona.from_dict(
+        {"persona_id": "mai", "dimensions": {"cog_attention_span": "Long"}},
+        persona_path=str(path),
+    )
+
+    assert "Long" in persona_system_prompt(persona)
+
+
+def test_dimension_persona_requires_canonical_source():
+    persona = Persona.from_dict(
+        {"persona_id": "mai", "dimensions": {"cog_attention_span": "Long"}}
+    )
+
+    with pytest.raises(ValueError, match="canonical persona path"):
+        persona_system_prompt(persona, persona_yaml_path="")
+
+
 def test_survey_runner_requires_yaml_path_for_persona_prompt(monkeypatch, tmp_path: Path):
     yaml_path = _write_dims_yaml(
         tmp_path / "persona_dims.yaml",
@@ -96,14 +144,12 @@ def test_survey_runner_requires_yaml_path_for_persona_prompt(monkeypatch, tmp_pa
     class FakeJSONClient:
         def complete_json(self, system, user):
             return {
-                "answers": [
-                    {
-                        "questionId": "fit",
-                        "value": 4,
-                        "rationale": "Fits.",
-                        "confidence": 0.8,
-                    }
-                ]
+                "answer": {
+                    "questionId": "fit",
+                    "value": 4,
+                    "rationale": "Fits.",
+                    "confidence": 0.8,
+                }
             }
 
     monkeypatch.setattr(

@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-import yaml
 
 from backend.service import run_store
 from backend.service.application_types import normalize_metadata_type
@@ -124,62 +121,30 @@ def _persona_path_from_trial(trial_dir: Path, repo_root: Path) -> str | None:
     return None
 
 
-def _persona_from_catalog_stem(stem: str) -> Persona | None:
-    """Lookup a curated catalog persona by stem/id. Avoid on path-backed loads."""
-    try:
-        from playground.persona_catalog import get_persona
-
-        return get_persona(stem)
-    except KeyError:
-        return None
-
-
 def _load_playground_persona(repo_root: Path, persona_rel: str | None) -> Persona:
     if persona_rel:
         abs_path = (repo_root / persona_rel).resolve()
-        stem = abs_path.stem if abs_path.name else Path(persona_rel).stem
-        # Path-backed personas (wiki cohorts, trial snapshots): load that file
-        # only. Never scan the curated catalog first — get_persona() reloads
-        # every curated YAML and dominated trail-report open latency (~3s).
-        if abs_path.is_file():
-            try:
-                from matraix.agents.persona.loader import load_persona as load_harbor_persona
+        if not abs_path.is_file():
+            raise FileNotFoundError("canonical persona source not found: {}".format(persona_rel))
+        try:
+            from playground.user_sim.prompt import (
+                _ensure_persona_agents_package,
+                render_persona_block,
+            )
 
-                prev = os.getcwd()
-                try:
-                    os.chdir(repo_root)
-                    loaded = load_harbor_persona(persona_rel)
-                finally:
-                    os.chdir(prev)
-            except Exception:  # noqa: BLE001
-                loaded = None
-            if loaded is not None:
-                raw = loaded.data
-                context = loaded.system_prompt or loaded.summary or ""
-                if not context and loaded.has_dimensions_schema():
-                    context = "Persona {}".format(loaded.persona_id or stem)
-                return Persona(
-                    id=str(loaded.persona_id or stem),
-                    name=str(loaded.display_name or loaded.persona_id or stem),
-                    source=str(raw.get("source") or ""),
-                    context=context,
-                )
-            try:
-                raw = yaml.safe_load(abs_path.read_text(encoding="utf-8"))
-            except Exception:  # noqa: BLE001
-                raw = None
-            if isinstance(raw, dict):
-                pid = str(raw.get("persona_id") or raw.get("id") or stem)
-                return Persona(
-                    id=pid,
-                    name=str(raw.get("display_name") or raw.get("name") or pid),
-                    source=str(raw.get("source") or ""),
-                    context=str(raw.get("system_prompt") or raw.get("summary") or pid),
-                )
-        catalog = _persona_from_catalog_stem(stem)
-        if catalog is not None:
-            return catalog
+            _ensure_persona_agents_package()
+            from matraix.agents.persona.loader import load_persona as load_harbor_persona
+
+            loaded = load_harbor_persona(str(abs_path))
+        except Exception as exc:  # noqa: BLE001
+            raise ValueError(
+                "failed to load canonical persona source {}: {}".format(persona_rel, exc)
+            ) from exc
+        persona = Persona.from_dict(loaded.data, persona_path=str(abs_path))
+        persona.context = render_persona_block(persona)
+        return persona
     return Persona(id="unknown", name="Persona", source="", context="")
+
 
 def _task_path_from_trial(trial_dir: Path) -> str | None:
     config_path = trial_dir / "config.json"
@@ -412,7 +377,7 @@ def _map_failed_trial_debrief(
 def _detect_application_type(output_dir: Path) -> str:
     if (output_dir / "transcript.json").is_file():
         return "chatbot"
-    if (output_dir / "survey_result.json").is_file():
+    if (output_dir / "survey_result.json").is_file() or (output_dir / "structured_output.json").is_file():
         return "survey"
     if (output_dir / "survey_responses.json").is_file():
         return "survey"
@@ -659,58 +624,13 @@ def _persona_prompt_abs_path(repo_root: Path, persona_rel: str | None) -> str | 
     return str(abs_path) if abs_path.is_file() else None
 
 
-def _humanize_dimension_key(key: str) -> str:
-    return " ".join(part.capitalize() for part in str(key).replace("-", "_").split("_") if part)
-
-
-def _format_persona_dimensions_from_yaml(raw: dict[str, Any]) -> str:
-    display_name = str(raw.get("display_name") or "").strip()
-    lines: list[str] = []
-    if display_name:
-        lines.append("You are {}.".format(display_name))
-        lines.append("")
-    dims = raw.get("dimensions")
-    if isinstance(dims, dict) and dims:
-        lines.append("## Who you are")
-        lines.append("")
-        for key in sorted(dims.keys()):
-            value = dims.get(key)
-            if value is None or str(value).strip() == "":
-                continue
-            lines.append("- {}: {}".format(_humanize_dimension_key(key), value))
-    elif raw.get("system_prompt"):
-        lines.append(str(raw.get("system_prompt")).strip())
-    elif raw.get("summary"):
-        lines.append(str(raw.get("summary")).strip())
-    return "\n".join(lines).strip()
-
-
-def _read_persona_yaml_raw(repo_root: Path, persona_rel: str | None) -> dict[str, Any] | None:
-    yaml_path = _persona_prompt_abs_path(repo_root, persona_rel)
-    if not yaml_path:
-        return None
-    try:
-        raw = yaml.safe_load(Path(yaml_path).read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001
-        return None
-    return raw if isinstance(raw, dict) else None
-
-
 def _render_persona_prompt(
     repo_root: Path, persona_rel: str | None, persona: Persona
 ) -> str:
     from playground.user_sim.prompt import render_persona_block
 
-    yaml_path = _persona_prompt_abs_path(repo_root, persona_rel)
-    block = render_persona_block(persona, persona_yaml_path=yaml_path).strip()
-    if block and not _is_thin_persona_prompt(block, persona=persona):
-        return block
-    raw = _read_persona_yaml_raw(repo_root, persona_rel)
-    if raw:
-        fallback = _format_persona_dimensions_from_yaml(raw)
-        if fallback and not _is_thin_persona_prompt(fallback, persona=persona):
-            return fallback
-    return block
+    yaml_path = _persona_prompt_abs_path(repo_root, persona_rel) or persona.persona_path
+    return render_persona_block(persona, persona_yaml_path=yaml_path).strip()
 
 
 def _is_thin_persona_prompt(text: str, *, persona: Persona) -> bool:
@@ -785,7 +705,7 @@ def _enrich_debrief_prompts(
     persona_prompt = str(prompts.get("personaPrompt") or "").strip()
     harbor_prompt = str(prompts.get("harborPrompt") or "").strip()
     rendered = _render_persona_prompt(repo_root, persona_rel, persona)
-    if rendered and not _is_thin_persona_prompt(rendered, persona=persona):
+    if rendered and (persona.persona_path or _persona_prompt_abs_path(repo_root, persona_rel)):
         persona_prompt = rendered
         prompts["personaPrompt"] = persona_prompt
     elif not persona_prompt or _is_thin_persona_prompt(persona_prompt, persona=persona):
@@ -846,19 +766,18 @@ def _enrich_debrief_prompts(
 
     persona_view = debrief.get("persona")
     if isinstance(persona_view, dict):
-        context = str(persona_view.get("context") or "").strip()
-        display = str(prompts.get("personaPrompt") or "").strip()
-        if display.startswith("## Persona"):
-            display = display.split("\n", 1)[1].strip() if "\n" in display else ""
-        if display and (_is_thin_persona_prompt(context, persona=persona) or not context):
+        canonical_persona = bool(
+            persona.persona_path or _persona_prompt_abs_path(repo_root, persona_rel)
+        )
+        display = str(prompts.get("personaPrompt") or "")
+        if not canonical_persona:
+            display = display.strip()
+            if display.startswith("## Persona"):
+                display = display.split("\n", 1)[1].strip() if "\n" in display else ""
+        if display:
             persona_view["context"] = display
-        raw = _read_persona_yaml_raw(repo_root, persona_rel)
-        if raw and isinstance(raw.get("dimensions"), dict):
-            persona_view["dimensions"] = {
-                str(key): str(value)
-                for key, value in raw["dimensions"].items()
-                if value is not None and str(value).strip()
-            }
+        if persona.dimensions:
+            persona_view["dimensions"] = dict(persona.dimensions)
 
 
 def _map_chatbot_debrief_from_done_event(
@@ -919,6 +838,21 @@ def _map_survey_debrief(
 ) -> dict[str, Any]:
     if (output_dir / "survey_result.json").is_file():
         raw = _read_json(output_dir / "survey_result.json")
+        instrument = _resolve_survey_instrument(
+            repo_root=repo_root,
+            trial_dir=trial_dir,
+            payload=raw,
+        )
+        result = build_survey_eval_result_from_artifacts(
+            output_dir=output_dir,
+            config=SurveyEvalConfig(mode="harbor_persona_survey"),
+            persona=persona,
+            instrument=instrument,
+            created_at=created_at,
+        )
+        result_view = survey_result_view(result)
+    elif (output_dir / "structured_output.json").is_file():
+        raw = _read_json(output_dir / "structured_output.json")
         instrument = _resolve_survey_instrument(
             repo_root=repo_root,
             trial_dir=trial_dir,
@@ -1213,9 +1147,18 @@ def _web_result_from_decision_artifact(
         effort_score = _clamp_web_score(effort, default=5)
         ease_of_use = max(1, min(10, 11 - effort_score))
 
+    task_price = str(data.get("task_price_text", data.get("taskPriceText", "")) or "").strip()
+    compared_candidates = list(data.get("compared_candidates", data.get("comparedCandidates", [])) or [])
+    basis_primary = str(data.get("basis_primary", data.get("basisPrimary", "")) or "").strip()
+    exploration_style = str(data.get("exploration_style", data.get("explorationStyle", "")) or "").strip()
+
     return {
         "selectedProductId": selected_product_id,
         "selectedProductName": selected_product_name,
+        "taskPriceText": task_price,
+        "comparedCandidates": compared_candidates,
+        "basisPrimary": basis_primary,
+        "explorationStyle": exploration_style,
         "needSatisfaction": need_satisfaction,
         "easeOfUse": ease_of_use,
         "overallExperienceRating": overall,
@@ -1311,6 +1254,20 @@ def _map_web_debrief(
                         ).to_dict()
                     except ValueError:
                         web_result = None
+    if web_result is None and (output_dir / "web_result.json").is_file():
+        try:
+            web_result = _read_json(output_dir / "web_result.json")
+        except Exception:  # noqa: BLE001
+            pass
+    if web_result is None and (output_dir / "decision.json").is_file():
+        try:
+            web_result = _web_result_from_decision_artifact(
+                _read_json(output_dir / "decision.json"),
+                created_at=created_at,
+                user_feedback=feedback,
+            )
+        except Exception:  # noqa: BLE001
+            pass
     return {
         "id": "harbor-trial",
         "applicationType": "web",

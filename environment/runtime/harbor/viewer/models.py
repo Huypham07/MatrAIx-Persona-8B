@@ -1,4 +1,6 @@
 """API response models for the viewer."""
+from __future__ import annotations
+
 
 from datetime import datetime
 from typing import Any, Generic, TypeVar

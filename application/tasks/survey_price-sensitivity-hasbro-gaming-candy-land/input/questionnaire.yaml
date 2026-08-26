@@ -46,3 +46,9 @@ questions:
         label: "I want a balance of price and quality."
       - id: "quality_first"
         label: "I will pay more for quality."
+  - id: q_price_open_reason
+    prompt: "What specifically would make the current $16.24 price feel worth paying, or why would nothing make it worthwhile for you?"
+    type: free_text
+    responseStyle: narrative
+    construct: price_value_open_reason
+    required: true

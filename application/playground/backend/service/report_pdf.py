@@ -1141,9 +1141,23 @@ def build_trial_report_pdf(
             ("Source", _safe(persona.get("source"))),
         ]
     )
-    dims = persona.get("dimensions") if isinstance(persona.get("dimensions"), dict) else {}
-    if dims:
-        _render_persona_dimensions(pdf, dims)
+    persona_prompt = (
+        prompts.get("personaPrompt")
+        or prompts.get("harborPrompt")
+        or persona.get("context")
+        or persona.get("summary")
+        or ""
+    ).strip()
+    if persona_prompt:
+        pdf.muted("Persona prompt")
+        for para in persona_prompt.split("\n\n")[:30]:
+            text = para.strip()
+            if text:
+                pdf.body(_safe(text, limit=3000), size=9)
+    else:
+        dims = persona.get("dimensions") if isinstance(persona.get("dimensions"), dict) else {}
+        if dims:
+            _render_persona_dimensions(pdf, dims)
 
     # ---- Evaluation scorecard ----
     verifier = debrief.get("verifier") if isinstance(debrief.get("verifier"), dict) else {}
@@ -1233,14 +1247,55 @@ def build_trial_report_pdf(
     elif app_type == "web":
         web = debrief.get("webResult") if isinstance(debrief.get("webResult"), dict) else {}
         pdf.section("Web result")
-        rows = [
-            (_safe(key), _safe(web.get(key), limit=240))
-            for key in ("selection", "reason", "success", "score", "url")
-            if key in web
+        product_name = (
+            web.get("selectedProductName")
+            or web.get("selected_product_name")
+            or web.get("selection")
+            or "-"
+        )
+        product_id = web.get("selectedProductId") or web.get("selected_product_id") or ""
+        price_text = web.get("taskPriceText") or web.get("task_price_text") or ""
+
+        info_rows = [
+            ("Selected choice", _safe(product_name, limit=200)),
         ]
-        ratings = web.get("ratings") if isinstance(web.get("ratings"), dict) else {}
-        rows.extend((_safe(k), _safe(v)) for k, v in list(ratings.items())[:12])
-        pdf.kv_block(rows)
+        if product_id:
+            info_rows.append(("Product ID", _safe(product_id, limit=100)))
+        if price_text:
+            info_rows.append(("Price", _safe(price_text, limit=60)))
+        if web.get("basisPrimary") or web.get("basis_primary"):
+            info_rows.append(("Basis", _safe(web.get("basisPrimary") or web.get("basis_primary"))))
+        if web.get("explorationStyle") or web.get("exploration_style"):
+            info_rows.append(("Exploration style", _safe(web.get("explorationStyle") or web.get("exploration_style"))))
+        pdf.kv_block(info_rows)
+
+        # Ratings
+        ratings_strip = []
+        if web.get("needSatisfaction") is not None:
+            ratings_strip.append(("Need satisfaction", f"{web.get('needSatisfaction')}/10"))
+        if web.get("easeOfUse") is not None:
+            ratings_strip.append(("Ease of use", f"{web.get('easeOfUse')}/10"))
+        if web.get("overallExperienceRating") is not None:
+            ratings_strip.append(("Overall rating", f"{web.get('overallExperienceRating')}/10"))
+        if ratings_strip:
+            pdf.metric_strip(ratings_strip)
+
+        # Compared Candidates
+        candidates = web.get("comparedCandidates") or web.get("compared_candidates") or []
+        if candidates and isinstance(candidates, list):
+            pdf.muted(f"Compared alternatives ({len(candidates)} options)")
+            for cand in candidates:
+                if isinstance(cand, dict):
+                    c_name = cand.get("name") or cand.get("title") or "Option"
+                    c_price = f" ({cand.get('price')})" if cand.get("price") else ""
+                    c_notes = f": {cand.get('pros_cons') or cand.get('notes')}" if (cand.get('pros_cons') or cand.get('notes')) else ""
+                    pdf.bullet(_safe(f"{c_name}{c_price}{c_notes}", limit=240))
+
+        # Reason
+        reason = web.get("reason")
+        if reason:
+            pdf.muted("Decision rationale")
+            pdf.body(_safe(reason, limit=2000), size=9)
 
     elif app_type == "os-app":
         pass

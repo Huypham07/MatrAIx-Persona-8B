@@ -991,6 +991,19 @@ class TaskPersonaSampling(BaseModel):
     fields: Optional[List[str]] = None
     allocation: Optional[str] = None
     perCell: Optional[int] = None
+    personasPerSegment: Optional[int] = None
+
+
+class TaskPersonaSegment(BaseModel):
+    """One task-authored behavioral comparison group."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    label: str
+    hypothesis: str
+    dimensions: Dict[str, List[str]] = Field(default_factory=dict)
+    personaIds: List[str] = Field(default_factory=list)
 
 
 class TaskPersonaStrategy(BaseModel):
@@ -1004,6 +1017,8 @@ class TaskPersonaStrategy(BaseModel):
     dimensionFilters: Dict[str, List[str]] = Field(default_factory=dict)
     seed: Optional[int] = None
     cohortId: Optional[str] = None
+    segments: List[TaskPersonaSegment] = Field(default_factory=list)
+    personaIds: List[str] = Field(default_factory=list)
     sampling: Optional[TaskPersonaSampling] = None
 
 

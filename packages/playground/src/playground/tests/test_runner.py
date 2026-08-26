@@ -33,7 +33,7 @@ def test_runner_delegates_to_canonical_user_sim(monkeypatch):
         return sentinel
 
     monkeypatch.setattr("playground.user_sim.runner.run_playground", fake_run)
-    config = PlaygroundConfig(domain="game", max_turns=3)
+    config = PlaygroundConfig(domain="game", min_turns=3, max_turns=3)
     session = object()
     persona = _persona()
 

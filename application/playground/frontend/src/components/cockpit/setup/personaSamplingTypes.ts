@@ -31,6 +31,7 @@ export function filtersForSampleApi(
 
 export interface StrategySamplingView {
   mode: PersonaSamplingMode;
+  isPinnedSegments: boolean;
   fields: string[];
   allocation: StratifiedAllocation;
   sampleSize: number | null;
@@ -60,6 +61,7 @@ export function readStrategySampling(
 ): StrategySamplingView {
   const sampling = strategy?.sampling;
   if (sampling && typeof sampling === "object") {
+    const isPinnedSegments = sampling.mode === "pinnedSegments";
     const mode = asSamplingMode(sampling.mode);
     const fields = Array.isArray(sampling.fields)
       ? sampling.fields.filter(
@@ -82,6 +84,7 @@ export function readStrategySampling(
       perCell != null ? "perCell" : sampleSize != null ? "equalTotal" : "perCell";
     return {
       mode: mode === "single" && fields.length > 0 ? "stratified" : mode,
+      isPinnedSegments,
       fields,
       allocation: asAllocation(sampling.allocation, allocationFallback),
       sampleSize,
@@ -114,6 +117,7 @@ export function readStrategySampling(
   const mode = asSamplingMode(legacy?.defaultMode);
   return {
     mode: fields.length > 0 ? "stratified" : mode,
+    isPinnedSegments: false,
     fields,
     allocation: perCell != null ? "perCell" : sampleSize != null ? "equalTotal" : "perCell",
     sampleSize,

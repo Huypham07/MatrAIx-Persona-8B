@@ -252,6 +252,7 @@ export function SurveyEvalCockpit({
       isBatchActive,
       batchComplete,
       batchGridCells,
+      batchLive,
       expectedTrialCount,
       completedTrials: batchCompletedTrials,
       batchError,
@@ -365,6 +366,7 @@ export function SurveyEvalCockpit({
       void run({
         taskPath,
         personaId: persona.id,
+        personaPool,
         personaModel,
         mode: "auto",
         mapDebrief: (debrief, ctx) =>
@@ -383,7 +385,7 @@ export function SurveyEvalCockpit({
           }),
       });
     },
-    [persona, isRunning, run, personaModel, harborTasks],
+    [persona, isRunning, run, personaModel, personaPool, harborTasks],
   );
 
   const handleRun = useCallback(() => {
@@ -529,6 +531,7 @@ export function SurveyEvalCockpit({
       <SurveyLive
         instrument={activeQuestionnaire}
         result={surveyResult}
+        activeQuestion={job?.activeSurveyQuestion ?? null}
         phase={failed ? "error" : phase}
         error={displayError}
         instructionMarkdown={centerInstructionMarkdown}
@@ -589,6 +592,20 @@ export function SurveyEvalCockpit({
           liveContent={surveyLiveContent}
           batchJobName={batchJobName}
           batchCells={batchGridCells}
+          selectedBatchTrialId={batchLive.selectedTrial}
+          onSelectBatchTrial={(trial) => batchLive.selectTrial(trial.id)}
+          onBackToBatchGrid={() => batchLive.selectTrial("")}
+          batchLiveContent={batchLive.selectedLive ? (
+            <SurveyLive
+              instrument={activeQuestionnaire}
+              result={batchLive.selectedLive.surveyResult ?? null}
+              activeQuestion={batchLive.selectedLive.activeSurveyQuestion ?? null}
+              phase={batchLive.selectedLive.phase === "error" ? "error" : batchLive.selectedLive.phase === "done" ? "done" : "running"}
+              error={batchLive.selectedLive.phase === "error" ? "Trial failed." : null}
+              instructionMarkdown={centerInstructionMarkdown}
+              onRetry={() => undefined}
+            />
+          ) : null}
           runLaunchPhase={runLaunchPhase}
           progressPct={runProgressPct}
           progressLabel={runProgressLabel}
@@ -723,9 +740,10 @@ export function SurveyEvalCockpit({
 
 
 /** The Survey live / results column (modelled on `data-view="surveylive"`). */
-function SurveyLive({
+export function SurveyLive({
   instrument,
   result,
+  activeQuestion = null,
   phase,
   error,
   instructionMarkdown,
@@ -733,6 +751,7 @@ function SurveyLive({
 }: {
   instrument: SurveyInstrument | null;
   result: SurveyResult | null;
+  activeQuestion?: { id: string; prompt: string; type: string; index: number; total: number } | null;
   phase: HarborCockpitPhase;
   error: string | null;
   instructionMarkdown?: string;
@@ -785,9 +804,14 @@ function SurveyLive({
               question={activeInstrument.questions.find((q) => q.id === answer.questionId) ?? null}
             />
           ))}
+          {running && activeQuestion && !result.answers.some((answer) => answer.questionId === activeQuestion.id) ? (
+            <PendingSurveyQuestion key={activeQuestion.id} question={activeQuestion} />
+          ) : null}
         </div>
       ) : running ? (
-        instructionMarkdown?.trim() ? (
+        activeQuestion ? (
+          <PendingSurveyQuestion question={activeQuestion} />
+        ) : instructionMarkdown?.trim() ? (
           <div className="custom-scrollbar max-h-[480px] overflow-y-auto rounded-md border border-outline bg-surface-lowest p-4 text-[15px] text-text-main">
             <Markdown>{instructionMarkdown}</Markdown>
           </div>
@@ -811,10 +835,32 @@ function SurveyLive({
               </>
             )}
           </div>
-          {result.trajectory.length > 0 && <TrajectoryFold events={result.trajectory} />}
+          {result.trajectory.length > 0 && <TrajectoryFold events={result.trajectory} authoredTotal={total} answeredCount={answered} />}
         </>
       )}
     </section>
+  );
+}
+
+function PendingSurveyQuestion({
+  question,
+}: {
+  question: { id: string; prompt: string; type: string; index: number; total: number };
+}) {
+  const { t } = useI18n();
+  const meta = questionTypeMeta(question.type, t);
+  return (
+    <div className="rounded-md border border-primary/40 bg-primary/5 p-5" aria-live="polite" data-question-id={question.id}>
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="hud text-[12px] text-primary">{t("eval.survey.questionNumber", { number: question.index })}</span>
+          <span title={meta.tooltip} className={`hud rounded border px-1.5 py-0.5 text-[11px] ${meta.tone}`}>{meta.label}</span>
+        </div>
+        <span className="hud text-[11px] text-text-dim">{t("eval.survey.answering")}</span>
+      </div>
+      <p className="text-[15px] leading-relaxed text-text-main">{question.prompt}</p>
+      <div className="mt-4 h-2.5 w-2/3 animate-rb-pulse rounded bg-surface-high" aria-hidden />
+    </div>
   );
 }
 
@@ -983,10 +1029,12 @@ function AnswerValue({ answer, question }: { answer: SurveyAnswer; question: Sur
 }
 
 /** Collapsible Q&A trajectory timeline. */
-function TrajectoryFold({ events }: { events: SurveyTrajectoryEvent[] }) {
+function TrajectoryFold({ events, authoredTotal, answeredCount }: { events: SurveyTrajectoryEvent[]; authoredTotal: number; answeredCount: number }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const groups = groupSurveyTrajectory(events);
+  const questionGroups = groups.filter((group) => group.kind === "qa");
+  const lifecycleGroups = groups.filter((group) => group.kind !== "qa");
   return (
     <section className="panel overflow-hidden rounded-md border border-outline bg-surface">
       <button
@@ -997,13 +1045,13 @@ function TrajectoryFold({ events }: { events: SurveyTrajectoryEvent[] }) {
       >
         <span className="hud text-[12px] text-text-dim">{t("eval.survey.trajectory")}</span>
         <span className="flex items-center gap-2">
-          <span className="hud text-[11px] text-text-dim">{t("eval.survey.steps", { count: groups.length })}</span>
+          <span className="hud text-[11px] text-text-dim">{t("eval.survey.answered", { answered: answeredCount, total: authoredTotal })}</span>
           <Sym name={open ? "expand_more" : "chevron_right"} size={18} className="text-text-dim" />
         </span>
       </button>
       {open && (
         <div className="rise-in custom-scrollbar max-h-96 space-y-2.5 overflow-auto p-3">
-          {groups.map((group, index) => {
+          {questionGroups.map((group, index) => {
             if (group.kind === "qa") {
               const qIndex =
                 surveyTrajectoryQuestionIndex(group.ask) ??
@@ -1043,6 +1091,10 @@ function TrajectoryFold({ events }: { events: SurveyTrajectoryEvent[] }) {
               );
             }
 
+            return null;
+          })}
+          {lifecycleGroups.length > 0 ? <div className="hud pt-2 text-[11px] text-text-dim">Lifecycle</div> : null}
+          {lifecycleGroups.map((group, index) => {
             const event = group.event;
             const action = event.action;
             let title = t("eval.survey.trajectoryAction", {

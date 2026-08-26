@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Harbor runner script for OpenHands SDK agent."""
+from __future__ import annotations
+
 
 import argparse
 import base64

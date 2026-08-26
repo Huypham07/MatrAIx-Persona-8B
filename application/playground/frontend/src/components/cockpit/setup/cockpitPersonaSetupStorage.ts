@@ -81,7 +81,7 @@ const STORAGE_KEY = "playground.cockpitPersonaSetupByTaskPath";
 const LEGACY_STORAGE_KEY = "playground.cockpitPersonaSetupByTask";
 const MODEL_MIGRATION_KEY = "playground.cockpitModelMigrated_v2";
 const OLD_DEFAULT_MODEL = "anthropic/claude-sonnet-4-6";
-const NEW_DEFAULT_MODEL = "anthropic/claude-haiku-4-5";
+const NEW_DEFAULT_MODEL = "local/qwen3-14b";
 
 /**
  * One-shot migration: replace the old os-app default (Sonnet 4.6) with
@@ -309,13 +309,32 @@ export function setupFromPersonaStrategy(
     next.personaPool = sanitizePersonaPool(strategy.pool);
   }
 
-  // Fresh strategy apply clears prior preview selection and locks custom filters.
-  next.selectedPersonaIds = [];
-  next.selectedCount = 0;
+  const pinnedIds =
+    strategy.sampling?.mode === "pinnedSegments"
+      ? (strategy.segments ?? []).flatMap((segment) => segment.personaIds ?? [])
+      : [];
+  // Pinned task strategies are immediately runnable; sampled strategies still
+  // start empty and are filled by Pull.
+  next.selectedPersonaIds = pinnedIds;
+  next.selectedCount = pinnedIds.length;
   next.useEntirePool = false;
   next.useTaskDefaultStrategy = true;
   next.taskDefaultStrategyDismissed = false;
   return next;
+}
+
+/** Whether a persisted selection may override a freshly loaded task strategy. */
+export function canRestoreStoredTaskSelection(
+  strategy: TaskPersonaStrategy,
+  stored: CockpitPersonaSetupRecord,
+  hasTaskSpecificStore: boolean,
+): boolean {
+  if (!hasTaskSpecificStore) return false;
+  if (strategy.sampling?.mode !== "pinnedSegments") return true;
+  const pinnedIds = new Set(
+    (strategy.segments ?? []).flatMap((segment) => segment.personaIds ?? []),
+  );
+  return stored.selectedPersonaIds.every((id) => pinnedIds.has(id));
 }
 
 export function hasStoredPersonaSetup(taskPath: string | null | undefined): boolean {

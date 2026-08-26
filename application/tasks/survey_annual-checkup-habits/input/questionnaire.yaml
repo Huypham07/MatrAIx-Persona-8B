@@ -473,6 +473,12 @@ questions:
         label: "Fair"
       - id: "e"
         label: "Poor"
+  - id: q45
+    prompt: "In your own words, what is the biggest reason you keep up with or put off regular checkups?"
+    type: free_text
+    responseStyle: narrative
+    construct: checkup_open_reason
+    required: true
   - id: q30
     prompt: "On a scale of 0 to 10, how likely are you to recommend your checkup provider to a friend or family member? (0 = not at all likely, 10 = extremely likely)"
     type: single_choice

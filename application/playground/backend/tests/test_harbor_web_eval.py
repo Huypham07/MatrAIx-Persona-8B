@@ -96,7 +96,33 @@ def test_build_web_task_prompt_requires_stated_operation_and_user_experience_fee
     assert "user experience" in prompt
     assert "collect" in prompt
     assert "quote_choice.json" in prompt
-    assert "selected_product_id" in prompt
+    assert "decision_subject_id" in prompt
+
+
+def test_build_web_task_prompt_uses_canonical_instruction_schema(tmp_path):
+    task_dir = tmp_path / "application" / "tasks" / "web-contract"
+    task_dir.mkdir(parents=True)
+    (task_dir / "instruction.md").write_text(
+        "Save /app/output/notion_plan_comparison.json with "
+        "task_options_considered and task_billing_mode=monthly.\n",
+        encoding="utf-8",
+    )
+    task = WebEvalTask(
+        id="web-contract",
+        title="Plan comparison",
+        site_name="Notion",
+        site_url="https://www.notion.com/pricing",
+        task_path=task_dir,
+        description="Compare plans.",
+        output_artifact="notion_plan_comparison.json",
+        submission_profile="notion_plan_comparison",
+    )
+
+    prompt = build_web_task_prompt(task)
+
+    assert "task_options_considered" in prompt
+    assert "task_billing_mode=monthly" in prompt
+    assert "Follow this canonical task instruction exactly" in prompt
 
 
 def test_build_result_from_harbor_web_artifacts_maps_result_and_trace(tmp_path):

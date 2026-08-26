@@ -289,6 +289,7 @@ export function OsAppEvalCockpit({
     void run({
       taskPath: task.taskPath,
       personaId: persona.id,
+      personaPool,
       personaModel,
       agentName: "persona-computer-1",
       osAppBackend: activeCuaRuntime,
@@ -303,7 +304,7 @@ export function OsAppEvalCockpit({
           platform: task.platform,
         }),
     });
-  }, [persona, task, isRunning, run, personaModel, activeCuaRuntime]);
+  }, [persona, task, isRunning, run, personaModel, personaPool, activeCuaRuntime]);
 
   const handleLaunch = useCallback(async () => {
     if (!canLaunchCohort || !task || isRunning) {

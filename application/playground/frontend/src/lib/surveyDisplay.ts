@@ -116,21 +116,27 @@ export function groupSurveyTrajectory(
   events: ReadonlyArray<SurveyTrajectoryEvent>,
 ): SurveyTrajectoryGroup[] {
   const groups: SurveyTrajectoryGroup[] = [];
-  for (let i = 0; i < events.length; i += 1) {
-    const event = events[i];
-    const next = events[i + 1];
-    if (
-      event.action === "ask_question" &&
-      next &&
-      next.action === "answer_question"
-    ) {
-      groups.push({ kind: "qa", ask: event, answer: next });
-      i += 1;
-      continue;
+  const asks = new Map<string, SurveyTrajectoryEvent>();
+  for (const event of events) {
+    const questionId = surveyTrajectoryQuestionId(event);
+    if (event.action === "ask_question" && questionId) {
+      asks.set(questionId, event);
+    } else if (event.action === "answer_question" && questionId && asks.has(questionId)) {
+      groups.push({ kind: "qa", ask: asks.get(questionId)!, answer: event });
+      asks.delete(questionId);
+    } else {
+      groups.push({ kind: "event", event });
     }
-    groups.push({ kind: "event", event });
   }
+  // Unanswered asks remain observable as lifecycle/event rows rather than
+  // being fabricated into completed question steps.
+  for (const ask of asks.values()) groups.push({ kind: "event", event: ask });
   return groups;
+}
+
+export function surveyTrajectoryQuestionId(event: SurveyTrajectoryEvent): string | null {
+  const raw = event.context?.questionId ?? event.outcome?.questionId;
+  return typeof raw === "string" && raw.trim() ? raw : null;
 }
 
 export function surveyTrajectoryPrompt(event: SurveyTrajectoryEvent): string {

@@ -1,4 +1,6 @@
 """FastAPI server for the Playground Viewer."""
+from __future__ import annotations
+
 
 import html
 import json

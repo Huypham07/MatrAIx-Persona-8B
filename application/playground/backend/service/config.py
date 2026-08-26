@@ -25,15 +25,19 @@ HARBOR_PERSONA_MODEL_ENV = "MATRIX_HARBOR_PERSONA_MODEL"
 PLAYGROUND_RUNTIME_ENV = "MATRIX_PLAYGROUND_RUNTIME"
 EXECUTION_PLANE_ENV = "MATRIX_EXECUTION_PLANE"
 REMOTE_RUNNER_API_URL_ENV = "REMOTE_RUNNER_API_URL"
-DEFAULT_PERSONA_MODEL = "anthropic/claude-haiku-4-5"
+DEFAULT_PERSONA_MODEL = "local/qwen3-14b"
 
 # Persona-model IDs use LiteLLM provider prefixes (``anthropic/``, ``openai/``,
-# ``dashscope/``, ``openrouter/``). OpenAI-compatible providers use their own
+# ``dashscope/``, ``openrouter/``, ``local/``). OpenAI-compatible providers use their own
 # credentials and endpoints.
 PERSONA_MODEL_KNOB_META: Dict[str, Dict[str, str]] = {
+    "local/qwen3-14b": {
+        "label": "Qwen 3 14B (Local)",
+        "description": "Local Qwen3-14B endpoint with Basic Auth.",
+    },
     "anthropic/claude-haiku-4-5": {
         "label": "Claude Haiku 4.5",
-        "description": "Lower-cost persona simulation; the default.",
+        "description": "Lower-cost persona simulation.",
     },
     "anthropic/claude-sonnet-4-6": {
         "label": "Claude Sonnet 4.6",

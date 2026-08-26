@@ -12,6 +12,10 @@ export interface CockpitRunCenterProps {
   fillLiveContent?: boolean;
   batchJobName: string | null;
   batchCells: BatchTrialCell[];
+  selectedBatchTrialId?: string | null;
+  onSelectBatchTrial?: (trial: BatchTrialCell) => void;
+  onBackToBatchGrid?: () => void;
+  batchLiveContent?: ReactNode;
   runLaunchPhase: RunLaunchPhase;
   progressPct: number;
   progressLabel?: string;
@@ -43,6 +47,10 @@ export function CockpitRunCenter({
   fillLiveContent,
   batchJobName,
   batchCells,
+  selectedBatchTrialId,
+  onSelectBatchTrial,
+  onBackToBatchGrid,
+  batchLiveContent,
   runLaunchPhase,
   progressPct,
   progressLabel,
@@ -70,7 +78,14 @@ export function CockpitRunCenter({
       {showLive ? (
         batchJobName ? (
           <BatchTrialStage>
-            <BatchTrialGrid trials={batchCells} jobLabel={batchJobName} />
+            {selectedBatchTrialId && batchLiveContent ? (
+              <div className="flex h-full min-h-0 flex-col gap-2">
+                <button type="button" className="self-start text-sm text-primary" onClick={onBackToBatchGrid}>Back to cohort</button>
+                <CockpitLiveStage className="h-0 min-h-0 flex-1" fillContent>{batchLiveContent}</CockpitLiveStage>
+              </div>
+            ) : (
+              <BatchTrialGrid trials={batchCells} jobLabel={batchJobName} selectedTrialId={selectedBatchTrialId} onSelectTrial={onSelectBatchTrial} />
+            )}
           </BatchTrialStage>
         ) : (
           <CockpitLiveStage className="h-0 min-h-0 flex-1" fillContent={fillLiveContent}>{liveContent}</CockpitLiveStage>

@@ -204,6 +204,8 @@ class HarborSidecarChatSession:
         *,
         runtime: ChatbotTaskConfig,
         api_url: str,
+        trace_writer: Any = None,
+        trace_context: Optional[Dict[str, Any]] = None,
     ) -> None:
         self._environment = environment
         self.config = config
@@ -211,6 +213,8 @@ class HarborSidecarChatSession:
         self._api_url = api_url.rstrip("/")
         self._session_id: Optional[str] = None
         self.turns: List[Dict[str, Any]] = []
+        self._trace_writer = trace_writer
+        self._trace_context = dict(trace_context or {})
 
     async def _request_json(
         self,
@@ -291,7 +295,23 @@ class HarborSidecarChatSession:
             body[protocol.domain_field] = context_value
         if protocol.context_field:
             body[protocol.context_field] = context_value
+        if self._trace_writer is not None:
+            body["_traceContext"] = dict(self._trace_context)
         response = await self._request_json(protocol.method, protocol.path, body=body)
+        sidecar_trace = response.pop("_llmTrace", None)
+        if isinstance(sidecar_trace, dict) and self._trace_writer is not None:
+            self._trace_writer.record(
+                model=str(sidecar_trace.get("model") or "Qwen3-14B"),
+                provider=str(sidecar_trace.get("provider") or "sidecar"),
+                messages=list(sidecar_trace.get("messages") or []),
+                raw_output=sidecar_trace.get("rawOutput"),
+                parsed_output=sidecar_trace.get("parsedOutput"),
+                usage=sidecar_trace.get("usage"),
+                finish_reason=sidecar_trace.get("finishReason"),
+                error=sidecar_trace.get("error"),
+                step=str(sidecar_trace.get("step") or "chatbot_application_reply"),
+                duration_ms=sidecar_trace.get("durationMs"),
+            )
         session_id = response.get(protocol.response_session_id_field)
         if session_id:
             self._session_id = str(session_id)
@@ -435,6 +455,8 @@ def create_harbor_chat_session(
     task_path: str | None,
     repo_root: Path,
     trial_dir: Path,
+    trace_writer: Any = None,
+    trace_context: Optional[Dict[str, Any]] = None,
 ) -> HarborChatSession:
     if _uses_mcp_transport(runtime):
         mcp_url = _resolve_harbor_mcp_url(
@@ -453,7 +475,14 @@ def create_harbor_chat_session(
     marker = trial_dir / ".sidecar_api_url"
     if marker.is_file():
         api_url = marker.read_text(encoding="utf-8").strip() or api_url
-    return HarborSidecarChatSession(environment, config, runtime=runtime, api_url=api_url)
+    return HarborSidecarChatSession(
+        environment,
+        config,
+        runtime=runtime,
+        api_url=api_url,
+        trace_writer=trace_writer,
+        trace_context=trace_context,
+    )
 
 
 def harbor_output_artifacts_from_result(
@@ -530,6 +559,8 @@ async def run_harbor_chat_eval(
     persona_yaml_path: Optional[str] = None,
     repo_root: Optional[Any] = None,
     job_dir: Optional[Any] = None,
+    trace_dir: Optional[Any] = None,
+    segment_id: Optional[str] = None,
 ) -> PlaygroundResult:
     """Async chat eval loop using a Harbor sidecar session."""
     from playground.user_sim.runner import run_playground_async
@@ -545,6 +576,8 @@ async def run_harbor_chat_eval(
         persona_yaml_path=persona_yaml_path,
         repo_root=repo_root,
         job_dir=job_dir,
+        trace_dir=trace_dir,
+        segment_id=segment_id,
     )
 
 
@@ -571,6 +604,23 @@ async def run_harbor_chat_eval_for_persona(
         model_name=model_name,
     )
     eval_persona = _eval_persona(persona)
+    from playground.llm_trace import LlmTraceWriter
+    from playground.user_sim.prompt import persona_primary_language
+
+    trial_dir = environment.trial_paths.trial_dir
+    trace_context = {
+        "trialId": trial_dir.name,
+        "personaId": eval_persona.id,
+        "expectedLanguage": persona_primary_language(eval_persona),
+    }
+    trace_writer = LlmTraceWriter(
+        trial_dir / "llm_calls.jsonl",
+        metadata={
+            "jobId": trial_dir.parent.name,
+            "taskPath": task_path,
+            **trace_context,
+        },
+    )
     sut_description = (
         (bundle.context_markdown if bundle is not None else "")
         or (bundle.instruction_markdown if bundle is not None else "")
@@ -582,10 +632,11 @@ async def run_harbor_chat_eval_for_persona(
         runtime=runtime,
         task_path=task_path,
         repo_root=repo_root,
-        trial_dir=environment.trial_paths.trial_dir,
+        trial_dir=trial_dir,
+        trace_writer=trace_writer,
+        trace_context=trace_context,
     )
     persona_path = str(getattr(persona, "persona_path", "") or "") or None
-    trial_dir = environment.trial_paths.trial_dir
     result = await run_harbor_chat_eval(
         session,
         eval_persona,
@@ -597,6 +648,7 @@ async def run_harbor_chat_eval_for_persona(
         persona_yaml_path=persona_path,
         repo_root=repo_root,
         job_dir=trial_dir.parent,
+        trace_dir=trial_dir,
     )
     if on_event is not None:
         on_event({"type": "phase", "phase": "harbor_collecting_artifacts"})

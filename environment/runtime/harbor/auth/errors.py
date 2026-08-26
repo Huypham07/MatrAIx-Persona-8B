@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 NOT_AUTHENTICATED_MESSAGE = "Not authenticated. Please run `harbor auth login` first."
 
 

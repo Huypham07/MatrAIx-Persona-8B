@@ -1,4 +1,6 @@
 """GitHub Copilot CLI agent implementation for Harbor."""
+from __future__ import annotations
+
 
 import json
 import os

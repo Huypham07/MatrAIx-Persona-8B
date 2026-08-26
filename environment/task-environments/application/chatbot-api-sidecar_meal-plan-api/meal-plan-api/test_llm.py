@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from llm import build_grounded_messages, llm_enabled
+from llm import build_grounded_messages, llm_enabled, model_name
 from server import SESSIONS, _SESSION_LOCKS, create_session, post_message
 
 
@@ -19,8 +19,8 @@ def _clear_sessions() -> None:
 
 
 def test_llm_enabled_respects_flag_and_key() -> None:
-    prev_key = os.environ.pop("OPENAI_API_KEY", None)
-    prev_flag = os.environ.pop("MEAL_PLAN_LLM", None)
+    names = ("OPENAI_API_KEY", "OPENAI_BASE_URL", "LOCAL_LLM_BASE_URL", "MEAL_PLAN_LLM")
+    previous = {name: os.environ.pop(name, None) for name in names}
     try:
         assert llm_enabled() is False
         os.environ["OPENAI_API_KEY"] = "sk-test"
@@ -30,14 +30,36 @@ def test_llm_enabled_respects_flag_and_key() -> None:
         os.environ["MEAL_PLAN_LLM"] = "1"
         assert llm_enabled() is True
     finally:
-        if prev_key is None:
-            os.environ.pop("OPENAI_API_KEY", None)
-        else:
-            os.environ["OPENAI_API_KEY"] = prev_key
-        if prev_flag is None:
-            os.environ.pop("MEAL_PLAN_LLM", None)
-        else:
-            os.environ["MEAL_PLAN_LLM"] = prev_flag
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+
+def test_local_llm_env_enables_qwen_sidecar() -> None:
+    names = (
+        "OPENAI_API_KEY",
+        "OPENAI_BASE_URL",
+        "LOCAL_LLM_BASE_URL",
+        "LOCAL_LLM_MODEL",
+        "MEAL_PLAN_MODEL",
+        "MEAL_PLAN_LLM",
+    )
+    previous = {name: os.environ.get(name) for name in names}
+    try:
+        for name in names:
+            os.environ.pop(name, None)
+        os.environ["LOCAL_LLM_BASE_URL"] = "http://local-qwen.test/v1"
+        os.environ["LOCAL_LLM_MODEL"] = "Qwen3-14B"
+        assert llm_enabled() is True
+        assert model_name() == "Qwen3-14B"
+    finally:
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
 
 
 def test_grounded_prompt_includes_plan_and_allergens() -> None:
@@ -169,6 +191,38 @@ def test_concurrent_sessions() -> None:
 
 
 def test_hard_safety_skips_llm() -> None:
+    _clear_sessions()
+
+
+def test_evaluator_request_returns_internal_llm_trace_envelope() -> None:
+    _clear_sessions()
+    sid = create_session()["sessionId"]
+
+    def fake(*, messages, model):
+        assert model == model_name()
+        return "A grounded reply."
+
+    traced = post_message(
+        sid,
+        "I need a practical vegetarian meal plan.",
+        chat_completions=fake,
+        trace_context={"trialId": "trial-1", "expectedLanguage": "Spanish"},
+    )
+    trace = traced["_llmTrace"]
+    assert trace["model"] == model_name()
+    assert trace["messages"][-1]["content"] == (
+        "I need a practical vegetarian meal plan."
+    )
+    assert trace["rawOutput"] == "A grounded reply."
+    assert trace["trialId"] == "trial-1"
+    assert "authorization" not in json.dumps(trace).lower()
+
+    ordinary = post_message(
+        sid,
+        "No allergies.",
+        chat_completions=fake,
+    )
+    assert "_llmTrace" not in ordinary
     _clear_sessions()
     called = {"n": 0}
 

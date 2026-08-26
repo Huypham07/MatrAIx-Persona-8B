@@ -3,6 +3,8 @@
 Handles Supabase DB queries for tasks, datasets, and publishing
 via the Harbor registry.
 """
+from __future__ import annotations
+
 
 from typing import Any, cast
 

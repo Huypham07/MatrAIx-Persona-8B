@@ -374,7 +374,7 @@ function contextPriority(context: AggregationContext, category: ReportingCategor
 }
 
 function trialStatus(trial: HarborTrialRow): "done" | "failed" | "running" | "pending" {
-  if (trial.error || trial.succeeded === false) return "failed";
+  if (trial.error || (trial.completed && trial.succeeded === false)) return "failed";
   if (trial.completed) return "done";
   if (trial.completed === false) return "running";
   return "pending";
@@ -5748,7 +5748,7 @@ export function HarborJobDetail({ jobName, onBack, onOpenTrial }: HarborJobDetai
       const trials = ctx.state.data?.trials ?? [];
       const pending = trials.some((trial) => !trial.completed);
       if (launch?.status === "running" || launch?.status === "queued" || pending) {
-        return 3000;
+        return 1500;
       }
       return false;
     },
@@ -5791,7 +5791,9 @@ export function HarborJobDetail({ jobName, onBack, onOpenTrial }: HarborJobDetai
 
   const progress = useMemo(() => {
     const done = trials.filter((trial) => trial.completed && trial.succeeded !== false && !trial.error).length;
-    const failed = trials.filter((trial) => trial.error || trial.succeeded === false).length;
+    const failed = trials.filter(
+      (trial) => trial.error || (trial.completed && trial.succeeded === false),
+    ).length;
     const running = trials.filter((trial) => !trial.completed).length;
     return { done, failed, running, total: trials.length };
   }, [trials]);
@@ -5846,6 +5848,12 @@ export function HarborJobDetail({ jobName, onBack, onOpenTrial }: HarborJobDetai
               disabled={query.isFetching || aggregationQuery.isFetching}
             >
               {t("reports.page.refresh")}
+            </StudioToolbarButton>
+            <StudioToolbarButton
+              icon="folder_zip"
+              onClick={() => api.downloadHarborJobTraceZip(jobName)}
+            >
+              All traces ZIP
             </StudioToolbarButton>
           </>
         }
@@ -5944,12 +5952,13 @@ export function HarborJobDetail({ jobName, onBack, onOpenTrial }: HarborJobDetai
                 · {t("reports.page.oneConversation")}
               </span>
             </div>
-            <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_5.5rem_5.5rem_2rem] gap-3 border-b border-outline/40 px-4 py-2.5 text-[12px] uppercase tracking-wide text-text-dim">
+            <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_5.5rem_5.5rem_2rem_5rem] gap-3 border-b border-outline/40 px-4 py-2.5 text-[12px] uppercase tracking-wide text-text-dim">
               <span>{t("reports.page.persona")}</span>
               <span>{t("reports.page.run")}</span>
               <span>{t("reports.page.cost")}</span>
               <span>{t("reports.page.status")}</span>
               <span className="sr-only">{t("reports.page.open")}</span>
+              <span>Trace</span>
             </div>
             <ul className="divide-y divide-outline-dim">
               {trials.length === 0 ? (
@@ -5965,7 +5974,7 @@ export function HarborJobDetail({ jobName, onBack, onOpenTrial }: HarborJobDetai
                   const costLabel = usageListPrimary(trialUsage, t);
                   const usageTitle = usageCompactLine(trialUsage, t);
                   return (
-                    <li key={trial.trialName}>
+                    <li key={trial.trialName} className="flex items-center">
                       <button
                         type="button"
                         disabled={!clickable}
@@ -5975,7 +5984,7 @@ export function HarborJobDetail({ jobName, onBack, onOpenTrial }: HarborJobDetai
                           prefetchTrialDebrief(trial.trialName);
                           onOpenTrial?.(trial.trialName);
                         }}
-                        className={`grid w-full grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_5.5rem_5.5rem_2rem] items-center gap-3 px-4 py-3 text-left text-[15px] ${
+                        className={`grid min-w-0 flex-1 grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_5.5rem_5.5rem_2rem] items-center gap-3 py-3 pl-4 pr-3 text-left text-[15px] ${
                           clickable ? "hover:bg-surface/40" : ""
                         } ${FOCUS_RING}`}
                       >
@@ -5995,6 +6004,15 @@ export function HarborJobDetail({ jobName, onBack, onOpenTrial }: HarborJobDetai
                           size={18}
                           className={clickable ? "text-text-dim" : "text-text-dim/40"}
                         />
+                      </button>
+                      <button
+                        type="button"
+                        className={`mr-4 inline-flex w-16 items-center justify-center gap-1 rounded-md border border-outline/50 px-2 py-1 text-[12px] text-text-variant hover:bg-surface/60 ${FOCUS_RING}`}
+                        title={`Download trace for ${trial.personaId ?? trial.trialName}`}
+                        onClick={() => api.downloadHarborTrialTraceZip(jobName, trial.trialName)}
+                      >
+                        <Sym name="folder_zip" size={15} />
+                        ZIP
                       </button>
                     </li>
                   );

@@ -123,8 +123,8 @@ class LocalDistributedHarborCoordinator:
         self._write_job_result(manifests=manifests, retries=0, finished=False)
 
         retries = 0
-        concurrency = int(self.job_config.get("n_concurrent_trials") or 1)
-        max_workers = max(1, min(concurrency, len(manifests)))
+        concurrency = int(self.job_config.get("n_concurrent_trials") or 3)
+        max_workers = max(1, min(concurrency, len(manifests), 4))
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             futures = {
                 pool.submit(self._run_manifest_with_retries, manifest): manifest

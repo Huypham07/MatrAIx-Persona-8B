@@ -9,6 +9,7 @@ import type { ConfigOptionsResponse, PlaygroundPersona, TaskPersonaStrategy } fr
 import { PERSONA_BENCH_POOL } from "@/lib/types";
 
 import {
+  canRestoreStoredTaskSelection,
   defaultPersonaSetup,
   hasStoredPersonaSetup,
   isTaskStrategyFillPool,
@@ -62,7 +63,7 @@ export function useSetupPersonaSampling(
   isActive = true,
 ) {
   const fallbackPersonaModel =
-    options?.environment.personaModel ?? "anthropic/claude-haiku-4-5";
+    options?.environment.personaModel ?? "local/qwen3-14b";
   const normalizedPath = taskPath?.trim() || null;
   const [initial] = useState(() =>
     readCockpitPersonaSetup(taskKind, fallbackPersonaModel, normalizedPath),
@@ -199,6 +200,17 @@ export function useSetupPersonaSampling(
     const key = `${normalizedPath ?? ""}:${sampling.mode}:${sampling.allocation}:${sampling.sampleSize ?? ""}:${sampling.perCell ?? ""}:${sampling.fields.join(",")}`;
     if (appliedKeyRef.current === key) return;
     appliedKeyRef.current = key;
+    if (sampling.isPinnedSegments) {
+      const pinnedIds = (strategy.segments ?? []).flatMap(
+        (segment) => segment.personaIds ?? [],
+      );
+      setSelectedPersonaIds(pinnedIds);
+      setSelectedCount(pinnedIds.length);
+      setUseEntirePool(false);
+      if (typeof strategy.pool === "string" && strategy.pool.trim()) {
+        setPersonaPool(strategy.pool.trim());
+      }
+    }
     setSamplingMode(sampling.mode);
     if (sampling.fields.length > 0) {
       setFields(sampling.fields);
@@ -262,10 +274,14 @@ export function useSetupPersonaSampling(
         personaModel: effectiveModel,
         parallelTrials: stored.parallelTrials,
       });
-      // Keep last cohort selection across remount/navigation. Strategy apply
-      // clears preview ids intentionally for explicit "Task default" toggles,
-      // but hydrate must not wipe a selection the operator already made.
-      if (stored.selectedPersonaIds.length > 0 || stored.selectedCount > 0) {
+      // Keep a task-specific cohort across remount/navigation. Never copy the
+      // legacy task-kind selection into a different task, and never let stale
+      // ids replace a pinned-segment strategy (for example, a persona retained
+      // from another survey while switching instruments).
+      if (
+        canRestoreStoredTaskSelection(strategy, stored, hasTaskSpecificStore) &&
+        (stored.selectedPersonaIds.length > 0 || stored.selectedCount > 0)
+      ) {
         applied.selectedPersonaIds = stored.selectedPersonaIds;
         applied.selectedCount = stored.selectedCount || stored.selectedPersonaIds.length;
         applied.useEntirePool = stored.useEntirePool;
@@ -290,11 +306,6 @@ export function useSetupPersonaSampling(
         personaModel: effectiveModel,
         parallelTrials: stored.parallelTrials,
       });
-      if (stored.selectedPersonaIds.length > 0 || stored.selectedCount > 0) {
-        applied.selectedPersonaIds = stored.selectedPersonaIds;
-        applied.selectedCount = stored.selectedCount || stored.selectedPersonaIds.length;
-        applied.useEntirePool = stored.useEntirePool;
-      }
     }
 
     const handoff = isActive ? peekPersonaHandoff() : null;

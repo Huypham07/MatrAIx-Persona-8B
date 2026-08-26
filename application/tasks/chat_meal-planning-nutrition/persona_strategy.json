@@ -1,51 +1,53 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
+  "pool": "persona/datasets/task-eval-personas",
   "sources": [],
-  "dimensionFilters": {
-    "age_bracket": [
-      "25-34",
-      "35-44",
-      "45-54"
-    ],
-    "lstyle_diet_type": [
-      "Omnivore",
-      "Vegetarian",
-      "Vegan"
-    ],
-    "health_dietary_restriction": [
-      "Allergy",
-      "Religious",
-      "Medical"
-    ],
-    "habit_meal_prepping": [
-      "Weekly",
-      "Never"
-    ],
-    "fam_nutrition": [
-      "Familiar",
-      "Aware"
-    ],
-    "att_veganism": [
-      "Enthusiast",
-      "Neutral"
-    ],
-    "economic_motivation": [
-      "Cost-sensitive",
-      "Premium-seeking"
-    ]
-  },
-  "sampling": {
-    "mode": "stratified",
-    "fields": [
-      "lstyle_diet_type",
-      "health_dietary_restriction",
-      "habit_meal_prepping",
-      "fam_nutrition",
-      "att_veganism",
-      "economic_motivation"
-    ],
-    "allocation": "perCell",
-    "perCell": 1
-  },
-  "seed": 42
+  "dimensionFilters": {},
+  "segments": [
+    {
+      "id": "budget_restricted_cautious",
+      "label": "Budget-constrained, cautious, and restricted",
+      "hypothesis": "Recommendations should emphasize low-cost safe substitutions and explicitly honor medical or allergy constraints.",
+      "dimensions": {
+        "economic_motivation": ["Cost-sensitive"],
+        "risk_tolerance": ["Cautious", "Risk-averse"],
+        "health_dietary_restriction": ["Allergy", "Medical"]
+      },
+      "personaIds": ["0069", "0571"]
+    },
+    {
+      "id": "plant_based_values_led",
+      "label": "Plant-based and values-led",
+      "hypothesis": "Plans should consistently remain plant-based and reject ingredients that conflict with ethical restrictions.",
+      "dimensions": {
+        "lstyle_diet_type": ["Vegetarian"],
+        "health_dietary_restriction": ["Ethical"],
+        "fam_nutrition": ["Aware"]
+      },
+      "personaIds": ["0312", "0966"]
+    },
+    {
+      "id": "convenience_infrequent_prep",
+      "label": "Convenience-first, infrequent meal preparation",
+      "hypothesis": "Plans should favor simple meals, few preparation steps, and realistic convenience substitutions.",
+      "dimensions": {
+        "lstyle_diet_type": ["Omnivore"],
+        "habit_meal_prepping": ["Never", "Rarely"],
+        "lstyle_shopping_style": ["Impulse buyer", "Minimalist"]
+      },
+      "personaIds": ["0383", "0291"]
+    },
+    {
+      "id": "nutrition_aware_regular_planners",
+      "label": "Nutrition-aware, regular planners",
+      "hypothesis": "Plans should be more structured and the personas should ask detailed nutrition and follow-up questions.",
+      "dimensions": {
+        "habit_meal_prepping": ["Weekly", "Daily"],
+        "fam_nutrition": ["Familiar"],
+        "tech_savviness": ["Comfortable"]
+      },
+      "personaIds": ["0398", "0459"]
+    }
+  ],
+  "sampling": {"mode": "pinnedSegments", "personasPerSegment": 2}
 }

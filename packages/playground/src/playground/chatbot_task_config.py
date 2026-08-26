@@ -73,6 +73,7 @@ class ChatbotRuntimeDefaults:
     application_id: str = ""
     application_context: str = ""
     domain: str = ""
+    min_turns: int | None = None
     max_turns: int | None = None
 
 
@@ -156,6 +157,9 @@ def _load_from_payload(payload: dict[str, Any]) -> ChatbotTaskConfig:
             application_id=_as_string(runtime.get("applicationId")),
             application_context=_as_string(runtime.get("applicationContext")),
             domain=_as_string(runtime.get("domain")),
+            min_turns=max(1, parsed_min_turns)
+            if (parsed_min_turns := _as_optional_int(runtime.get("minTurns"))) is not None
+            else None,
             max_turns=max(1, parsed_max_turns)
             if (parsed_max_turns := _as_optional_int(runtime.get("maxTurns"))) is not None
             else None,

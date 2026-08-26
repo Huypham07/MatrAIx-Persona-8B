@@ -17,7 +17,7 @@ def resolve_task_environment_dir(task_dir: Path) -> Path:
         from harbor.models.task.paths import TaskPaths
 
         return TaskPaths.from_task_dir(task_dir).environment_dir
-    except (ModuleNotFoundError, AttributeError):
+    except Exception:
         # Installed Harbor wheels may lag the in-repo TaskPaths API.
         return _resolve_without_harbor(task_dir)
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import threading
+import time
 from typing import Any, Callable
 
 _LLM_SEM: threading.Semaphore | None = None
@@ -30,12 +31,22 @@ def llm_enabled() -> bool:
     if flag in {"0", "false", "no", "off"}:
         return False
     if flag in {"1", "true", "yes", "on"}:
-        return bool(os.environ.get("OPENAI_API_KEY", "").strip())
-    return bool(os.environ.get("OPENAI_API_KEY", "").strip())
+        return bool(os.environ.get("OPENAI_API_KEY", "").strip()) or bool(
+            os.environ.get("OPENAI_BASE_URL", "").strip()
+            or os.environ.get("LOCAL_LLM_BASE_URL", "").strip()
+        )
+    return bool(os.environ.get("OPENAI_API_KEY", "").strip()) or bool(
+        os.environ.get("OPENAI_BASE_URL", "").strip()
+        or os.environ.get("LOCAL_LLM_BASE_URL", "").strip()
+    )
 
 
 def model_name() -> str:
-    return os.environ.get("MEAL_PLAN_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    return (
+        os.environ.get("MEAL_PLAN_MODEL", "").strip()
+        or os.environ.get("LOCAL_LLM_MODEL", "").strip()
+        or "gpt-4o-mini"
+    )
 
 
 def _plan_summary(plan: list[dict[str, Any]] | None, *, max_days: int = 3) -> str:
@@ -157,13 +168,15 @@ def generate_llm_reply(
     action_notes: list[str],
     formatted_plan: str | None = None,
     chat_completions: Callable[..., Any] | None = None,
+    trace_out: dict[str, Any] | None = None,
 ) -> str | None:
     """Call OpenAI chat completions; return None on disable/failure."""
     if chat_completions is None and not llm_enabled():
         return None
-    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    if chat_completions is None and not api_key:
-        return None
+    api_key = (
+        os.environ.get("LOCAL_LLM_API_KEY", "").strip()
+        or os.environ.get("OPENAI_API_KEY", "").strip()
+    )
 
     messages = build_grounded_messages(
         session=session,
@@ -171,24 +184,84 @@ def generate_llm_reply(
         action_notes=action_notes,
         formatted_plan=formatted_plan,
     )
+    started = time.monotonic()
+    if trace_out is not None:
+        trace_out.update(
+            {
+                "step": "meal_plan_reply",
+                "model": model_name(),
+                "provider": "local-openai-compatible",
+                "messages": messages,
+                "rawOutput": None,
+                "usage": None,
+                "finishReason": None,
+                "error": None,
+            }
+        )
 
     try:
         if chat_completions is not None:
             content = chat_completions(messages=messages, model=model_name())
             text = str(content or "").strip()
+            if trace_out is not None:
+                trace_out["rawOutput"] = text
+                trace_out["durationMs"] = round(
+                    (time.monotonic() - started) * 1000, 3
+                )
             return text or None
 
         from openai import OpenAI
 
-        client = OpenAI(api_key=api_key, timeout=60.0, max_retries=2)
+        base_url = (
+            os.environ.get("LOCAL_LLM_BASE_URL", "").strip()
+            or os.environ.get("OPENAI_BASE_URL", "").strip()
+        )
+        auth_header = os.environ.get("LOCAL_LLM_AUTH_HEADER", "").strip()
+        if base_url:
+            base_url = base_url.replace(
+                "127.0.0.1", "host.docker.internal"
+            ).replace("localhost", "host.docker.internal")
+
+        client_kwargs = {
+            "api_key": api_key or auth_header or "sk-dummy",
+            "base_url": base_url or None,
+            "timeout": 60.0,
+            "max_retries": 2,
+        }
+        if auth_header:
+            client_kwargs["default_headers"] = {"Authorization": auth_header}
+        client = OpenAI(**client_kwargs)
         with _llm_semaphore():
             response = client.chat.completions.create(
                 model=model_name(),
                 messages=messages,
                 temperature=0.7,
                 max_tokens=900,
+                extra_body={"chat_template_kwargs": {"enable_thinking": False}},
             )
         text = (response.choices[0].message.content or "").strip()
+        if trace_out is not None:
+            usage = getattr(response, "usage", None)
+            trace_out["rawOutput"] = text
+            trace_out["finishReason"] = getattr(
+                response.choices[0], "finish_reason", None
+            )
+            trace_out["usage"] = {
+                "inputTokens": getattr(usage, "prompt_tokens", None),
+                "outputTokens": getattr(usage, "completion_tokens", None),
+                "requestId": getattr(response, "id", None),
+            }
+            trace_out["durationMs"] = round(
+                (time.monotonic() - started) * 1000, 3
+            )
         return text or None
-    except Exception:
+    except Exception as exc:
+        if trace_out is not None:
+            trace_out["error"] = {
+                "type": type(exc).__name__,
+                "message": str(exc),
+            }
+            trace_out["durationMs"] = round(
+                (time.monotonic() - started) * 1000, 3
+            )
         return None

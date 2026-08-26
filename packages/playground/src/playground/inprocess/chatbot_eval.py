@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Mapping, Optional
 
 try:
     from fastapi import HTTPException
@@ -20,7 +21,8 @@ from playground.chatbot_task_config import (
     load_chatbot_task_config_for_task_path,
 )
 from playground.structured_exposure import build_structured_exposure
-from playground.types import PlaygroundConfig
+from playground.task_content_bundle import load_task_content_bundle_for_task_path
+from playground.types import Persona, PlaygroundConfig, PlaygroundResult
 
 
 _SIDECAR_TASK_PATHS = {
@@ -29,18 +31,111 @@ _SIDECAR_TASK_PATHS = {
     "acme_support_api": "application/tasks/example-chat-api_support_chatbot",
 }
 
+_MAX_APPLICATION_ATTEMPTS = 3
+_TEMPORARY_REPLY_MARKERS = (
+    "temporarily unable",
+    "temporary failure",
+    "please try again in a moment",
+)
+
+
+class ApplicationUnavailable(RuntimeError):
+    """The task-owned chatbot did not return a meaningful reply."""
+
+
+def _reply_from_response(response: Mapping[str, Any]) -> str:
+    turn = response.get("turn")
+    turn_data = turn if isinstance(turn, Mapping) else {}
+    return str(
+        turn_data.get("assistantMessage")
+        or turn_data.get("assistantReply")
+        or response.get("reply")
+        or response.get("assistantMessage")
+        or ""
+    ).strip()
+
+
+def _is_temporary_reply(reply: str) -> bool:
+    normalized = reply.casefold()
+    return not normalized or any(marker in normalized for marker in _TEMPORARY_REPLY_MARKERS)
+
+
+def _retry_meaningful_reply(
+    send: Callable[[], Dict[str, Any]],
+    *,
+    on_event: Callable[[Dict[str, Any]], None] | None = None,
+) -> Dict[str, Any]:
+    last_error: Exception | None = None
+    temporary_reply = False
+    for attempt in range(_MAX_APPLICATION_ATTEMPTS):
+        cause = ""
+        try:
+            response = send()
+            reply = _reply_from_response(response)
+            if not _is_temporary_reply(reply):
+                return response
+            temporary_reply = bool(reply)
+            cause = "temporary_reply" if reply else "blank_reply"
+            last_error = ApplicationUnavailable(
+                "temporary failure reply: {}".format(reply or "blank reply")
+            )
+        except Exception as exc:
+            last_error = exc
+            cause = "{}: {}".format(type(exc).__name__, exc)
+        event_type = (
+            "application_error"
+            if attempt == _MAX_APPLICATION_ATTEMPTS - 1
+            else "application_retry"
+        )
+        if on_event is not None:
+            on_event(
+                {
+                    "type": event_type,
+                    "attempt": attempt + 1,
+                    "maxAttempts": _MAX_APPLICATION_ATTEMPTS,
+                    "cause": cause,
+                }
+            )
+        if attempt < _MAX_APPLICATION_ATTEMPTS - 1:
+            time.sleep(0.05 * (attempt + 1))
+    if temporary_reply:
+        detail = "temporary failure after {} attempts".format(_MAX_APPLICATION_ATTEMPTS)
+    else:
+        detail = "application unavailable after {} attempts".format(
+            _MAX_APPLICATION_ATTEMPTS
+        )
+    if last_error is not None:
+        detail = "{}: {}".format(detail, last_error)
+    raise ApplicationUnavailable(detail) from last_error
+
 
 class DirectApplicationSession:
     """Session wrapper for non-RecAI chatbot application adapters."""
 
-    def __init__(self, config: PlaygroundConfig) -> None:
+    def __init__(
+        self,
+        config: PlaygroundConfig,
+        *,
+        on_event: Callable[[Dict[str, Any]], None] | None = None,
+        trace_writer: Any = None,
+        trace_context: Dict[str, Any] | None = None,
+    ) -> None:
         self.config = config
         self.turns = []
         self._session_id: Optional[str] = None
         self._application = _application_for(config.application_id)
         self._task_config = _load_sidecar_task_config(config.application_id)
+        self._on_event = on_event
+        self._trace_writer = trace_writer
+        self._trace_context = dict(trace_context or {})
 
     def run_turn_sync(self, message: str) -> Dict[str, Any]:
+        trace_kwargs = (
+            {"trace_context": self._trace_context}
+            if isinstance(self._application, HTTPChatbotApplication)
+            and self._trace_writer is not None
+            else {}
+        )
         response = self._application.send_message(
             session_id=self._session_id,
             message=message,
@@ -48,7 +143,23 @@ class DirectApplicationSession:
             context=config_context(self.config),
             engine=self.config.engine,
             bot_type="chat",
+            on_event=self._on_event,
+            **trace_kwargs,
         )
+        sidecar_trace = response.pop("_llmTrace", None)
+        if isinstance(sidecar_trace, dict) and self._trace_writer is not None:
+            self._trace_writer.record(
+                model=str(sidecar_trace.get("model") or "Qwen3-14B"),
+                provider=str(sidecar_trace.get("provider") or "sidecar"),
+                messages=list(sidecar_trace.get("messages") or []),
+                raw_output=sidecar_trace.get("rawOutput"),
+                parsed_output=sidecar_trace.get("parsedOutput"),
+                usage=sidecar_trace.get("usage"),
+                finish_reason=sidecar_trace.get("finishReason"),
+                error=sidecar_trace.get("error"),
+                step=str(sidecar_trace.get("step") or "meal_plan_reply"),
+                duration_ms=sidecar_trace.get("durationMs"),
+            )
         self._session_id = str(response["sessionId"])
         turn = dict(response.get("turn") or {})
         assistant = str(
@@ -71,6 +182,126 @@ class DirectApplicationSession:
         return view
 
 
+def inprocess_chatbot_config(
+    task_path: str,
+    *,
+    repo_root: Path,
+    env: Mapping[str, str],
+    model_name: str,
+) -> PlaygroundConfig:
+    """Resolve direct-session settings from task metadata and launch settings."""
+    task_config = load_chatbot_task_config_for_task_path(
+        task_path,
+        repo_root=repo_root,
+    )
+    runtime = task_config.runtime_defaults if task_config is not None else None
+    folder = Path(task_path.replace("\\", "/")).name
+    fallback_id = folder.replace("chat_", "").replace("-", "_") or "chatbot"
+    max_turns_raw = str(env.get("MATRIX_CHATBOT_MAX_TURNS") or "").strip()
+    try:
+        max_turns = max(1, int(max_turns_raw)) if max_turns_raw else None
+    except ValueError:
+        max_turns = None
+    if max_turns is None and runtime is not None:
+        max_turns = runtime.max_turns
+    if max_turns is None:
+        max_turns = 8
+    application_id = (
+        str(env.get("MATRIX_CHATBOT_APPLICATION_ID") or "").strip()
+        or (runtime.application_id if runtime is not None else "")
+        or fallback_id
+    )
+    application_context = (
+        str(env.get("MATRIX_CHATBOT_APPLICATION_CONTEXT") or "").strip()
+        or (runtime.application_context if runtime is not None else "")
+        or application_id
+    )
+    domain = (
+        str(env.get("MATRIX_CHATBOT_DOMAIN") or "").strip()
+        or (runtime.domain if runtime is not None else "")
+        or application_context
+    )
+    return PlaygroundConfig(
+        domain=domain,
+        application_id=application_id,
+        application_context=application_context,
+        engine=str(env.get("MATRIX_CHATBOT_ENGINE") or "gpt-4o-mini"),
+        persona_model=model_name,
+        min_turns=(runtime.min_turns if runtime and runtime.min_turns is not None else 5),
+        max_turns=max_turns,
+    )
+
+
+def run_inprocess_chatbot_eval(
+    persona: Persona,
+    config: PlaygroundConfig,
+    *,
+    task_path: str,
+    persona_yaml_path: str,
+    repo_root: Path,
+    created_at: str,
+    on_event: Callable[[Dict[str, Any]], None] | None = None,
+    job_dir: Path | None = None,
+    trace_dir: Path | None = None,
+    segment_id: str | None = None,
+) -> PlaygroundResult:
+    """Run the canonical UserSim session loop against an in-process app session."""
+    from playground.user_sim.runner import run_playground
+
+    task_bundle = load_task_content_bundle_for_task_path(
+        task_path,
+        repo_root=repo_root,
+    )
+    sut_description = (
+        task_bundle.context_markdown
+        or task_bundle.instruction_markdown
+        or config.application_context
+        or config.domain
+    )
+    trace_writer = None
+    trace_context: Dict[str, Any] = {}
+    if trace_dir is not None:
+        from playground.llm_trace import LlmTraceWriter
+        from playground.user_sim.prompt import persona_primary_language
+
+        trace_writer = LlmTraceWriter(
+            trace_dir / "llm_calls.jsonl",
+            metadata={
+                "jobId": trace_dir.parent.name,
+                "trialId": trace_dir.name,
+                "taskPath": task_path,
+                "personaId": persona.id,
+                "segmentId": segment_id,
+                "expectedLanguage": persona_primary_language(persona),
+            },
+        )
+        trace_context = {
+            "trialId": trace_dir.name,
+            "personaId": persona.id,
+            "segmentId": segment_id,
+            "expectedLanguage": persona_primary_language(persona),
+        }
+    return run_playground(
+        DirectApplicationSession(
+            config,
+            on_event=on_event,
+            trace_writer=trace_writer,
+            trace_context=trace_context,
+        ),
+        persona,
+        sut_description,
+        config,
+        created_at=created_at,
+        on_event=on_event,
+        task_path=task_path,
+        persona_yaml_path=persona_yaml_path,
+        repo_root=repo_root,
+        job_dir=job_dir,
+        trace_dir=trace_dir,
+        segment_id=segment_id,
+    )
+
+
 def _load_sidecar_task_config(application_id: str):
     task_path = _SIDECAR_TASK_PATHS.get(application_id)
     if not task_path:
@@ -84,7 +315,8 @@ def config_context(config: PlaygroundConfig) -> str:
 
 
 def _application_for(application_id: str) -> Any:
-    if application_id == "finance_openbb":
+    norm = application_id.replace("chat_", "").replace("survey_", "").replace("-", "_")
+    if norm in {"finance_openbb", "openbb_corporate_action_honesty"}:
         return HTTPChatbotApplication(
             application_id="finance_openbb",
             default_context="financial_research",
@@ -94,7 +326,7 @@ def _application_for(application_id: str) -> Any:
                 "http://127.0.0.1:8901",
             ),
         )
-    if application_id == "meal_planning_nutrition":
+    if norm in {"meal_planning_nutrition", "meal_planning"}:
         return HTTPChatbotApplication(
             application_id="meal_planning_nutrition",
             default_context="meal_planning",
@@ -104,7 +336,7 @@ def _application_for(application_id: str) -> Any:
                 "http://127.0.0.1:8905",
             ),
         )
-    if application_id == "acme_support_api":
+    if norm in {"acme_support_api", "support_chatbot", "api_support_chatbot", "mcp_support_chatbot"}:
         return HTTPChatbotApplication(
             application_id="acme_support_api",
             default_context="customer_support",
@@ -114,7 +346,7 @@ def _application_for(application_id: str) -> Any:
                 "http://127.0.0.1:8904",
             ),
         )
-    raise ValueError("unsupported direct application: {}".format(application_id))
+    return InProcessLLMChatbotApplication(application_id=norm, default_context=norm)
 
 
 def _sidecar_base_url(primary_env: str, legacy_env: str, default: str) -> str:
@@ -124,6 +356,79 @@ def _sidecar_base_url(primary_env: str, legacy_env: str, default: str) -> str:
         or os.environ.get("CHATBOT_API_URL")
         or default
     )
+
+
+class InProcessLLMChatbotApplication:
+    """In-process LLM-backed SUT for chatbot evaluation without external containers."""
+
+    def __init__(self, application_id: str, default_context: str) -> None:
+        self.application_id = application_id
+        self.default_context = default_context
+        self._system_prompts = {
+            "meal_planning_nutrition": (
+                "You are an expert nutritionist and meal planning assistant. "
+                "Help the user plan balanced, delicious, and budget-friendly meals according to their dietary preferences and constraints."
+            ),
+            "finance_openbb": (
+                "You are a financial analyst assistant powered by OpenBB. "
+                "Help the user analyze corporate actions, stock fundamentals, and financial statements accurately."
+            ),
+            "acme_support_api": (
+                "You are a helpful and polite ACME customer support assistant. "
+                "Assist the user with their product questions, returns, and account inquiries."
+            ),
+            "acme_support_mcp": (
+                "You are a helpful and polite ACME customer support assistant. "
+                "Assist the user with their product questions, returns, and account inquiries."
+            ),
+        }
+
+    def send_message(
+        self,
+        *,
+        session_id: Optional[str],
+        message: str,
+        title: Optional[str],
+        context: str,
+        engine: Optional[str],
+        bot_type: Optional[str],
+        on_event: Callable[[Dict[str, Any]], None] | None = None,
+    ) -> Dict[str, Any]:
+        import uuid
+        from playground.model_client import build_json_client
+
+        session_id = session_id or str(uuid.uuid4())
+        sys_prompt = self._system_prompts.get(
+            self.application_id,
+            f"You are a helpful AI chatbot assistant specialized in {context or self.default_context}."
+        )
+        client = build_json_client("local/qwen3-14b")
+        prompt = (
+            f"User message: {message}\n\n"
+            f"Domain/Context: {context or self.default_context}\n\n"
+            "Generate a conversational assistant response in character. Return JSON: {\"reply\": \"<your response>\"}"
+        )
+
+        def send() -> Dict[str, Any]:
+            response = client.complete_json(system=sys_prompt, user=prompt)
+            assistant_message = str(
+                response.get("reply")
+                or response.get("assistantMessage")
+                or response.get("message")
+                or ""
+            ).strip()
+            return {
+                "sessionId": session_id,
+                "turn": {
+                    "assistantMessage": assistant_message,
+                    "userMessage": message,
+                },
+                "reply": assistant_message,
+                "assistantMessage": assistant_message,
+                "status": "ok",
+            }
+
+        return _retry_meaningful_reply(send, on_event=on_event)
 
 
 class HTTPChatbotApplication:
@@ -143,17 +448,34 @@ class HTTPChatbotApplication:
         context: str,
         engine: Optional[str],
         bot_type: Optional[str],
+        on_event: Callable[[Dict[str, Any]], None] | None = None,
+        trace_context: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
-        body = {
-            "sessionId": session_id,
-            "message": message,
-            "title": title,
-            "applicationId": self.application_id,
-            "applicationContext": context or self.default_context,
-            "engine": engine,
-            "botType": bot_type,
-        }
-        return self._request_json("POST", "/v1/messages", body=body)
+        active_session_id = session_id
+
+        def send() -> Dict[str, Any]:
+            nonlocal active_session_id
+            body = {
+                "sessionId": active_session_id,
+                "message": message,
+                "title": title,
+                "applicationId": self.application_id,
+                "applicationContext": context or self.default_context,
+                "engine": engine,
+                "botType": bot_type,
+            }
+            if trace_context is not None:
+                body["_traceContext"] = dict(trace_context)
+            response = self._request_json("POST", "/v1/messages", body=body)
+            issued_session_id = str(response.get("sessionId") or "").strip()
+            if issued_session_id:
+                active_session_id = issued_session_id
+            return response
+
+        return _retry_meaningful_reply(
+            send,
+            on_event=on_event,
+        )
 
     def _request_json(
         self,
@@ -161,8 +483,13 @@ class HTTPChatbotApplication:
         path: str,
         *,
         body: Optional[Dict[str, Any]] = None,
-        timeout: float = 180.0,
+        timeout: Optional[float] = None,
     ) -> Dict[str, Any]:
+        if timeout is None:
+            try:
+                timeout = float(os.environ.get("CHATBOT_REQUEST_TIMEOUT_SECONDS", "90"))
+            except ValueError:
+                timeout = 90.0
         url = "{}{}".format(self.base_url, path)
         data = None
         headers = {"Accept": "application/json"}

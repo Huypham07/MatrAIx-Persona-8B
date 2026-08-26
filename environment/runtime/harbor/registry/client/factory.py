@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 from harbor.constants import DEFAULT_REGISTRY_URL

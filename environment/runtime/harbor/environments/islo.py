@@ -6,6 +6,8 @@ Supports four modes:
 3. Dockerfile (environment_dir/Dockerfile exists) -- built via Docker-in-VM
 4. Bare islo-runner (fallback) -- plain sandbox, no build step
 """
+from __future__ import annotations
+
 
 import asyncio
 import os

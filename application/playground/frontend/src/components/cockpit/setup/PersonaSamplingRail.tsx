@@ -398,7 +398,9 @@ function strategyCollapsedHeadline(
   t: Translate,
   sampling: StrategySamplingView,
 ): string {
-  const mode = strategyModeLabel(t, sampling.mode);
+  const mode = sampling.isPinnedSegments
+    ? "Pinned task segments"
+    : strategyModeLabel(t, sampling.mode);
   const sample = strategySampleTypeLabel(t, sampling);
   if (sampling.mode === "stratified" || sampling.fields.length > 0) {
     const alloc = allocationLabel(t, sampling.allocation);
@@ -425,6 +427,7 @@ function TaskStrategySummary({
   const sources = (strategy.sources ?? []).filter((value) => value.trim());
   const stratify = sampling.fields;
   const filterBits = dimEntries.length + (sources.length > 0 ? 1 : 0);
+  const segments = strategy.segments ?? [];
   const showAllocation = sampling.mode === "stratified" || stratify.length > 0;
   const sampleType = strategySampleTypeLabel(t, sampling);
   const allocLabel = allocationLabel(t, sampling.allocation);
@@ -476,8 +479,30 @@ function TaskStrategySummary({
               {t("personaSetup.strategy.mode")}
             </StrategySectionLabel>
             <p className="text-[13px] font-medium leading-snug text-text-main">
-              {strategyModeLabel(t, sampling.mode)}
+              {sampling.isPinnedSegments
+                ? `Pinned task segments · ${segments.length} groups`
+                : strategyModeLabel(t, sampling.mode)}
             </p>
+            {sampling.isPinnedSegments ? (
+              <div className="space-y-2 pt-1">
+                {segments.map((segment) => (
+                  <div
+                    key={segment.id}
+                    className="rounded-lg border border-outline/40 bg-surface-subtle/40 p-2"
+                  >
+                    <p className="text-[12px] font-medium text-text-main">
+                      {segment.label}
+                    </p>
+                    <p className="mt-0.5 text-[11px] leading-snug text-text-dim">
+                      {segment.hypothesis}
+                    </p>
+                    <p className="mt-1 font-mono text-[10px] text-primary">
+                      {segment.personaIds.map((id) => `persona-${id}`).join(" · ")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </section>
 
           <section className="space-y-1.5 py-2.5">
@@ -1293,7 +1318,8 @@ export function PersonaSamplingRail({
     : poolSlugLabel(sourcePool);
 
   return (
-    <aside className="glass-panel glass-panel-rail relative flex h-full min-h-0 flex-col rounded-xl p-4">
+    <aside className="glass-panel glass-panel-rail relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl">
+      <div className="custom-scrollbar flex h-full w-full flex-col overflow-y-auto p-4 pr-3">
       {detailPersona ? (
         <BenchPersonaDetailPanel
           coverRail
@@ -2068,7 +2094,7 @@ export function PersonaSamplingRail({
             </div>
           ) : (
             <>
-              <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto pr-0.5">
+              <div className="flex-1">
                 <div className="space-y-2">
                   {panelMode === "single" &&
                     defaultCardsQuery.isLoading &&
@@ -2148,6 +2174,7 @@ export function PersonaSamplingRail({
           )}
         </>
       )}
+      </div>
 
       <PersonaFilterModal
         open={filterOpen}

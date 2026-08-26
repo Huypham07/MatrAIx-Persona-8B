@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from harbor.models.task.config import (
     EnvironmentConfig,
     StepConfig,

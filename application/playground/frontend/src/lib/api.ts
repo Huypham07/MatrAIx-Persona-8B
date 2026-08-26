@@ -60,7 +60,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      const plainText = text.trim();
+      if (!response.ok) {
+        throw new ApiError(
+          response.status,
+          plainText || response.statusText || "Request failed",
+          plainText,
+        );
+      }
+      throw new ApiError(
+        response.status,
+        "The backend returned an invalid JSON response.",
+        plainText,
+      );
+    }
+  }
   if (!response.ok) {
     const detail = data && typeof data === "object" && "detail" in data ? data.detail : data;
     const message = typeof detail === "string" ? detail : response.statusText;
@@ -156,8 +175,41 @@ export const api = {
       `/api/harbor/jobs/${encodeURIComponent(jobName)}/report.pdf`,
       `${jobName}-persona-task-batch-report.pdf`,
     ),
+  downloadHarborJobTraceZip: (jobName: string) =>
+    downloadFile(
+      `/api/harbor/jobs/${encodeURIComponent(jobName)}/trace.zip`,
+      `${jobName}-traces.zip`,
+    ),
   getHarborJobLive: (jobName: string) =>
     request<HarborJobLiveResponse>(`/api/harbor/jobs/${encodeURIComponent(jobName)}/live`),
+  streamHarborTrialEvents: async (
+    jobName: string,
+    trialName: string,
+    onEvent: (event: any) => void,
+  ) => {
+    const response = await fetch(
+      `/api/harbor/jobs/${encodeURIComponent(jobName)}/trials/${encodeURIComponent(trialName)}/events/stream`,
+    );
+    if (!response.ok || !response.body) return;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed) onEvent(JSON.parse(trimmed));
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  },
   getHarborJobStatus: (jobName: string, since = 0) =>
     request<HarborJobStatusResponse>(
       `/api/harbor/jobs/${encodeURIComponent(jobName)}/status${qs({ since })}`,
@@ -170,6 +222,11 @@ export const api = {
     downloadFile(
       `/api/harbor/jobs/${encodeURIComponent(jobName)}/trials/${encodeURIComponent(trialName)}/report.pdf`,
       `${jobName}-${trialName}-trial-report.pdf`,
+    ),
+  downloadHarborTrialTraceZip: (jobName: string, trialName: string) =>
+    downloadFile(
+      `/api/harbor/jobs/${encodeURIComponent(jobName)}/trials/${encodeURIComponent(trialName)}/trace.zip`,
+      `${jobName}-${trialName}-trace.zip`,
     ),
   getHarborTrialTrace: (jobName: string, trialName: string) =>
     request<{ trace: WebTrace }>(
@@ -512,6 +569,10 @@ export function listWebEvalTasks(): Promise<WebEvalTasksResponse> {
 
 export function listOsAppEvalTasks(): Promise<OsAppEvalTasksResponse> {
   return request<OsAppEvalTasksResponse>("/api/os-app-eval/tasks");
+}
+
+export function harborJobEventsUrl(jobName: string, cursor = 0): string {
+  return `/api/harbor/jobs/${encodeURIComponent(jobName)}/events${qs({ cursor })}`;
 }
 
 export function harborTrialLiveScreenshotUrl(jobName: string, trialName: string): string {

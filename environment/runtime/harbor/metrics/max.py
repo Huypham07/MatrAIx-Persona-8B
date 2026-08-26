@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from harbor.metrics.base import BaseMetric, RewardDict, aggregate_reward_dicts
 
 

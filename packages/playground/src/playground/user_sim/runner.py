@@ -35,6 +35,7 @@ from playground.user_sim.port import (
 )
 from playground.user_sim.prompt import (
     assemble_report_system_prompt,
+    persona_primary_language,
     prompt_bundle,
 )
 from playground.user_sim.self_report import final_self_report_with_usage
@@ -42,6 +43,92 @@ from playground.user_sim.session import UserSimSession
 from playground.user_sim.tool_client import build_tool_step_client
 from playground.budget import assert_budget_allows_request, record_trial_cost
 from playground.llm_usage import merge_usage
+
+
+_MAX_BLANK_APPLICATION_ATTEMPTS = 3
+
+
+class ConversationNotTerminated(RuntimeError):
+    """A chat reached its turn budget without a valid end action."""
+
+    def __init__(self, cause: str, transcript: List[PlaygroundTurn]) -> None:
+        super().__init__("conversation not terminated: {}".format(cause))
+        self.cause = cause
+        self.transcript = list(transcript)
+
+
+class ApplicationResponseUnavailable(RuntimeError):
+    """A generic chat session repeatedly returned a blank response."""
+
+    def __init__(self, transcript: List[PlaygroundTurn]) -> None:
+        super().__init__("application returned a blank response after 3 attempts")
+        self.transcript = list(transcript)
+
+
+def _llm_trace_writer(
+    *,
+    trace_dir: Path | None,
+    persona: Persona,
+    task_path: str | None,
+    segment_id: str | None,
+):
+    if trace_dir is None:
+        return None
+    from playground.llm_trace import LlmTraceWriter
+
+    return LlmTraceWriter(
+        trace_dir / "llm_calls.jsonl",
+        metadata={
+            "jobId": trace_dir.parent.name,
+            "trialId": trace_dir.name,
+            "taskPath": task_path,
+            "personaId": persona.id,
+            "segmentId": segment_id,
+            "expectedLanguage": persona_primary_language(persona),
+        },
+    )
+
+
+def _emit_application_attempt(
+    emit: Callable[[Dict[str, Any]], None],
+    *,
+    attempt: int,
+    cause: str,
+) -> None:
+    emit(
+        {
+            "type": (
+                "application_error"
+                if attempt == _MAX_BLANK_APPLICATION_ATTEMPTS
+                else "application_retry"
+            ),
+            "attempt": attempt,
+            "maxAttempts": _MAX_BLANK_APPLICATION_ATTEMPTS,
+            "cause": cause,
+        }
+    )
+
+
+def _raise_if_unterminated(
+    transcript: List[PlaygroundTurn],
+    config: PlaygroundConfig,
+    emit: Callable[[Dict[str, Any]], None],
+) -> None:
+    if transcript and transcript[-1].decision != "continue":
+        return
+    cause = (
+        "max_turns_reached"
+        if config.max_turns is not None and len(transcript) >= config.max_turns
+        else "no_valid_end_conversation"
+    )
+    emit(
+        {
+            "type": "error",
+            "cause": cause,
+            "transcriptTurns": len(transcript),
+        }
+    )
+    raise ConversationNotTerminated(cause, transcript)
 
 
 def _tool_client_usage(tool_client: Any):
@@ -167,8 +254,14 @@ def run_playground(
     persona_yaml_path: Optional[str] = None,
     repo_root: Optional[Path] = None,
     job_dir: Optional[Path] = None,
+    trace_dir: Optional[Path] = None,
+    segment_id: Optional[str] = None,
 ) -> PlaygroundResult:
+    expected_language = persona_primary_language(persona)
+
     def emit(event: Dict[str, Any]) -> None:
+        if event.get("type") in {"user_message", "turn", "done", "prompts"}:
+            event.setdefault("expectedLanguage", expected_language)
         if on_event is not None:
             on_event(event)
 
@@ -182,10 +275,18 @@ def run_playground(
         repo_root=repo_root or Path("."),
     )
 
-    tool_client = build_tool_step_client(
-        config.persona_model,
-        capabilities=task_config.capabilities if task_config else None,
+    trace_writer = _llm_trace_writer(
+        trace_dir=trace_dir,
+        persona=persona,
+        task_path=task_path,
+        segment_id=segment_id,
     )
+    tool_kwargs = {
+        "capabilities": task_config.capabilities if task_config else None,
+    }
+    if trace_writer is not None:
+        tool_kwargs["trace_writer"] = trace_writer
+    tool_client = build_tool_step_client(config.persona_model, **tool_kwargs)
     sim = UserSimSession(
         tool_client,
         persona,
@@ -206,7 +307,7 @@ def run_playground(
     emit({"type": "prompts", "prompts": prompts})
 
     transcript: List[PlaygroundTurn] = []
-    action = sim.opening_action()
+    action = sim.opening_action(allow_end=False)
     emit({"type": "phase", "phase": "persona_kickoff"})
 
     for index in _turn_indices(config.max_turns):
@@ -216,13 +317,21 @@ def run_playground(
 
         emit({"type": "user_message", "turnIndex": index, "message": message})
         emit({"type": "phase", "phase": "application_thinking", "userMessage": message})
-        raw_view = run_session_action_sync(session, action)
-        view = normalize_agent_turn(
-            raw_view,
-            message,
-            structured_exposure_fields=task_config.structured_exposure if task_config else None,
-        )
-        assistant = str(view.get("assistantMessage") or "")
+        for attempt in range(1, _MAX_BLANK_APPLICATION_ATTEMPTS + 1):
+            raw_view = run_session_action_sync(session, action)
+            view = normalize_agent_turn(
+                raw_view,
+                message,
+                structured_exposure_fields=(
+                    task_config.structured_exposure if task_config else None
+                ),
+            )
+            assistant = str(view.get("assistantMessage") or "").strip()
+            if assistant:
+                break
+            _emit_application_attempt(emit, attempt=attempt, cause="blank_reply")
+        else:
+            raise ApplicationResponseUnavailable(transcript)
         structured_exposure = list(view.get("structuredExposure") or [])
         emit(
             {
@@ -236,7 +345,8 @@ def run_playground(
         )
         emit({"type": "phase", "phase": "persona_thinking"})
         action = sim.next_action(
-            _chatbot_observation(chatbot_label, assistant, structured_exposure)
+            _chatbot_observation(chatbot_label, assistant, structured_exposure),
+            allow_end=index >= config.min_turns,
         )
 
         decision = action.decision if action.end_reason else "continue"
@@ -254,9 +364,19 @@ def run_playground(
         if decision != "continue":
             break
 
+    _raise_if_unterminated(transcript, config, emit)
     emit({"type": "phase", "phase": "persona_feedback"})
+    report_client = (
+        build_json_client(
+            config.persona_model,
+            trace_writer=trace_writer,
+            trace_step="persona_self_report",
+        )
+        if trace_writer is not None
+        else build_json_client(config.persona_model)
+    )
     questionnaire, report_usage = final_self_report_with_usage(
-        build_json_client(config.persona_model),
+        report_client,
         system_prompt=report_prompt,
         persona=persona,
         transcript=transcript,
@@ -292,10 +412,16 @@ async def run_playground_async(
     persona_yaml_path: Optional[str] = None,
     repo_root: Optional[Path] = None,
     job_dir: Optional[Path] = None,
+    trace_dir: Optional[Path] = None,
+    segment_id: Optional[str] = None,
 ) -> PlaygroundResult:
     """Like :func:`run_playground` but awaits async Harbor sidecar turns."""
 
+    expected_language = persona_primary_language(persona)
+
     def emit(event: Dict[str, Any]) -> None:
+        if event.get("type") in {"user_message", "turn", "done", "prompts"}:
+            event.setdefault("expectedLanguage", expected_language)
         if on_event is not None:
             on_event(event)
 
@@ -309,10 +435,18 @@ async def run_playground_async(
         repo_root=repo_root or Path("."),
     )
 
-    tool_client = build_tool_step_client(
-        config.persona_model,
-        capabilities=task_config.capabilities if task_config else None,
+    trace_writer = _llm_trace_writer(
+        trace_dir=trace_dir,
+        persona=persona,
+        task_path=task_path,
+        segment_id=segment_id,
     )
+    tool_kwargs = {
+        "capabilities": task_config.capabilities if task_config else None,
+    }
+    if trace_writer is not None:
+        tool_kwargs["trace_writer"] = trace_writer
+    tool_client = build_tool_step_client(config.persona_model, **tool_kwargs)
     sim = UserSimSession(
         tool_client,
         persona,
@@ -333,7 +467,7 @@ async def run_playground_async(
     emit({"type": "prompts", "prompts": prompts})
 
     transcript: List[PlaygroundTurn] = []
-    action = sim.opening_action()
+    action = sim.opening_action(allow_end=False)
     emit({"type": "phase", "phase": "persona_kickoff"})
 
     for index in _turn_indices(config.max_turns):
@@ -343,13 +477,21 @@ async def run_playground_async(
 
         emit({"type": "user_message", "turnIndex": index, "message": message})
         emit({"type": "phase", "phase": "application_thinking", "userMessage": message})
-        raw_view = await run_session_action_async(session, action)
-        view = normalize_agent_turn(
-            raw_view,
-            message,
-            structured_exposure_fields=task_config.structured_exposure if task_config else None,
-        )
-        assistant = str(view.get("assistantMessage") or "")
+        for attempt in range(1, _MAX_BLANK_APPLICATION_ATTEMPTS + 1):
+            raw_view = await run_session_action_async(session, action)
+            view = normalize_agent_turn(
+                raw_view,
+                message,
+                structured_exposure_fields=(
+                    task_config.structured_exposure if task_config else None
+                ),
+            )
+            assistant = str(view.get("assistantMessage") or "").strip()
+            if assistant:
+                break
+            _emit_application_attempt(emit, attempt=attempt, cause="blank_reply")
+        else:
+            raise ApplicationResponseUnavailable(transcript)
         structured_exposure = list(view.get("structuredExposure") or [])
         emit(
             {
@@ -363,7 +505,8 @@ async def run_playground_async(
         )
         emit({"type": "phase", "phase": "persona_thinking"})
         action = sim.next_action(
-            _chatbot_observation(chatbot_label, assistant, structured_exposure)
+            _chatbot_observation(chatbot_label, assistant, structured_exposure),
+            allow_end=index >= config.min_turns,
         )
 
         decision = action.decision if action.end_reason else "continue"
@@ -381,9 +524,19 @@ async def run_playground_async(
         if decision != "continue":
             break
 
+    _raise_if_unterminated(transcript, config, emit)
     emit({"type": "phase", "phase": "persona_feedback"})
+    report_client = (
+        build_json_client(
+            config.persona_model,
+            trace_writer=trace_writer,
+            trace_step="persona_self_report",
+        )
+        if trace_writer is not None
+        else build_json_client(config.persona_model)
+    )
     questionnaire, report_usage = final_self_report_with_usage(
-        build_json_client(config.persona_model),
+        report_client,
         system_prompt=report_prompt,
         persona=persona,
         transcript=transcript,

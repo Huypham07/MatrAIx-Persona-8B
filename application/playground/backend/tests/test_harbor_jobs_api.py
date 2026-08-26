@@ -7,6 +7,8 @@ from typing import Any
 
 import pytest
 
+from playground.harbor.trial_events import JOB_EVENTS_FILENAME, append_job_event
+
 pytest.importorskip("fastapi")
 
 
@@ -113,6 +115,16 @@ class _FakeHarborJobService:
                 }
             ],
         }
+
+    def job_events_path(self, job_name: str) -> Path:
+        if job_name != "demo-job":
+            raise ValueError("Job not found")
+        return self._job_events_path
+
+    def is_job_terminal(self, job_name: str) -> bool:
+        if job_name != "demo-job":
+            raise ValueError("Job not found")
+        return True
 
     def get_trial_debrief(self, job_name: str, trial_name: str) -> dict[str, Any]:
         self.debrief_calls.append((job_name, trial_name))
@@ -242,3 +254,38 @@ def test_get_harbor_job_live(client, fake_harbor_jobs):
     body = resp.json()
     assert body["jobName"] == "demo-job"
     assert len(body["trials"]) == 1
+
+
+def test_job_sse_route_returns_resumable_event_stream(client, fake_harbor_jobs, tmp_path):
+    job_dir = tmp_path / "demo-job"
+    append_job_event(job_dir, trial_name="trial-0", event={"type": "done"})
+    fake_harbor_jobs._job_events_path = job_dir / JOB_EVENTS_FILENAME
+
+    response = client.get("/api/harbor/jobs/demo-job/events?cursor=0")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert '"trialName": "trial-0"' in response.text
+
+
+def test_job_sse_validates_cursor_and_last_event_id(client, fake_harbor_jobs, tmp_path):
+    job_dir = tmp_path / "demo-job"
+    append_job_event(job_dir, trial_name="trial-0", event={"type": "done"})
+    fake_harbor_jobs._job_events_path = job_dir / JOB_EVENTS_FILENAME
+
+    invalid_cursor = client.get("/api/harbor/jobs/demo-job/events?cursor=-1")
+    invalid_header = client.get(
+        "/api/harbor/jobs/demo-job/events?cursor=0",
+        headers={"Last-Event-ID": "not-an-offset"},
+    )
+    preferred_header = client.get(
+        "/api/harbor/jobs/demo-job/events?cursor=0",
+        headers={"Last-Event-ID": str(job_dir.joinpath(JOB_EVENTS_FILENAME).stat().st_size)},
+    )
+    invalid_offset = client.get("/api/harbor/jobs/demo-job/events?cursor=999999")
+
+    assert invalid_cursor.status_code == 400
+    assert invalid_header.status_code == 400
+    assert invalid_offset.status_code == 400
+    assert preferred_header.status_code == 200
+    assert preferred_header.text == ""

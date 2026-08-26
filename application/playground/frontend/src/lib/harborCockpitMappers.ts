@@ -6,6 +6,7 @@ import type {
   PlaygroundQuestionnaire,
   PlaygroundResult,
   StructuredExposureField,
+  SurveyAnswer,
   SurveyEvalJobView,
   SurveyResult,
   TurnView,
@@ -27,6 +28,13 @@ export interface HarborCockpitLiveState {
   turns: TurnView[];
   draftTurn: HarborDraftTurn | null;
   phase: string | null;
+  activeSurveyQuestion?: {
+    id: string;
+    prompt: string;
+    type: string;
+    index: number;
+    total: number;
+  } | null;
   prompts?: PlaygroundPrompts | null;
   instructionMarkdown?: string | null;
   contextMarkdown?: string | null;
@@ -197,6 +205,18 @@ export function applyHarborTrialEvents(
     result?: Record<string, unknown>;
     turnIndex?: number;
     message?: string;
+    questionId?: string;
+    prompt?: string;
+    questionType?: string;
+    questionIndex?: number;
+    total?: number;
+    numQuestions?: number;
+    value?: SurveyAnswer["value"];
+    rationale?: string | null;
+    confidence?: number | null;
+    status?: string;
+    completed?: boolean;
+    succeeded?: boolean;
     userMessage?: string;
     assistantMessage?: string;
     structuredExposure?: StructuredExposureField[];
@@ -207,6 +227,7 @@ export function applyHarborTrialEvents(
   let turns = prev.turns;
   let draftTurn = prev.draftTurn;
   let phase = prev.phase;
+  let activeSurveyQuestion = prev.activeSurveyQuestion ?? null;
   let prompts = prev.prompts ?? null;
   let instructionMarkdown = prev.instructionMarkdown ?? null;
   let contextMarkdown = prev.contextMarkdown ?? null;
@@ -252,17 +273,81 @@ export function applyHarborTrialEvents(
       prompts = event.prompts;
     } else if (event.type === "instruction" && event.markdown) {
       instructionMarkdown = event.markdown;
-    } else if (event.type === "done" && event.result) {
-      const payload = event.result;
-      const extracted = surveyResultFromDonePayload(payload);
+    } else if (
+      event.type === "survey_question_started" &&
+      typeof event.questionId === "string" &&
+      typeof event.prompt === "string" &&
+      typeof event.questionType === "string"
+    ) {
+      const total = surveyTotal(event, surveyResult?.completion.total ?? 0);
+      const index = positiveInteger(event.questionIndex) ?? 0;
+      activeSurveyQuestion = {
+        id: event.questionId,
+        prompt: event.prompt,
+        type: event.questionType,
+        index,
+        total,
+      };
+      const existingAnswers = surveyResult?.answers ?? [];
+      surveyResult = {
+        ...(surveyResult ?? emptyLiveSurveyResult(total)),
+        answers: existingAnswers,
+        completion: {
+          numQuestions: total,
+          numAnswered: existingAnswers.length,
+          answered: existingAnswers.length,
+          total,
+          valid: surveyResult?.completion.valid ?? true,
+        },
+      };
+    } else if (event.type === "survey_answer" && typeof event.questionId === "string") {
+      const qId = event.questionId;
+      const val = event.value ?? null;
+      const existingAnswers = surveyResult?.answers ? [...surveyResult.answers] : [];
+      const newAnswer: SurveyAnswer = {
+        questionId: qId,
+        value: val,
+        rationale: event.rationale ?? null,
+        confidence: event.confidence ?? null,
+      };
+      const idx = existingAnswers.findIndex((a) => a.questionId === qId);
+      if (idx >= 0) {
+        existingAnswers[idx] = newAnswer;
+      } else {
+        existingAnswers.push(newAnswer);
+      }
+      const total = surveyTotal(event, surveyResult?.completion.total ?? 0);
+      surveyResult = {
+        ...(surveyResult ?? emptyLiveSurveyResult(total)),
+        answers: existingAnswers,
+        completion: {
+          numQuestions: total,
+          numAnswered: existingAnswers.length,
+          answered: existingAnswers.length,
+          total,
+          valid: surveyResult?.completion?.valid ?? true,
+        },
+      };
+      if (activeSurveyQuestion?.id === qId) activeSurveyQuestion = null;
+    } else if (event.type === "survey_progress" && event.result) {
+      const extracted = surveyResultFromDonePayload(event.result);
       if (extracted) {
         surveyResult = extracted;
       }
-      if (Array.isArray(payload.transcript)) {
-        turns = asTurns(payload.transcript);
+    } else if (event.type === "done") {
+      if (event.result) {
+        const payload = event.result;
+        const extracted = surveyResultFromDonePayload(payload);
+        if (extracted) {
+          surveyResult = extracted;
+        }
+        if (Array.isArray(payload.transcript)) {
+          turns = asTurns(payload.transcript);
+        }
       }
-      phase = "done";
+      phase = failedTrialDoneEvent(event) ? "error" : "done";
       draftTurn = null;
+      activeSurveyQuestion = null;
     }
   }
 
@@ -270,6 +355,7 @@ export function applyHarborTrialEvents(
     turns,
     draftTurn,
     phase,
+    activeSurveyQuestion,
     prompts,
     instructionMarkdown,
     contextMarkdown,
@@ -277,6 +363,38 @@ export function applyHarborTrialEvents(
     outputSchemaMarkdown,
     surveyResult,
   };
+}
+
+function positiveInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function surveyTotal(event: { total?: unknown; numQuestions?: unknown }, fallback: number): number {
+  return positiveInteger(event.total) ?? positiveInteger(event.numQuestions) ?? fallback;
+}
+
+function emptyLiveSurveyResult(total: number): SurveyResult {
+  return {
+    instrument: { id: "", title: "", questions: [] },
+    answers: [],
+    completion: {
+      numQuestions: total,
+      numAnswered: 0,
+      answered: 0,
+      total,
+      valid: true,
+    },
+    trajectory: [],
+  };
+}
+
+function failedTrialDoneEvent(event: {
+  status?: string;
+  completed?: boolean;
+  succeeded?: boolean;
+}): boolean {
+  const status = event.status?.toLowerCase();
+  return status === "failed" || status === "error" || event.completed === false || event.succeeded === false;
 }
 
 export function surveyResultFromDonePayload(payload: Record<string, unknown>): SurveyResult | null {
@@ -331,14 +449,28 @@ export function mergeHarborCockpitJob<TJob>(
 
   const mappedSurvey = mappedRecord.surveyResult as SurveyResult | null | undefined;
   const liveSurvey = liveJob.surveyResult as SurveyResult | null | undefined;
-  if ((!mappedSurvey?.answers?.length) && liveSurvey?.answers?.length) {
-    next.surveyResult = liveSurvey;
+  if (mappedSurvey || liveSurvey) {
+    const answerByQuestion = new Map((liveSurvey?.answers ?? []).map((answer) => [answer.questionId, answer]));
+    for (const answer of mappedSurvey?.answers ?? []) answerByQuestion.set(answer.questionId, answer);
+    const answers = [...answerByQuestion.values()];
+    const richer = mappedSurvey ?? liveSurvey;
+    next.surveyResult = {
+      ...richer,
+      answers,
+      completion: {
+        ...(richer?.completion ?? liveSurvey?.completion),
+        numAnswered: Math.max(richer?.completion.numAnswered ?? 0, answers.length),
+        answered: Math.max(richer?.completion.answered ?? 0, answers.length),
+      },
+    };
   }
 
   const mappedTurns = mappedRecord.turns as TurnView[] | undefined;
   const liveTurns = liveJob.turns as TurnView[] | undefined;
-  if ((!mappedTurns?.length) && liveTurns?.length) {
-    next.turns = liveTurns;
+  if (mappedTurns?.length || liveTurns?.length) {
+    const byId = new Map((liveTurns ?? []).map((turn, index) => [turn.turnId || String(index), turn]));
+    for (const [index, turn] of (mappedTurns ?? []).entries()) byId.set(turn.turnId || String(index), turn);
+    next.turns = [...byId.values()];
     next.draftTurn = null;
   }
 
@@ -454,6 +586,7 @@ export function mapSurveyLiveToJobView(
     personaName: fallback.personaName,
     status: "running",
     phase: live.phase,
+    activeSurveyQuestion: live.activeSurveyQuestion ?? null,
     surveyResult: live.surveyResult ?? null,
     instructionMarkdown: live.instructionMarkdown ?? null,
     contextMarkdown: live.contextMarkdown ?? null,

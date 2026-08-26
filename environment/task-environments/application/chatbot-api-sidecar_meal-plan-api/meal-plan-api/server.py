@@ -436,6 +436,7 @@ def _generate_reply_llm(
     message: str,
     *,
     chat_completions: Any | None = None,
+    trace_out: dict[str, Any] | None = None,
 ) -> str | None:
     """Grounded LLM utterance path."""
     action_notes: list[str] = []
@@ -491,6 +492,7 @@ def _generate_reply_llm(
         action_notes=action_notes,
         formatted_plan=formatted_plan,
         chat_completions=chat_completions,
+        trace_out=trace_out,
     )
     if not reply:
         return formatted_plan if plan_just_created and formatted_plan else None
@@ -511,6 +513,7 @@ def _generate_reply(
     message: str,
     *,
     chat_completions: Any | None = None,
+    trace_out: dict[str, Any] | None = None,
 ) -> str:
     hard = _hard_safety_reply(session, message)
     if hard is not None:
@@ -522,6 +525,7 @@ def _generate_reply(
         session,
         message,
         chat_completions=chat_completions,
+        trace_out=trace_out,
     )
     if llm_reply:
         return llm_reply
@@ -538,6 +542,7 @@ def post_message(
     domain: str = "meal_planning",
     *,
     chat_completions: Any | None = None,
+    trace_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     session = _session(session_id, domain)
     cleaned = message.strip()
@@ -545,7 +550,13 @@ def post_message(
         raise ValueError("message must not be empty")
     with _session_lock(session["sessionId"]):
         session["messages"].append({"role": "user", "content": cleaned})
-        reply = _generate_reply(session, cleaned, chat_completions=chat_completions)
+        trace: dict[str, Any] = {}
+        reply = _generate_reply(
+            session,
+            cleaned,
+            chat_completions=chat_completions,
+            trace_out=trace if trace_context is not None else None,
+        )
         session["messages"].append({"role": "assistant", "content": reply})
         turn = {
             "index": len(session["turns"]) + 1,
@@ -554,12 +565,15 @@ def post_message(
             "recommendedItems": [],
         }
         session["turns"].append(turn)
-        return {
+        response = {
             "sessionId": session["sessionId"],
             "reply": reply,
             "turn": turn,
             "recommendedItems": [],
         }
+        if trace_context is not None and trace:
+            response["_llmTrace"] = {**trace, **trace_context}
+        return response
 
 
 def get_conversation(session_id: str) -> dict[str, Any]:
@@ -623,6 +637,11 @@ class Handler(BaseHTTPRequestHandler):
                     str(payload.get("sessionId") or ""),
                     str(payload.get("message", "")),
                     domain=str(payload.get("domain", "meal_planning")),
+                    trace_context=(
+                        dict(payload.get("_traceContext"))
+                        if isinstance(payload.get("_traceContext"), dict)
+                        else None
+                    ),
                 )
                 self._send(HTTPStatus.OK, response)
                 return
