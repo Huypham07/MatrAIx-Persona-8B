@@ -1,6 +1,7 @@
 persona_id: '0747'
 version: '1.0'
 source: synthetic
+display_name: Nusrat Jahan
 dimensions:
   age_bracket: 25-34
   region: South Asia

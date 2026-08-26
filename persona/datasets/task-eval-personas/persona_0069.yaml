@@ -1,6 +1,7 @@
 persona_id: 0069
 version: '1.0'
 source: synthetic
+display_name: Wang Xiuying
 dimensions:
   age_bracket: 65-74
   region: East Asia

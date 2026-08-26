@@ -1,6 +1,7 @@
 persona_id: '0131'
 version: '1.0'
 source: synthetic
+display_name: Nadia Al-Harbi
 dimensions:
   age_bracket: 35-44
   region: MENA

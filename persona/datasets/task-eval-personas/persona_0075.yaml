@@ -1,6 +1,7 @@
 persona_id: '0075'
 version: '1.0'
 source: synthetic
+display_name: Inês Carvalho
 dimensions:
   age_bracket: 25-34
   region: Western Europe

@@ -1,6 +1,7 @@
 persona_id: 0823
 version: '1.0'
 source: synthetic
+display_name: Carlos Mendoza
 dimensions:
   age_bracket: 55-64
   region: Latin America

@@ -1,6 +1,7 @@
 persona_id: 0585
 version: '1.0'
 source: synthetic
+display_name: Chinedu Okafor
 dimensions:
   age_bracket: 25-34
   region: Sub-Saharan Africa

@@ -1,6 +1,7 @@
 persona_id: '0045'
 version: '1.0'
 source: synthetic
+display_name: Wanjiku Njoroge
 dimensions:
   age_bracket: 55-64
   region: Sub-Saharan Africa

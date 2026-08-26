@@ -1,6 +1,7 @@
 persona_id: '0551'
 version: '1.0'
 source: synthetic
+display_name: Chen Lihua
 dimensions:
   age_bracket: 35-44
   region: East Asia

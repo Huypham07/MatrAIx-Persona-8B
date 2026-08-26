@@ -1,6 +1,7 @@
 persona_id: 0168
 version: '1.0'
 source: synthetic
+display_name: Ayesha Khan
 dimensions:
   age_bracket: 45-54
   region: South Asia

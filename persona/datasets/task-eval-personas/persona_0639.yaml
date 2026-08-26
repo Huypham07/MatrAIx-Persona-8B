@@ -1,6 +1,7 @@
 persona_id: 0639
 version: '1.0'
 source: synthetic
+display_name: Hana Tesfaye
 dimensions:
   age_bracket: 35-44
   region: Sub-Saharan Africa

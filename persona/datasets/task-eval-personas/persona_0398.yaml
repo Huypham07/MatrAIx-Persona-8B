@@ -1,6 +1,7 @@
 persona_id: 0398
 version: '1.0'
 source: synthetic
+display_name: Mateo Fernández
 dimensions:
   age_bracket: 25-34
   region: Latin America

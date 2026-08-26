@@ -1,6 +1,7 @@
 persona_id: 0966
 version: '1.0'
 source: synthetic
+display_name: Arjun Mehta
 dimensions:
   age_bracket: 75-84
   region: South Asia

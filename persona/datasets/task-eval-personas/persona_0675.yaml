@@ -1,6 +1,7 @@
 persona_id: '0675'
 version: '1.0'
 source: synthetic
+display_name: Chen Guowei
 dimensions:
   age_bracket: 75-84
   region: East Asia

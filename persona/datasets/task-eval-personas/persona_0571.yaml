@@ -1,6 +1,7 @@
 persona_id: '0571'
 version: '1.0'
 source: synthetic
+display_name: Sari Wulandari
 dimensions:
   age_bracket: 45-54
   region: Southeast Asia

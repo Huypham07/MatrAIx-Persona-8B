@@ -1,6 +1,7 @@
 persona_id: 0459
 version: '1.0'
 source: synthetic
+display_name: Juma Mwinyi
 dimensions:
   age_bracket: 55-64
   region: South Asia

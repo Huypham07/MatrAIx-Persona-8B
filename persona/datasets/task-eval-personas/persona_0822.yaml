@@ -1,6 +1,7 @@
 persona_id: 0822
 version: '1.0'
 source: synthetic
+display_name: Camille Laurent
 dimensions:
   age_bracket: 35-44
   region: Western Europe

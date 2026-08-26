@@ -1,6 +1,7 @@
 persona_id: '0312'
 version: '1.0'
 source: synthetic
+display_name: Lin Xiaoyu
 dimensions:
   age_bracket: 18-24
   region: East Asia

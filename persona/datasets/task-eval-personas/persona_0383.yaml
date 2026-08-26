@@ -1,6 +1,7 @@
 persona_id: 0383
 version: '1.0'
 source: synthetic
+display_name: Mariam Al-Sayed
 dimensions:
   age_bracket: 18-24
   region: MENA

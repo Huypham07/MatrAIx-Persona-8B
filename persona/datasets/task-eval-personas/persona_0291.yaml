@@ -1,6 +1,7 @@
 persona_id: 0291
 version: '1.0'
 source: synthetic
+display_name: Diego Hernández
 dimensions:
   age_bracket: 25-34
   region: North America

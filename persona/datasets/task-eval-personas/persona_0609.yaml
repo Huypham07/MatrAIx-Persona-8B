@@ -1,6 +1,7 @@
 persona_id: 0609
 version: '1.0'
 source: synthetic
+display_name: Galina Petrova
 dimensions:
   age_bracket: 75-84
   region: Eastern Europe

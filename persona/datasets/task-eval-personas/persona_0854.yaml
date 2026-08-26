@@ -1,6 +1,7 @@
 persona_id: 0854
 version: '1.0'
 source: synthetic
+display_name: Hiroshi Tanaka
 dimensions:
   age_bracket: 45-54
   region: East Asia
