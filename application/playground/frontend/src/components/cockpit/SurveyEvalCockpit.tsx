@@ -366,6 +366,7 @@ export function SurveyEvalCockpit({
       void run({
         taskPath,
         personaId: persona.id,
+        personaPool,
         personaModel,
         mode: "auto",
         mapDebrief: (debrief, ctx) =>
@@ -384,7 +385,7 @@ export function SurveyEvalCockpit({
           }),
       });
     },
-    [persona, isRunning, run, personaModel, harborTasks],
+    [persona, isRunning, run, personaModel, personaPool, harborTasks],
   );
 
   const handleRun = useCallback(() => {

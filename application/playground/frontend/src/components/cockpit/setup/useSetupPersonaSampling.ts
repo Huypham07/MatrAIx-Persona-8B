@@ -9,6 +9,7 @@ import type { ConfigOptionsResponse, PlaygroundPersona, TaskPersonaStrategy } fr
 import { PERSONA_BENCH_POOL } from "@/lib/types";
 
 import {
+  canRestoreStoredTaskSelection,
   defaultPersonaSetup,
   hasStoredPersonaSetup,
   isTaskStrategyFillPool,
@@ -273,10 +274,14 @@ export function useSetupPersonaSampling(
         personaModel: effectiveModel,
         parallelTrials: stored.parallelTrials,
       });
-      // Keep last cohort selection across remount/navigation. Strategy apply
-      // clears preview ids intentionally for explicit "Task default" toggles,
-      // but hydrate must not wipe a selection the operator already made.
-      if (stored.selectedPersonaIds.length > 0 || stored.selectedCount > 0) {
+      // Keep a task-specific cohort across remount/navigation. Never copy the
+      // legacy task-kind selection into a different task, and never let stale
+      // ids replace a pinned-segment strategy (for example, a persona retained
+      // from another survey while switching instruments).
+      if (
+        canRestoreStoredTaskSelection(strategy, stored, hasTaskSpecificStore) &&
+        (stored.selectedPersonaIds.length > 0 || stored.selectedCount > 0)
+      ) {
         applied.selectedPersonaIds = stored.selectedPersonaIds;
         applied.selectedCount = stored.selectedCount || stored.selectedPersonaIds.length;
         applied.useEntirePool = stored.useEntirePool;
@@ -301,11 +306,6 @@ export function useSetupPersonaSampling(
         personaModel: effectiveModel,
         parallelTrials: stored.parallelTrials,
       });
-      if (stored.selectedPersonaIds.length > 0 || stored.selectedCount > 0) {
-        applied.selectedPersonaIds = stored.selectedPersonaIds;
-        applied.selectedCount = stored.selectedCount || stored.selectedPersonaIds.length;
-        applied.useEntirePool = stored.useEntirePool;
-      }
     }
 
     const handoff = isActive ? peekPersonaHandoff() : null;

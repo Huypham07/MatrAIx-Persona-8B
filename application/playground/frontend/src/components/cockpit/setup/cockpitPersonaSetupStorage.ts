@@ -323,6 +323,20 @@ export function setupFromPersonaStrategy(
   return next;
 }
 
+/** Whether a persisted selection may override a freshly loaded task strategy. */
+export function canRestoreStoredTaskSelection(
+  strategy: TaskPersonaStrategy,
+  stored: CockpitPersonaSetupRecord,
+  hasTaskSpecificStore: boolean,
+): boolean {
+  if (!hasTaskSpecificStore) return false;
+  if (strategy.sampling?.mode !== "pinnedSegments") return true;
+  const pinnedIds = new Set(
+    (strategy.segments ?? []).flatMap((segment) => segment.personaIds ?? []),
+  );
+  return stored.selectedPersonaIds.every((id) => pinnedIds.has(id));
+}
+
 export function hasStoredPersonaSetup(taskPath: string | null | undefined): boolean {
   const path = taskPath?.trim() ?? "";
   if (!path) return false;

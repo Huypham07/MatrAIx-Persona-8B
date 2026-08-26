@@ -531,6 +531,7 @@ function ChatbotEvalCockpit({
     void run({
       taskPath: chatTaskPath,
       personaId: persona.id,
+      personaPool,
       personaModel,
       mode: "auto",
       chatDomain: requestDomain,
@@ -558,6 +559,7 @@ function ChatbotEvalCockpit({
     chatTaskPath,
     run,
     applicationId,
+    personaPool,
     personaModel,
     requestDomain,
     knownLaunchApplicationId,

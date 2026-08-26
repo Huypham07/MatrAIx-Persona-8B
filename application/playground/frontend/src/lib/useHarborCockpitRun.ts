@@ -23,6 +23,7 @@ export type HarborCockpitPhase = "idle" | "launching" | "running" | "done" | "er
 export interface HarborCockpitRunInput<TJob> {
   taskPath: string;
   personaId: string;
+  personaPool: string;
   personaModel: string;
   mode?: HarborLaunchMode;
   chatDomain?: string;
@@ -38,6 +39,25 @@ export interface HarborCockpitRunInput<TJob> {
 
 export interface UseHarborCockpitRunOptions {
   taskKind: HarborCockpitTaskKind;
+}
+
+export function singleHarborLaunchBody<TJob>(input: HarborCockpitRunInput<TJob>) {
+  return {
+    taskPath: input.taskPath,
+    sampleSize: 1,
+    personaPool: input.personaPool,
+    personaIds: [input.personaId],
+    personaModel: input.personaModel,
+    agentName: input.agentName,
+    nConcurrentTrials: 1,
+    mode: input.mode ?? ("auto" as const),
+    chatDomain: input.chatDomain,
+    chatApplicationId: input.chatApplicationId,
+    chatApplicationContext: input.chatApplicationContext,
+    chatMaxTurns: input.chatMaxTurns,
+    osAppSubmissionProfile: input.osAppSubmissionProfile,
+    osAppBackend: input.osAppBackend,
+  };
 }
 
 const TIMEOUT_MS = 30 * 60 * 1_000;
@@ -163,21 +183,7 @@ export function useHarborCockpitRun<TJob>(options: UseHarborCockpitRunOptions) {
       setHarborPhase("launching");
       setPhase("launching");
       try {
-        const launched = await api.launchHarborJob({
-          taskPath: input.taskPath,
-          sampleSize: 1,
-          personaIds: [input.personaId],
-          personaModel: input.personaModel,
-          agentName: input.agentName,
-          nConcurrentTrials: 1,
-          mode: input.mode ?? "auto",
-          chatDomain: input.chatDomain,
-          chatApplicationId: input.chatApplicationId,
-          chatApplicationContext: input.chatApplicationContext,
-          chatMaxTurns: input.chatMaxTurns,
-          osAppSubmissionProfile: input.osAppSubmissionProfile,
-          osAppBackend: input.osAppBackend,
-        });
+        const launched = await api.launchHarborJob(singleHarborLaunchBody(input));
         setHarborJobName(launched.jobName);
         setUrlState({
           pgTask: taskKind,
@@ -218,6 +224,7 @@ export function useHarborCockpitRun<TJob>(options: UseHarborCockpitRunOptions) {
     const restoreInput = {
       taskPath: "",
       personaId: "",
+      personaPool: "",
       personaModel: "",
       mapDebrief: restoreMappers.mapDebrief as HarborCockpitRunInput<TJob>["mapDebrief"],
       mapLive: restoreMappers.mapLive as HarborCockpitRunInput<TJob>["mapLive"],

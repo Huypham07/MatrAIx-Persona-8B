@@ -336,6 +336,7 @@ export function WebEvalCockpit({
     void run({
       taskPath: task.taskPath,
       personaId: persona.id,
+      personaPool,
       personaModel,
       agentName: activeWebAgent,
       mode: "auto",
@@ -347,7 +348,7 @@ export function WebEvalCockpit({
           taskTitle: task.title,
         }),
     });
-  }, [persona, task, isRunning, run, personaModel, activeWebAgent]);
+  }, [persona, task, isRunning, run, personaModel, personaPool, activeWebAgent]);
   const handleLaunch = useCallback(async () => {
     if (!canLaunchCohort || !task?.taskPath || isRunning) {
       return;

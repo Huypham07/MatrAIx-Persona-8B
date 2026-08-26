@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { setupFromPersonaStrategy } from "./cockpitPersonaSetupStorage";
+import {
+  canRestoreStoredTaskSelection,
+  defaultPersonaSetup,
+  setupFromPersonaStrategy,
+} from "./cockpitPersonaSetupStorage";
 import { readStrategySampling } from "./personaSamplingTypes";
 import type { TaskPersonaStrategy } from "@/lib/types";
 
@@ -43,5 +47,26 @@ describe("pinned task persona segments", () => {
     expect(setup.selectedPersonaIds).toEqual(["0001", "0002", "0003", "0004"]);
     expect(setup.selectedCount).toBe(4);
     expect(setup.useTaskDefaultStrategy).toBe(true);
+  });
+
+  it("rejects stale persona ids persisted for a pinned task", () => {
+    const stored = {
+      ...defaultPersonaSetup("local/qwen3-14b"),
+      selectedPersonaIds: ["0593"],
+      selectedCount: 1,
+      useTaskDefaultStrategy: true,
+    };
+
+    expect(canRestoreStoredTaskSelection(strategy, stored, true)).toBe(false);
+  });
+
+  it("does not migrate a task-kind selection into another task", () => {
+    const stored = {
+      ...defaultPersonaSetup("local/qwen3-14b"),
+      selectedPersonaIds: ["0001"],
+      selectedCount: 1,
+    };
+
+    expect(canRestoreStoredTaskSelection(strategy, stored, false)).toBe(false);
   });
 });
