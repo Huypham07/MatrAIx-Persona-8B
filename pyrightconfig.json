@@ -1,0 +1,21 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "extraPaths": [
+    ".",
+    "src",
+    "environment/runtime",
+    "environment/agents",
+    "packages/playground/src",
+    "application/playground"
+  ],
+  "include": [
+    "src",
+    "application",
+    "environment",
+    "packages",
+    "persona",
+    "scripts",
+    "tests"
+  ]
+}

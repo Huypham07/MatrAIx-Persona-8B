@@ -1,0 +1,1741 @@
+{
+  "schemaVersion": "1.0",
+  "task_name": "survey_annual-checkup-habits",
+  "task_path": "D:\\code\\MatrAIx-Persona-8B\\application\\tasks\\survey_annual-checkup-habits",
+  "survey_id": "annual_checkup_habits_v1",
+  "survey_title": "Annual Checkup Habits Survey",
+  "survey_description": "Consumer habits and attitudes around the annual physical or wellness checkup, from scheduling and preparation to follow-up.",
+  "generated_at": "2026-08-27T00:03:21.781542",
+  "total_questions": 45,
+  "total_unique_attributes": 1,
+  "unique_attributes": [
+    {
+      "id": "age_bracket",
+      "label": "Age bracket",
+      "path": "Background > Demographics > Core Demographics > Age bracket",
+      "category": "Demographic: Core",
+      "values_count": 11
+    }
+  ],
+  "questions": [
+    {
+      "question_id": "q0",
+      "prompt": "Do you currently have a primary care provider you see for checkups?",
+      "construct": "currently_have_primary_care_provider",
+      "type": "single_choice",
+      "options": [
+        "Yes, and I see them regularly",
+        "Yes, but I rarely see them",
+        "No, but I have had one in the past",
+        "No, I have never had one"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q1",
+      "prompt": "When did you last have an annual physical or general wellness checkup?",
+      "construct": "when_did_last_have_annual",
+      "type": "single_choice",
+      "options": [
+        "Within the past 6 months",
+        "6 to 12 months ago",
+        "1 to 2 years ago",
+        "3 to 5 years ago",
+        "More than 5 years ago",
+        "I have never had one"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q2",
+      "prompt": "How often do you typically get a general checkup?",
+      "construct": "often_typically_get_general_checkup",
+      "type": "single_choice",
+      "options": [
+        "Every year",
+        "Every 2 to 3 years",
+        "Only when I have a specific concern",
+        "Rarely or never"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q3",
+      "prompt": "Roughly how many years has it been since you started getting regular checkups? Please enter a number.",
+      "construct": "roughly_many_years_has_it",
+      "type": "free_text",
+      "options": [],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q4",
+      "prompt": "How do you usually schedule your annual checkup?",
+      "construct": "usually_schedule_annual_checkup",
+      "type": "single_choice",
+      "options": [
+        "By calling the office",
+        "Through an online patient portal",
+        "Through a scheduling app",
+        "The office schedules it for me automatically",
+        "I do not schedule them in advance"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q5",
+      "prompt": "How far in advance do you usually book your annual checkup?",
+      "construct": "far_advance_usually_book_annual",
+      "type": "single_choice",
+      "options": [
+        "Same week",
+        "1 to 2 weeks ahead",
+        "About a month ahead",
+        "Several months ahead",
+        "I do not plan ahead"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q6",
+      "prompt": "Which of the following do you typically do to prepare for a checkup? (Select all that apply)",
+      "construct": "following_typically_prepare_checkup_sele",
+      "type": "multi_choice",
+      "options": [
+        "Write down questions or concerns",
+        "Make a list of my medications",
+        "Track symptoms beforehand",
+        "Fast if bloodwork is expected",
+        "Gather records from other providers",
+        "Bring a family member",
+        "I do not do anything special to prepare"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q7",
+      "prompt": "Which of the following usually happen during your annual checkup? (Select all that apply)",
+      "construct": "following_usually_happen_during_annual",
+      "type": "multi_choice",
+      "options": [
+        "Blood pressure and vitals check",
+        "Review of my medications",
+        "Bloodwork or lab tests",
+        "Discussion of diet and exercise",
+        "Mental well-being check-in",
+        "Vaccinations or boosters",
+        "Referrals to specialists or screenings",
+        "None of these"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q8",
+      "prompt": "About how long does your typical checkup appointment last? Please enter a number of minutes.",
+      "construct": "long_does_typical_checkup_appointment",
+      "type": "free_text",
+      "options": [],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q9",
+      "prompt": "How much do you agree or disagree: An annual checkup is worth doing even when I feel healthy.",
+      "construct": "much_agree_disagree_annual_checkup",
+      "type": "single_choice",
+      "options": [
+        "Strongly disagree",
+        "Disagree",
+        "Neither agree nor disagree",
+        "Agree",
+        "Strongly agree"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q10",
+      "prompt": "How much do you agree or disagree: My checkups usually feel rushed.",
+      "construct": "much_agree_disagree_my_checkups",
+      "type": "single_choice",
+      "options": [
+        "Strongly disagree",
+        "Disagree",
+        "Neither agree nor disagree",
+        "Agree",
+        "Strongly agree"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q11",
+      "prompt": "How much do you agree or disagree: I leave my checkups with a clear understanding of my health.",
+      "construct": "much_agree_disagree_i_leave",
+      "type": "single_choice",
+      "options": [
+        "Strongly disagree",
+        "Disagree",
+        "Neither agree nor disagree",
+        "Agree",
+        "Strongly agree"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q12",
+      "prompt": "How much do you agree or disagree: My provider takes time to answer all of my questions.",
+      "construct": "much_agree_disagree_my_provider",
+      "type": "single_choice",
+      "options": [
+        "Strongly disagree",
+        "Disagree",
+        "Neither agree nor disagree",
+        "Agree",
+        "Strongly agree"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q13",
+      "prompt": "How much do you agree or disagree: I look forward to my annual checkup.",
+      "construct": "much_agree_disagree_i_look",
+      "type": "single_choice",
+      "options": [
+        "Strongly disagree",
+        "Disagree",
+        "Neither agree nor disagree",
+        "Agree",
+        "Strongly agree"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q14",
+      "prompt": "How much do you agree or disagree: Scheduling a checkup is easy for me.",
+      "construct": "much_agree_disagree_scheduling_checkup",
+      "type": "single_choice",
+      "options": [
+        "Strongly disagree",
+        "Disagree",
+        "Neither agree nor disagree",
+        "Agree",
+        "Strongly agree"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q15",
+      "prompt": "How important to you is each of the following in a checkup: having the same provider each time?",
+      "construct": "important_each_following_checkup_having",
+      "type": "single_choice",
+      "options": [
+        "Not at all important",
+        "Slightly important",
+        "Moderately important",
+        "Very important",
+        "Extremely important"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q16",
+      "prompt": "How important to you is each of the following in a checkup: short wait time in the office?",
+      "construct": "important_each_following_checkup_short",
+      "type": "single_choice",
+      "options": [
+        "Not at all important",
+        "Slightly important",
+        "Moderately important",
+        "Very important",
+        "Extremely important"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q17",
+      "prompt": "How important to you is each of the following in a checkup: enough time to talk with the provider?",
+      "construct": "important_each_following_checkup_enough",
+      "type": "single_choice",
+      "options": [
+        "Not at all important",
+        "Slightly important",
+        "Moderately important",
+        "Very important",
+        "Extremely important"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q18",
+      "prompt": "How important to you is each of the following in a checkup: getting test results explained clearly?",
+      "construct": "important_each_following_checkup_getting",
+      "type": "single_choice",
+      "options": [
+        "Not at all important",
+        "Slightly important",
+        "Moderately important",
+        "Very important",
+        "Extremely important"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q19",
+      "prompt": "How important to you is each of the following in a checkup: convenient appointment times?",
+      "construct": "important_each_following_checkup_conveni",
+      "type": "single_choice",
+      "options": [
+        "Not at all important",
+        "Slightly important",
+        "Moderately important",
+        "Very important",
+        "Extremely important"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q20",
+      "prompt": "What is the main reason you keep up with (or would keep up with) annual checkups?",
+      "construct": "main_reason_keep_up_would",
+      "type": "single_choice",
+      "options": [
+        "To catch problems early",
+        "To maintain a relationship with a provider",
+        "Peace of mind",
+        "A requirement for insurance or work",
+        "A family member encourages me",
+        "I do not keep up with them"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q21",
+      "prompt": "Which of the following have caused you to skip or delay a checkup? (Select all that apply)",
+      "construct": "following_have_caused_skip_delay",
+      "type": "multi_choice",
+      "options": [
+        "Being too busy",
+        "Cost or coverage concerns",
+        "Feeling healthy and not seeing the need",
+        "Difficulty getting an appointment",
+        "Not having a regular provider",
+        "Dislike of doctor visits",
+        "I have not skipped or delayed a checkup"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q22",
+      "prompt": "After a checkup, how often do you follow through on the recommendations you receive?",
+      "construct": "after_checkup_often_follow_through",
+      "type": "single_choice",
+      "options": [
+        "Always",
+        "Often",
+        "Sometimes",
+        "Rarely",
+        "Never"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q23",
+      "prompt": "How do you usually receive your test or lab results after a checkup?",
+      "construct": "usually_receive_test_lab_results",
+      "type": "single_choice",
+      "options": [
+        "Through an online patient portal",
+        "A phone call from the office",
+        "A follow-up appointment",
+        "A letter or email",
+        "I usually do not receive results"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q24",
+      "prompt": "How much do you agree or disagree: I trust the advice my provider gives me during checkups.",
+      "construct": "much_agree_disagree_i_trust",
+      "type": "single_choice",
+      "options": [
+        "Strongly disagree",
+        "Disagree",
+        "Neither agree nor disagree",
+        "Agree",
+        "Strongly agree"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q25",
+      "prompt": "How confident are you in describing your health history and concerns during a checkup?",
+      "construct": "confident_describing_health_history_conc",
+      "type": "single_choice",
+      "options": [
+        "Not at all confident",
+        "A little confident",
+        "Somewhat confident",
+        "Very confident",
+        "Completely confident"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q26",
+      "prompt": "Do you ever bring notes or a written list of questions to your checkup?",
+      "construct": "ever_bring_notes_written_list",
+      "type": "single_choice",
+      "options": [
+        "Always",
+        "Usually",
+        "Sometimes",
+        "Never"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q27",
+      "prompt": "How often do you have a specific follow-up scheduled at the end of a checkup?",
+      "construct": "often_have_specific_follow_up",
+      "type": "single_choice",
+      "options": [
+        "Always",
+        "Often",
+        "Sometimes",
+        "Rarely",
+        "Never"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q28",
+      "prompt": "Overall, how satisfied are you with your most recent checkup experience?",
+      "construct": "overall_satisfied_most_recent_checkup",
+      "type": "single_choice",
+      "options": [
+        "Very dissatisfied",
+        "Dissatisfied",
+        "Neutral",
+        "Satisfied",
+        "Very satisfied"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q29",
+      "prompt": "How would you rate the overall quality of care at your checkups?",
+      "construct": "would_rate_overall_quality_care",
+      "type": "single_choice",
+      "options": [
+        "Excellent",
+        "Very good",
+        "Good",
+        "Fair",
+        "Poor"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q30",
+      "prompt": "On a scale of 0 to 10, how likely are you to recommend your checkup provider to a friend or family member? (0 = not at all likely, 10 = extremely likely)",
+      "construct": "scale_0_10_likely_recommend",
+      "type": "single_choice",
+      "options": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q31",
+      "prompt": "How likely are you to schedule your next checkup within the recommended time frame?",
+      "construct": "likely_schedule_next_checkup_within",
+      "type": "single_choice",
+      "options": [
+        "Very unlikely",
+        "Unlikely",
+        "Neither likely nor unlikely",
+        "Likely",
+        "Very likely"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q32",
+      "prompt": "Which improvements would most help you keep up with annual checkups? Select your top 3. (Select all that apply)",
+      "construct": "improvements_would_most_help_keep",
+      "type": "multi_choice",
+      "options": [
+        "Automatic reminders when I am due",
+        "Easier online scheduling",
+        "Evening or weekend appointments",
+        "Shorter office wait times",
+        "Lower out-of-pocket cost",
+        "More time with the provider",
+        "Faster access to my results",
+        "Seeing the same provider each time"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q33",
+      "prompt": "What is your age band?",
+      "construct": "age_band",
+      "type": "single_choice",
+      "options": [
+        "18–24",
+        "25–34",
+        "35–44",
+        "45–54",
+        "55–64",
+        "65–74",
+        "75 or older"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q34",
+      "prompt": "What is your gender?",
+      "construct": "gender",
+      "type": "single_choice",
+      "options": [
+        "Woman",
+        "Man",
+        "Non-binary",
+        "Prefer to self-describe",
+        "Prefer not to say"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q35",
+      "prompt": "What is your race or ethnicity? (Select all that apply)",
+      "construct": "race_ethnicity_select_all_that",
+      "type": "multi_choice",
+      "options": [
+        "White",
+        "Black or African American",
+        "Hispanic or Latino/a",
+        "Asian",
+        "American Indian or Alaska Native",
+        "Native Hawaiian or Other Pacific Islander",
+        "Middle Eastern or North African",
+        "Prefer not to say"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q36",
+      "prompt": "What is your household's annual income before taxes?",
+      "construct": "household_s_annual_income_before",
+      "type": "single_choice",
+      "options": [
+        "Under $25,000",
+        "$25,000 to $49,999",
+        "$50,000 to $74,999",
+        "$75,000 to $99,999",
+        "$100,000 to $149,999",
+        "$150,000 or more",
+        "Prefer not to say"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q37",
+      "prompt": "What is the highest level of education you have completed?",
+      "construct": "highest_level_education_have_completed",
+      "type": "single_choice",
+      "options": [
+        "Less than high school",
+        "High school diploma or GED",
+        "Some college, no degree",
+        "Associate degree",
+        "Bachelor's degree",
+        "Graduate or professional degree"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q38",
+      "prompt": "What is your current employment status?",
+      "construct": "current_employment_status",
+      "type": "single_choice",
+      "options": [
+        "Employed full-time",
+        "Employed part-time",
+        "Self-employed",
+        "Unemployed and looking for work",
+        "Retired",
+        "Student",
+        "Homemaker or caregiver",
+        "Unable to work"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q39",
+      "prompt": "Including yourself, how many people live in your household? Please enter a number.",
+      "construct": "including_yourself_many_people_live",
+      "type": "free_text",
+      "options": [],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q40",
+      "prompt": "What is your marital or relationship status?",
+      "construct": "marital_relationship_status",
+      "type": "single_choice",
+      "options": [
+        "Single, never married",
+        "Married",
+        "Living with a partner",
+        "Divorced or separated",
+        "Widowed",
+        "Prefer not to say"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q41",
+      "prompt": "Which U.S. region do you live in?",
+      "construct": "u_s_region_live",
+      "type": "single_choice",
+      "options": [
+        "Northeast",
+        "Midwest",
+        "South",
+        "West",
+        "Outside the United States"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q42",
+      "prompt": "How would you describe the area where you live?",
+      "construct": "would_describe_area_where_live",
+      "type": "single_choice",
+      "options": [
+        "Urban",
+        "Suburban",
+        "Rural"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q43",
+      "prompt": "What is your current health insurance situation?",
+      "construct": "current_health_insurance_situation",
+      "type": "single_choice",
+      "options": [
+        "Employer-sponsored insurance",
+        "Insurance purchased on my own or through the marketplace",
+        "Medicare",
+        "Medicaid",
+        "Military or veterans coverage",
+        "Uninsured",
+        "Prefer not to say"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q44",
+      "prompt": "In general, how would you rate your overall health?",
+      "construct": "general_would_rate_overall_health",
+      "type": "single_choice",
+      "options": [
+        "Excellent",
+        "Very good",
+        "Good",
+        "Fair",
+        "Poor"
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    }
+  ]
+}

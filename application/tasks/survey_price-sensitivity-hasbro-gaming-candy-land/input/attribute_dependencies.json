@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "1.0",
+  "task_name": "survey_price-sensitivity-hasbro-gaming-candy-land",
+  "task_path": "D:\\code\\MatrAIx-Persona-8B\\application\\tasks\\survey_price-sensitivity-hasbro-gaming-candy-land",
+  "survey_id": "price_sensitivity_v1",
+  "survey_title": "Price Sensitivity Survey — Hasbro Gaming Candy Land Kingdom",
+  "survey_description": "How sensitive the persona is to this product's price and where their thresholds sit. This edition asks about Hasbro Gaming Candy Land Kingdom.",
+  "generated_at": "2026-08-26T23:53:31.243968",
+  "total_questions": 4,
+  "total_unique_attributes": 1,
+  "unique_attributes": [
+    {
+      "id": "age_bracket",
+      "label": "Age bracket",
+      "path": "Background > Demographics > Core Demographics > Age bracket",
+      "category": "Demographic: Core",
+      "values_count": 11
+    }
+  ],
+  "questions": [
+    {
+      "question_id": "q_price_matters",
+      "prompt": "The price is the single most important factor in whether I would buy the Hasbro Gaming Candy Land Kingdom.",
+      "construct": "price_centrality",
+      "type": "likert",
+      "options": [],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q_too_expensive",
+      "prompt": "At its current price, the Hasbro Gaming Candy Land Kingdom feels too expensive for me.",
+      "construct": "price_pain",
+      "type": "likert",
+      "options": [],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q_threshold",
+      "prompt": "What best describes your reaction to the current price?",
+      "construct": "price_threshold",
+      "type": "single_choice",
+      "options": [
+        "So reasonable I might buy more than one.",
+        "Fair enough that I would just buy it.",
+        "High enough that I would hesitate.",
+        "I would only buy it on sale.",
+        "High enough that I would walk away."
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "q_price_vs_quality",
+      "prompt": "When you weigh price against quality here, which wins?",
+      "construct": "price_quality_tradeoff",
+      "type": "single_choice",
+      "options": [
+        "I prioritize the lowest price.",
+        "I want a balance of price and quality.",
+        "I will pay more for quality."
+      ],
+      "total_dependencies": 1,
+      "dependencies": [
+        {
+          "attribute_id": "age_bracket",
+          "attribute_label": "Age bracket",
+          "path": "Background > Demographics > Core Demographics > Age bracket",
+          "path_id": "background > demographics > core_demographics > age_bracket",
+          "category": "Demographic: Core",
+          "relevance": "high",
+          "reason": "Age strongly influences adoption and user perspective.",
+          "values": [
+            "Under 5",
+            "5-12",
+            "13-17",
+            "18-24",
+            "25-34",
+            "35-44",
+            "45-54",
+            "55-64",
+            "65-74",
+            "75-84",
+            "85+"
+          ]
+        }
+      ]
+    }
+  ]
+}
