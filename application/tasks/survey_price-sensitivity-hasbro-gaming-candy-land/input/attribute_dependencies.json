@@ -1,20 +1,118 @@
 {
   "schemaVersion": "1.0",
   "task_name": "survey_price-sensitivity-hasbro-gaming-candy-land",
-  "task_path": "D:\\code\\MatrAIx-Persona-8B\\application\\tasks\\survey_price-sensitivity-hasbro-gaming-candy-land",
+  "task_path": "D:\\source_code\\MatrAIx-Persona-8B\\application\\tasks\\survey_price-sensitivity-hasbro-gaming-candy-land",
   "survey_id": "price_sensitivity_v1",
   "survey_title": "Price Sensitivity Survey — Hasbro Gaming Candy Land Kingdom",
   "survey_description": "How sensitive the persona is to this product's price and where their thresholds sit. This edition asks about Hasbro Gaming Candy Land Kingdom.",
-  "generated_at": "2026-08-26T23:53:31.243968",
+  "generated_at": "2026-08-27T09:31:37.249131",
   "total_questions": 4,
-  "total_unique_attributes": 1,
+  "total_unique_attributes": 15,
   "unique_attributes": [
     {
-      "id": "age_bracket",
-      "label": "Age bracket",
-      "path": "Background > Demographics > Core Demographics > Age bracket",
-      "category": "Demographic: Core",
-      "values_count": 11
+      "id": "dospert_financial_risk_tolerance",
+      "label": "DOSPERT Financial Risk Tolerance",
+      "path": "Psychology > Decision-Making > Risk & Decision > DOSPERT Financial Risk Tolerance",
+      "category": "Risk & Decision",
+      "values_count": 5
+    },
+    {
+      "id": "need_for_closure",
+      "label": "Need for Closure",
+      "path": "Psychology > Decision-Making > Risk & Decision > Need for Closure",
+      "category": "Risk & Decision",
+      "values_count": 5
+    },
+    {
+      "id": "pref_save_vs_spend",
+      "label": "Save vs spend",
+      "path": "Behavior and Interaction > Personal Behavior > Preferences > Save vs spend",
+      "category": "Behavior: Preferences",
+      "values_count": 5
+    },
+    {
+      "id": "pref_quality_vs_quantity",
+      "label": "Quality vs quantity",
+      "path": "Behavior and Interaction > Personal Behavior > Preferences > Quality vs quantity",
+      "category": "Behavior: Preferences",
+      "values_count": 5
+    },
+    {
+      "id": "pref_novelty_vs_familiarity",
+      "label": "Novelty vs familiarity",
+      "path": "Behavior and Interaction > Personal Behavior > Preferences > Novelty vs familiarity",
+      "category": "Behavior: Preferences",
+      "values_count": 5
+    },
+    {
+      "id": "lstyle_frugality",
+      "label": "Spending vs saving",
+      "path": "Lifestyle and Health > Culture and Daily Life > Lifestyle Patterns > Spending vs saving",
+      "category": "Interests: Culture",
+      "values_count": 4
+    },
+    {
+      "id": "lstyle_shopping_style",
+      "label": "Shopping style",
+      "path": "Lifestyle and Health > Culture and Daily Life > Lifestyle Patterns > Shopping style",
+      "category": "Interests: Culture",
+      "values_count": 5
+    },
+    {
+      "id": "lstyle_payment_pref",
+      "label": "Payment preference",
+      "path": "Lifestyle and Health > Culture and Daily Life > Lifestyle Patterns > Payment preference",
+      "category": "Interests: Culture",
+      "values_count": 6
+    },
+    {
+      "id": "dospert_recreational_risk_tolerance",
+      "label": "DOSPERT Recreational Risk Tolerance",
+      "path": "Psychology > Decision-Making > Risk & Decision > DOSPERT Recreational Risk Tolerance",
+      "category": "Risk & Decision",
+      "values_count": 5
+    },
+    {
+      "id": "emotional_state",
+      "label": "Emotional state",
+      "path": "Behavior and Interaction > Interaction State > Current Emotional State > Emotional state",
+      "category": "State: Emotional",
+      "values_count": 7
+    },
+    {
+      "id": "intent",
+      "label": "Intent",
+      "path": "Behavior and Interaction > Interaction State > Task & Interaction Context > Intent",
+      "category": "State: Emotional",
+      "values_count": 8
+    },
+    {
+      "id": "device_context",
+      "label": "Device context",
+      "path": "Behavior and Interaction > Interaction State > Task & Interaction Context > Device context",
+      "category": "State: Emotional",
+      "values_count": 5
+    },
+    {
+      "id": "pref_plan_vs_spontaneous",
+      "label": "Planned vs spontaneous",
+      "path": "Behavior and Interaction > Personal Behavior > Preferences > Planned vs spontaneous",
+      "category": "Behavior: Preferences",
+      "values_count": 5
+    },
+    {
+      "id": "risk_tolerance",
+      "label": "Risk tolerance",
+      "path": "Psychology > Decision-Making > Risk & Decision > Risk tolerance",
+      "category": "Risk & Decision",
+      "values_count": 5
+    },
+    {
+      "id": "decision_style",
+      "label": "Decision style",
+      "path": "Psychology > Decision-Making > Risk & Decision > Decision style",
+      "category": "Risk & Decision",
+      "values_count": 5
     }
   ],
   "questions": [
@@ -24,28 +122,134 @@
       "construct": "price_centrality",
       "type": "likert",
       "options": [],
-      "total_dependencies": 1,
+      "total_dependencies": 8,
       "dependencies": [
         {
-          "attribute_id": "age_bracket",
-          "attribute_label": "Age bracket",
-          "path": "Background > Demographics > Core Demographics > Age bracket",
-          "path_id": "background > demographics > core_demographics > age_bracket",
-          "category": "Demographic: Core",
+          "attribute_id": "dospert_financial_risk_tolerance",
+          "attribute_label": "DOSPERT Financial Risk Tolerance",
+          "path": "Psychology > Decision-Making > Risk & Decision > DOSPERT Financial Risk Tolerance",
+          "path_id": "psychology > decision_making > risk_decision > dospert_financial_risk_tolerance",
+          "category": "Risk & Decision",
           "relevance": "high",
-          "reason": "Age strongly influences adoption and user perspective.",
+          "reason": "Financial risk tolerance directly influences how a shopper perceives the price of a product. A higher financial risk tolerance may make a shopper less sensitive to the price increase, while a lower tolerance may make them more hesitant to purchase the product at the current higher price.",
           "values": [
-            "Under 5",
-            "5-12",
-            "13-17",
-            "18-24",
-            "25-34",
-            "35-44",
-            "45-54",
-            "55-64",
-            "65-74",
-            "75-84",
-            "85+"
+            "Very high",
+            "High",
+            "Average",
+            "Low",
+            "Very low"
+          ]
+        },
+        {
+          "attribute_id": "need_for_closure",
+          "attribute_label": "Need for Closure",
+          "path": "Psychology > Decision-Making > Risk & Decision > Need for Closure",
+          "path_id": "psychology > decision_making > risk_decision > need_for_closure",
+          "category": "Risk & Decision",
+          "relevance": "medium",
+          "reason": "Shoppers with a high need for closure may be more influenced by price as a clear and definitive factor in their decision-making process. They may be more likely to prioritize price as the most important factor when making a purchase decision.",
+          "values": [
+            "Very high",
+            "High",
+            "Average",
+            "Low",
+            "Very low"
+          ]
+        },
+        {
+          "attribute_id": "pref_save_vs_spend",
+          "attribute_label": "Save vs spend",
+          "path": "Behavior and Interaction > Personal Behavior > Preferences > Save vs spend",
+          "path_id": "behavior_interaction > personal_behavior > preferences > pref_save_vs_spend",
+          "category": "Behavior: Preferences",
+          "relevance": "high",
+          "reason": "The 'Save vs Spend' preference directly influences how a shopper evaluates price as a critical factor. Those who are 'Hard savers' or 'Saver-leaning' are more likely to be sensitive to price increases and may be less inclined to purchase the product at its current higher price point.",
+          "values": [
+            "Hard saver",
+            "Saver-leaning",
+            "Balanced",
+            "Spender-leaning",
+            "Free spender"
+          ]
+        },
+        {
+          "attribute_id": "pref_quality_vs_quantity",
+          "attribute_label": "Quality vs quantity",
+          "path": "Behavior and Interaction > Personal Behavior > Preferences > Quality vs quantity",
+          "path_id": "behavior_interaction > personal_behavior > preferences > pref_quality_vs_quantity",
+          "category": "Behavior: Preferences",
+          "relevance": "medium",
+          "reason": "A preference for 'Quality first' or 'Quality-leaning' may make shoppers less sensitive to price increases if they perceive the product as high quality. Conversely, those who prioritize 'Quantity first' may be more price-sensitive, especially if the price increase affects their ability to purchase multiple units.",
+          "values": [
+            "Quality first",
+            "Quality-leaning",
+            "Balanced",
+            "Quantity-leaning",
+            "Quantity first"
+          ]
+        },
+        {
+          "attribute_id": "pref_novelty_vs_familiarity",
+          "attribute_label": "Novelty vs familiarity",
+          "path": "Behavior and Interaction > Personal Behavior > Preferences > Novelty vs familiarity",
+          "path_id": "behavior_interaction > personal_behavior > preferences > pref_novelty_vs_familiarity",
+          "category": "Behavior: Preferences",
+          "relevance": "medium",
+          "reason": "Shoppers who prefer 'Always familiar' or 'Comfort-leaning' may be more price-sensitive, as they may be less inclined to try new products unless the price is favorable. This could influence their perception of whether the price is a major factor in their decision.",
+          "values": [
+            "Always novel",
+            "Novelty-leaning",
+            "Balanced",
+            "Comfort-leaning",
+            "Always familiar"
+          ]
+        },
+        {
+          "attribute_id": "lstyle_frugality",
+          "attribute_label": "Spending vs saving",
+          "path": "Lifestyle and Health > Culture and Daily Life > Lifestyle Patterns > Spending vs saving",
+          "path_id": "lifestyle_health > culture_daily_life > lifestyle_patterns > lstyle_frugality",
+          "category": "Interests: Culture",
+          "relevance": "high",
+          "reason": "Spending habits directly influence how price sensitivity is perceived. A 'Frugal saver' is more likely to be deterred by the increased price, while a 'Splurger' may be less affected.",
+          "values": [
+            "Frugal saver",
+            "Balanced",
+            "Spender",
+            "Splurger"
+          ]
+        },
+        {
+          "attribute_id": "lstyle_shopping_style",
+          "attribute_label": "Shopping style",
+          "path": "Lifestyle and Health > Culture and Daily Life > Lifestyle Patterns > Shopping style",
+          "path_id": "lifestyle_health > culture_daily_life > lifestyle_patterns > lstyle_shopping_style",
+          "category": "Interests: Culture",
+          "relevance": "high",
+          "reason": "A 'Bargain hunter' would be more sensitive to price changes, making them more likely to disagree with the statement that price is the single most important factor. A 'Brand loyal' shopper may prioritize brand or product quality over price.",
+          "values": [
+            "Researcher",
+            "Impulse buyer",
+            "Bargain hunter",
+            "Brand loyal",
+            "Minimalist"
+          ]
+        },
+        {
+          "attribute_id": "lstyle_payment_pref",
+          "attribute_label": "Payment preference",
+          "path": "Lifestyle and Health > Culture and Daily Life > Lifestyle Patterns > Payment preference",
+          "path_id": "lifestyle_health > culture_daily_life > lifestyle_patterns > lstyle_payment_pref",
+          "category": "Interests: Culture",
+          "relevance": "medium",
+          "reason": "Payment preferences can indicate financial behavior. For example, a 'BNPL' (Buy Now, Pay Later) user may be more price-sensitive and thus more likely to agree that price is the most important factor.",
+          "values": [
+            "Credit card",
+            "Debit card",
+            "Mobile wallet",
+            "Cash",
+            "BNPL",
+            "Crypto"
           ]
         }
       ]
@@ -56,28 +260,203 @@
       "construct": "price_pain",
       "type": "likert",
       "options": [],
-      "total_dependencies": 1,
+      "total_dependencies": 12,
       "dependencies": [
         {
-          "attribute_id": "age_bracket",
-          "attribute_label": "Age bracket",
-          "path": "Background > Demographics > Core Demographics > Age bracket",
-          "path_id": "background > demographics > core_demographics > age_bracket",
-          "category": "Demographic: Core",
+          "attribute_id": "dospert_financial_risk_tolerance",
+          "attribute_label": "DOSPERT Financial Risk Tolerance",
+          "path": "Psychology > Decision-Making > Risk & Decision > DOSPERT Financial Risk Tolerance",
+          "path_id": "psychology > decision_making > risk_decision > dospert_financial_risk_tolerance",
+          "category": "Risk & Decision",
           "relevance": "high",
-          "reason": "Age strongly influences adoption and user perspective.",
+          "reason": "A shopper's financial risk tolerance directly influences their perception of price value. Those with lower financial risk tolerance are more likely to perceive the current price as expensive, especially when it has increased significantly.",
           "values": [
-            "Under 5",
-            "5-12",
-            "13-17",
-            "18-24",
-            "25-34",
-            "35-44",
-            "45-54",
-            "55-64",
-            "65-74",
-            "75-84",
-            "85+"
+            "Very high",
+            "High",
+            "Average",
+            "Low",
+            "Very low"
+          ]
+        },
+        {
+          "attribute_id": "dospert_recreational_risk_tolerance",
+          "attribute_label": "DOSPERT Recreational Risk Tolerance",
+          "path": "Psychology > Decision-Making > Risk & Decision > DOSPERT Recreational Risk Tolerance",
+          "path_id": "psychology > decision_making > risk_decision > dospert_recreational_risk_tolerance",
+          "category": "Risk & Decision",
+          "relevance": "medium",
+          "reason": "Recreational risk tolerance may influence how a shopper evaluates the value of a leisure or entertainment product. Those with lower recreational risk tolerance may be more price-sensitive or perceive the product as overpriced for its intended use.",
+          "values": [
+            "Very high",
+            "High",
+            "Average",
+            "Low",
+            "Very low"
+          ]
+        },
+        {
+          "attribute_id": "need_for_closure",
+          "attribute_label": "Need for Closure",
+          "path": "Psychology > Decision-Making > Risk & Decision > Need for Closure",
+          "path_id": "psychology > decision_making > risk_decision > need_for_closure",
+          "category": "Risk & Decision",
+          "relevance": "medium",
+          "reason": "Shoppers with a high need for closure may be more sensitive to price changes and perceive the current price as a barrier to purchase, especially if they are seeking certainty in their spending decisions.",
+          "values": [
+            "Very high",
+            "High",
+            "Average",
+            "Low",
+            "Very low"
+          ]
+        },
+        {
+          "attribute_id": "pref_save_vs_spend",
+          "attribute_label": "Save vs spend",
+          "path": "Behavior and Interaction > Personal Behavior > Preferences > Save vs spend",
+          "path_id": "behavior_interaction > personal_behavior > preferences > pref_save_vs_spend",
+          "category": "Behavior: Preferences",
+          "relevance": "high",
+          "reason": "This dimension reflects a persona's financial attitude, which directly influences their perception of price. A 'Hard saver' or 'Saver-leaning' persona is more likely to perceive the current price of $16.24 as expensive, while a 'Free spender' or 'Spender-leaning' persona may be less sensitive to the price increase.",
+          "values": [
+            "Hard saver",
+            "Saver-leaning",
+            "Balanced",
+            "Spender-leaning",
+            "Free spender"
+          ]
+        },
+        {
+          "attribute_id": "pref_quality_vs_quantity",
+          "attribute_label": "Quality vs quantity",
+          "path": "Behavior and Interaction > Personal Behavior > Preferences > Quality vs quantity",
+          "path_id": "behavior_interaction > personal_behavior > preferences > pref_quality_vs_quantity",
+          "category": "Behavior: Preferences",
+          "relevance": "medium",
+          "reason": "A persona who prioritizes 'Quality first' or 'Quality-leaning' may be more willing to pay a higher price for a product they perceive as high-quality, such as a well-known brand like Hasbro. Conversely, a 'Quantity first' or 'Quantity-leaning' persona may be more price-sensitive and perceive the current price as too high.",
+          "values": [
+            "Quality first",
+            "Quality-leaning",
+            "Balanced",
+            "Quantity-leaning",
+            "Quantity first"
+          ]
+        },
+        {
+          "attribute_id": "pref_novelty_vs_familiarity",
+          "attribute_label": "Novelty vs familiarity",
+          "path": "Behavior and Interaction > Personal Behavior > Preferences > Novelty vs familiarity",
+          "path_id": "behavior_interaction > personal_behavior > preferences > pref_novelty_vs_familiarity",
+          "category": "Behavior: Preferences",
+          "relevance": "medium",
+          "reason": "A 'Comfort-leaning' or 'Always familiar' persona may be more price-sensitive and perceive the current price as too high, especially if they are not familiar with the product or brand. A 'Novelty-leaning' or 'Always novel' persona may be more willing to pay a premium for a new or unique product experience.",
+          "values": [
+            "Always novel",
+            "Novelty-leaning",
+            "Balanced",
+            "Comfort-leaning",
+            "Always familiar"
+          ]
+        },
+        {
+          "attribute_id": "emotional_state",
+          "attribute_label": "Emotional state",
+          "path": "Behavior and Interaction > Interaction State > Current Emotional State > Emotional state",
+          "path_id": "behavior_interaction > interaction_state > current_emotional_state > emotional_state",
+          "category": "State: Emotional",
+          "relevance": "high",
+          "reason": "A shopper's current emotional state directly influences their perception of price value. For example, if they are 'Frustrated' or 'Anxious', they may be more likely to perceive the current price as too high. Conversely, if they are 'Excited' or 'Curious', they may be more willing to overlook the price increase. Emotional state acts as a psychological filter for evaluating cost-benefit trade-offs.",
+          "values": [
+            "Calm",
+            "Curious",
+            "Frustrated",
+            "Anxious",
+            "Excited",
+            "Skeptical",
+            "Urgent"
+          ]
+        },
+        {
+          "attribute_id": "intent",
+          "attribute_label": "Intent",
+          "path": "Behavior and Interaction > Interaction State > Task & Interaction Context > Intent",
+          "path_id": "behavior_interaction > interaction_state > task_interaction_context > intent",
+          "category": "State: Emotional",
+          "relevance": "high",
+          "reason": "A shopper's intent (e.g., 'Get task done' or 'Decide') directly influences their perception of price value. If their intent is to make a purchase decision, they are more likely to evaluate whether the current price feels reasonable or expensive.",
+          "values": [
+            "Learn / explain",
+            "Get task done",
+            "Brainstorm",
+            "Debug / troubleshoot",
+            "Decide",
+            "Vent / support",
+            "Probe / red-team",
+            "Verify a claim"
+          ]
+        },
+        {
+          "attribute_id": "device_context",
+          "attribute_label": "Device context",
+          "path": "Behavior and Interaction > Interaction State > Task & Interaction Context > Device context",
+          "path_id": "behavior_interaction > interaction_state > task_interaction_context > device_context",
+          "category": "State: Emotional",
+          "relevance": "medium",
+          "reason": "The device context (e.g., 'Mobile, on-the-go' vs. 'Desktop, focused') may influence how shoppers process pricing information. A mobile user might be more price-sensitive due to browsing habits or limited attention span, affecting their perception of the product's cost.",
+          "values": [
+            "Desktop, focused",
+            "Mobile, on-the-go",
+            "Voice assistant",
+            "Accessibility tool",
+            "Low-bandwidth"
+          ]
+        },
+        {
+          "attribute_id": "lstyle_frugality",
+          "attribute_label": "Spending vs saving",
+          "path": "Lifestyle and Health > Culture and Daily Life > Lifestyle Patterns > Spending vs saving",
+          "path_id": "lifestyle_health > culture_daily_life > lifestyle_patterns > lstyle_frugality",
+          "category": "Interests: Culture",
+          "relevance": "high",
+          "reason": "A persona's spending vs saving behavior directly influences their perception of price. Those who are 'Frugal savers' are more likely to perceive the current price of $16.24 as expensive, while 'Splurgers' may be less sensitive to the price increase.",
+          "values": [
+            "Frugal saver",
+            "Balanced",
+            "Spender",
+            "Splurger"
+          ]
+        },
+        {
+          "attribute_id": "lstyle_shopping_style",
+          "attribute_label": "Shopping style",
+          "path": "Lifestyle and Health > Culture and Daily Life > Lifestyle Patterns > Shopping style",
+          "path_id": "lifestyle_health > culture_daily_life > lifestyle_patterns > lstyle_shopping_style",
+          "category": "Interests: Culture",
+          "relevance": "high",
+          "reason": "A shopper's style (e.g., 'Bargain hunter' vs. 'Brand loyal') affects their price sensitivity. 'Bargain hunters' are more likely to find the current price too high, especially after a recent price increase, while 'Brand loyal' shoppers may be less price-sensitive.",
+          "values": [
+            "Researcher",
+            "Impulse buyer",
+            "Bargain hunter",
+            "Brand loyal",
+            "Minimalist"
+          ]
+        },
+        {
+          "attribute_id": "lstyle_payment_pref",
+          "attribute_label": "Payment preference",
+          "path": "Lifestyle and Health > Culture and Daily Life > Lifestyle Patterns > Payment preference",
+          "path_id": "lifestyle_health > culture_daily_life > lifestyle_patterns > lstyle_payment_pref",
+          "category": "Interests: Culture",
+          "relevance": "medium",
+          "reason": "Payment preferences, such as 'BNPL' (Buy Now, Pay Later) or 'Credit card', can influence a shopper's perception of affordability. Those with flexible payment options may be less likely to find the price too high, while those preferring 'Cash' may be more price-sensitive.",
+          "values": [
+            "Credit card",
+            "Debit card",
+            "Mobile wallet",
+            "Cash",
+            "BNPL",
+            "Crypto"
           ]
         }
       ]
@@ -94,28 +473,134 @@
         "I would only buy it on sale.",
         "High enough that I would walk away."
       ],
-      "total_dependencies": 1,
+      "total_dependencies": 8,
       "dependencies": [
         {
-          "attribute_id": "age_bracket",
-          "attribute_label": "Age bracket",
-          "path": "Background > Demographics > Core Demographics > Age bracket",
-          "path_id": "background > demographics > core_demographics > age_bracket",
-          "category": "Demographic: Core",
+          "attribute_id": "dospert_financial_risk_tolerance",
+          "attribute_label": "DOSPERT Financial Risk Tolerance",
+          "path": "Psychology > Decision-Making > Risk & Decision > DOSPERT Financial Risk Tolerance",
+          "path_id": "psychology > decision_making > risk_decision > dospert_financial_risk_tolerance",
+          "category": "Risk & Decision",
           "relevance": "high",
-          "reason": "Age strongly influences adoption and user perspective.",
+          "reason": "A shopper's financial risk tolerance directly influences their perception of price. Those with higher financial risk tolerance may be more willing to pay the current price, while those with lower tolerance may hesitate or walk away.",
           "values": [
-            "Under 5",
-            "5-12",
-            "13-17",
-            "18-24",
-            "25-34",
-            "35-44",
-            "45-54",
-            "55-64",
-            "65-74",
-            "75-84",
-            "85+"
+            "Very high",
+            "High",
+            "Average",
+            "Low",
+            "Very low"
+          ]
+        },
+        {
+          "attribute_id": "need_for_closure",
+          "attribute_label": "Need for Closure",
+          "path": "Psychology > Decision-Making > Risk & Decision > Need for Closure",
+          "path_id": "psychology > decision_making > risk_decision > need_for_closure",
+          "category": "Risk & Decision",
+          "relevance": "medium",
+          "reason": "Shoppers with a high need for closure prefer certainty and clarity in decisions. A higher price may create ambiguity or hesitation, which could influence their reaction to the current price.",
+          "values": [
+            "Very high",
+            "High",
+            "Average",
+            "Low",
+            "Very low"
+          ]
+        },
+        {
+          "attribute_id": "pref_save_vs_spend",
+          "attribute_label": "Save vs spend",
+          "path": "Behavior and Interaction > Personal Behavior > Preferences > Save vs spend",
+          "path_id": "behavior_interaction > personal_behavior > preferences > pref_save_vs_spend",
+          "category": "Behavior: Preferences",
+          "relevance": "high",
+          "reason": "This dimension reflects a persona's financial behavior, which directly influences their reaction to the current price of the product. A 'Hard saver' or 'Saver-leaning' persona is more likely to hesitate or walk away due to the price increase, while a 'Free spender' or 'Spender-leaning' persona may be more inclined to buy it at the current price.",
+          "values": [
+            "Hard saver",
+            "Saver-leaning",
+            "Balanced",
+            "Spender-leaning",
+            "Free spender"
+          ]
+        },
+        {
+          "attribute_id": "pref_quality_vs_quantity",
+          "attribute_label": "Quality vs quantity",
+          "path": "Behavior and Interaction > Personal Behavior > Preferences > Quality vs quantity",
+          "path_id": "behavior_interaction > personal_behavior > preferences > pref_quality_vs_quantity",
+          "category": "Behavior: Preferences",
+          "relevance": "medium",
+          "reason": "This dimension indicates whether a persona prioritizes quality over quantity or vice versa. A 'Quality first' or 'Quality-leaning' persona may be more willing to pay the current price for a well-regarded product like Candy Land, while a 'Quantity first' or 'Quantity-leaning' persona may be more price-sensitive and consider alternatives.",
+          "values": [
+            "Quality first",
+            "Quality-leaning",
+            "Balanced",
+            "Quantity-leaning",
+            "Quantity first"
+          ]
+        },
+        {
+          "attribute_id": "pref_plan_vs_spontaneous",
+          "attribute_label": "Planned vs spontaneous",
+          "path": "Behavior and Interaction > Personal Behavior > Preferences > Planned vs spontaneous",
+          "path_id": "behavior_interaction > personal_behavior > preferences > pref_plan_vs_spontaneous",
+          "category": "Behavior: Preferences",
+          "relevance": "medium",
+          "reason": "A 'Highly planned' or 'Planned' persona may be more cautious about spending on a product at a higher price, especially if they are budgeting. In contrast, a 'Highly spontaneous' or 'Spontaneous' persona may be less affected by the price and more inclined to purchase impulsively.",
+          "values": [
+            "Highly planned",
+            "Planned",
+            "Balanced",
+            "Spontaneous",
+            "Highly spontaneous"
+          ]
+        },
+        {
+          "attribute_id": "lstyle_frugality",
+          "attribute_label": "Spending vs saving",
+          "path": "Lifestyle and Health > Culture and Daily Life > Lifestyle Patterns > Spending vs saving",
+          "path_id": "lifestyle_health > culture_daily_life > lifestyle_patterns > lstyle_frugality",
+          "category": "Interests: Culture",
+          "relevance": "high",
+          "reason": "A persona's spending vs saving behavior directly influences their price sensitivity. Those who are 'Frugal savers' are more likely to hesitate or walk away at a higher price, while 'Splurgers' may be more inclined to buy even at a higher price.",
+          "values": [
+            "Frugal saver",
+            "Balanced",
+            "Spender",
+            "Splurger"
+          ]
+        },
+        {
+          "attribute_id": "lstyle_shopping_style",
+          "attribute_label": "Shopping style",
+          "path": "Lifestyle and Health > Culture and Daily Life > Lifestyle Patterns > Shopping style",
+          "path_id": "lifestyle_health > culture_daily_life > lifestyle_patterns > lstyle_shopping_style",
+          "category": "Interests: Culture",
+          "relevance": "high",
+          "reason": "A shopper's style (e.g., 'Bargain hunter' or 'Impulse buyer') significantly affects their reaction to pricing. 'Bargain hunters' are more likely to hesitate or wait for a sale, while 'Impulse buyers' may be more willing to pay the current price.",
+          "values": [
+            "Researcher",
+            "Impulse buyer",
+            "Bargain hunter",
+            "Brand loyal",
+            "Minimalist"
+          ]
+        },
+        {
+          "attribute_id": "lstyle_payment_pref",
+          "attribute_label": "Payment preference",
+          "path": "Lifestyle and Health > Culture and Daily Life > Lifestyle Patterns > Payment preference",
+          "path_id": "lifestyle_health > culture_daily_life > lifestyle_patterns > lstyle_payment_pref",
+          "category": "Interests: Culture",
+          "relevance": "medium",
+          "reason": "Payment preferences, such as using 'BNPL' (Buy Now, Pay Later) or 'Credit card,' can influence a shopper's willingness to pay the current price. Those with flexible payment options may be less price-sensitive.",
+          "values": [
+            "Credit card",
+            "Debit card",
+            "Mobile wallet",
+            "Cash",
+            "BNPL",
+            "Crypto"
           ]
         }
       ]
@@ -130,28 +615,86 @@
         "I want a balance of price and quality.",
         "I will pay more for quality."
       ],
-      "total_dependencies": 1,
+      "total_dependencies": 5,
       "dependencies": [
         {
-          "attribute_id": "age_bracket",
-          "attribute_label": "Age bracket",
-          "path": "Background > Demographics > Core Demographics > Age bracket",
-          "path_id": "background > demographics > core_demographics > age_bracket",
-          "category": "Demographic: Core",
+          "attribute_id": "dospert_financial_risk_tolerance",
+          "attribute_label": "DOSPERT Financial Risk Tolerance",
+          "path": "Psychology > Decision-Making > Risk & Decision > DOSPERT Financial Risk Tolerance",
+          "path_id": "psychology > decision_making > risk_decision > dospert_financial_risk_tolerance",
+          "category": "Risk & Decision",
           "relevance": "high",
-          "reason": "Age strongly influences adoption and user perspective.",
+          "reason": "Financial risk tolerance directly influences how a shopper evaluates price versus quality. A higher financial risk tolerance may lead to a willingness to pay more for quality, while lower tolerance may prioritize lower price.",
           "values": [
-            "Under 5",
-            "5-12",
-            "13-17",
-            "18-24",
-            "25-34",
-            "35-44",
-            "45-54",
-            "55-64",
-            "65-74",
-            "75-84",
-            "85+"
+            "Very high",
+            "High",
+            "Average",
+            "Low",
+            "Very low"
+          ]
+        },
+        {
+          "attribute_id": "risk_tolerance",
+          "attribute_label": "Risk tolerance",
+          "path": "Psychology > Decision-Making > Risk & Decision > Risk tolerance",
+          "path_id": "psychology > decision_making > risk_decision > risk_tolerance",
+          "category": "Risk & Decision",
+          "relevance": "medium",
+          "reason": "General risk tolerance affects decision-making around trade-offs, such as paying more for perceived quality. Risk-averse individuals may prioritize price, while risk-seeking individuals may prioritize quality.",
+          "values": [
+            "Risk-averse",
+            "Cautious",
+            "Balanced",
+            "Risk-tolerant",
+            "Risk-seeking"
+          ]
+        },
+        {
+          "attribute_id": "decision_style",
+          "attribute_label": "Decision style",
+          "path": "Psychology > Decision-Making > Risk & Decision > Decision style",
+          "path_id": "psychology > decision_making > risk_decision > decision_style",
+          "category": "Risk & Decision",
+          "relevance": "medium",
+          "reason": "Decision style impacts how individuals weigh price and quality. Analytical decision-makers may evaluate both factors more thoroughly, while intuitive decision-makers may rely on gut feelings or brand perception.",
+          "values": [
+            "Analytical",
+            "Intuitive",
+            "Consensus-driven",
+            "Directive",
+            "Deliberative"
+          ]
+        },
+        {
+          "attribute_id": "pref_quality_vs_quantity",
+          "attribute_label": "Quality vs quantity",
+          "path": "Behavior and Interaction > Personal Behavior > Preferences > Quality vs quantity",
+          "path_id": "behavior_interaction > personal_behavior > preferences > pref_quality_vs_quantity",
+          "category": "Behavior: Preferences",
+          "relevance": "high",
+          "reason": "This dimension directly relates to how a shopper weighs price against quality. If a persona prioritizes quality over quantity, they are more likely to choose 'I will pay more for quality.' Conversely, if they prioritize quantity, they may lean toward 'I prioritize the lowest price.'",
+          "values": [
+            "Quality first",
+            "Quality-leaning",
+            "Balanced",
+            "Quantity-leaning",
+            "Quantity first"
+          ]
+        },
+        {
+          "attribute_id": "pref_save_vs_spend",
+          "attribute_label": "Save vs spend",
+          "path": "Behavior and Interaction > Personal Behavior > Preferences > Save vs spend",
+          "path_id": "behavior_interaction > personal_behavior > preferences > pref_save_vs_spend",
+          "category": "Behavior: Preferences",
+          "relevance": "medium",
+          "reason": "A persona's tendency to save or spend influences their willingness to pay a higher price for perceived quality. 'Hard savers' or 'Saver-leaning' individuals may prioritize price, while 'Spender-leaning' or 'Free spenders' may be more inclined to pay more for quality.",
+          "values": [
+            "Hard saver",
+            "Saver-leaning",
+            "Balanced",
+            "Spender-leaning",
+            "Free spender"
           ]
         }
       ]

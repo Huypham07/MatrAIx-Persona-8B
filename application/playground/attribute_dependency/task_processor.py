@@ -19,7 +19,7 @@ from .dependency_extractor import (
     QuestionDependencyResult,
     SurveyDependencyResult,
 )
-from .llm_client import BaseLLMClient, MockLLMClient, OpenAILLMClient
+from .llm_client import BaseLLMClient, OpenAILLMClient
 from .load_tree import PersonaTaxonomyTree, load_or_build_taxonomy_tree
 
 
@@ -153,8 +153,7 @@ def process_task_attribute_dependencies(
                 print(f"[LLM Client] Using OpenAILLMClient (Model: {llm_client.model} | Base URL: {llm_client.base_url or 'default'})")
         else:
             if verbose:
-                print("[Warning] No LLM configuration detected. Using MockLLMClient for simulation.")
-            llm_client = MockLLMClient()
+                raise RuntimeError("[Warning][process_task_attribute_dependencies] No LLM configuration detected. Using MockLLMClient for simulation.")
 
     # 3. Setup Pruner
     if tree is None:
@@ -242,6 +241,19 @@ def process_task_attribute_dependencies(
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output_payload, f, indent=2, ensure_ascii=False)
 
+    # 7. Generate interactive visualization HTML
+    try:
+        from .visualize_dependency import generate_visualizer_file
+        html_out = input_dir / "attribute_dependencies_visualizer.html"
+        generate_visualizer_file(
+            dependencies_path=output_path,
+            output_path=html_out,
+            open_browser=False,
+        )
+    except Exception as e:
+        if verbose:
+            print(f"[Warning] Could not generate visualizer HTML: {e}")
+
     if verbose:
         print(f"\n[Success] Attribute dependencies saved to:\n  -> {output_path}")
         print(f"Summary: {len(extracted_questions)} questions, {len(unique_attrs_map)} unique influencing attributes.")
@@ -266,26 +278,19 @@ def main():
     )
     parser.add_argument(
         "--model",
-        default=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-        help="LLM model name (default: gpt-4o-mini).",
-    )
-    parser.add_argument(
-        "--mock",
-        action="store_true",
-        help="Force use MockLLMClient without API calls.",
+        default=os.getenv("LOCAL_LLM_MODEL", "Qwen3-14B"),
+        help="LLM model name (default: Qwen3-14B).",
     )
 
     args = parser.parse_args()
 
-    if args.mock:
-        client = MockLLMClient()
+    has_local = bool(os.getenv("LOCAL_LLM_BASE_URL") or os.getenv("LOCAL_LLM_MODEL") or os.getenv("LOCAL_LLM_AUTH_HEADER"))
+    has_openai = bool(os.getenv("OPENAI_API_KEY") and not os.getenv("OPENAI_API_KEY", "").startswith("dummy"))
+    if has_local or has_openai:
+        model_arg = args.model if args.model != "gpt-4o-mini" else None
+        client = OpenAILLMClient(model=model_arg)
     else:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if api_key and not api_key.startswith("dummy"):
-            client = OpenAILLMClient(model=args.model)
-        else:
-            print("[Info] No OPENAI_API_KEY provided. Using MockLLMClient.")
-            client = MockLLMClient()
+        raise RuntimeError("[Info] No API key or LOCAL_LLM_* configured. Using MockLLMClient.")
 
     process_task_attribute_dependencies(
         task_identifier=args.task,

@@ -58,6 +58,7 @@ class OpenAIChatClient:
         *,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        default_headers: Optional[Dict[str, str]] = None,
         temperature: float = 0.7,
         timeout_seconds: float = DEFAULT_REQUEST_TIMEOUT_SECONDS,
         provider: str = "openai",
@@ -74,6 +75,8 @@ class OpenAIChatClient:
                 client_kwargs["api_key"] = api_key
             if base_url is not None:
                 client_kwargs["base_url"] = base_url
+            if default_headers is not None:
+                client_kwargs["default_headers"] = default_headers
             client = OpenAI(**client_kwargs)
         self._client = client
 

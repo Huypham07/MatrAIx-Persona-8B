@@ -8,6 +8,21 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Automatically load environment variables from .env.local and .env
+try:
+    from dotenv import load_dotenv
+
+    _repo = Path(__file__).resolve().parents[5]
+    for _env_name in [".env.local", ".env"]:
+        _env_file = _repo / _env_name
+        if _env_file.exists():
+            load_dotenv(_env_file, override=False)
+        _app_env = _repo / "application" / "playground" / _env_name
+        if _app_env.exists():
+            load_dotenv(_app_env, override=False)
+except ImportError:
+    pass
+
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
@@ -113,6 +128,65 @@ def _instruction_markdown_for_questionnaire(questionnaire) -> str:
     return render_survey_instruction_markdown(questionnaire)
 
 
+def _evaluate_attribute_adherence(
+    persona_yaml_path: str,
+    survey_payload: dict[str, object],
+    task_path: str | None,
+    instrument_id: str | None,
+    trial_dir: Path,
+    on_event: object,
+) -> dict[str, object] | None:
+    """Run post-simulation LLM judge to evaluate causal adherence of persona traits."""
+    try:
+        from application.playground.attribute_dependency import PersonaAttributeAdherenceEvaluator
+
+        # 1. Locate attribute_dependencies.json
+        deps_path = None
+        candidates = []
+        if task_path:
+            tp = Path(task_path)
+            candidates.extend([
+                tp / "input" / "attribute_dependencies.json",
+                tp / "attribute_dependencies.json",
+            ])
+        repo = _repo_root()
+        if instrument_id:
+            candidates.extend([
+                repo / "application" / "tasks" / instrument_id / "input" / "attribute_dependencies.json",
+                repo / "application" / "tasks" / f"survey_{instrument_id}" / "input" / "attribute_dependencies.json",
+            ])
+        for c in candidates:
+            if c.is_file():
+                deps_path = c
+                break
+
+        if not deps_path:
+            return None
+
+        # 2. Run Evaluator
+        evaluator = PersonaAttributeAdherenceEvaluator(verbose=False)
+        adherence_result = evaluator.evaluate_survey_trial(
+            persona_data=persona_yaml_path,
+            survey_result_data=survey_payload,
+            attribute_dependencies_data=deps_path,
+        )
+        report_data = adherence_result.to_dict()
+
+        # 3. Write report to trial_dir
+        report_path = trial_dir / "attribute_adherence_report.json"
+        report_path.write_text(json.dumps(report_data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        # 4. Emit event
+        if callable(on_event):
+            on_event({"type": "attribute_adherence", "summary": report_data.get("summary")})
+
+        return report_data
+    except Exception as exc:
+        if callable(on_event):
+            on_event({"type": "attribute_adherence_warning", "warning": str(exc)})
+        return None
+
+
 class PersonaJsonSurvey(PersonaMixin, BaseAgent):
     """Complete a survey through the host-native structured output path."""
 
@@ -216,10 +290,31 @@ class PersonaJsonSurvey(PersonaMixin, BaseAgent):
         )
         _apply_usage_to_context(context, result.usage)
         payload = _survey_result_payload(result)
+
+        # Run Post-simulation Attribute Adherence Evaluation
+        adherence_report = _evaluate_attribute_adherence(
+            persona_yaml_path=persona_yaml_path,
+            survey_payload=payload,
+            task_path=self._survey_task_path,
+            instrument_id=instrument.id,
+            trial_dir=trial_dir,
+            on_event=on_event,
+        )
+        if adherence_report:
+            payload["attributeAdherence"] = adherence_report.get("summary")
+
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".json", delete=False) as handle:
             json.dump(payload, handle, ensure_ascii=False, indent=2)
             temp_path = Path(handle.name)
         try:
             await environment.upload_file(temp_path, "/app/output/survey_result.json")
+            if adherence_report:
+                with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".json", delete=False) as adh_handle:
+                    json.dump(adherence_report, adh_handle, ensure_ascii=False, indent=2)
+                    adh_temp_path = Path(adh_handle.name)
+                try:
+                    await environment.upload_file(adh_temp_path, "/app/output/attribute_adherence_report.json")
+                finally:
+                    adh_temp_path.unlink(missing_ok=True)
         finally:
             temp_path.unlink(missing_ok=True)

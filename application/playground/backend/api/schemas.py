@@ -760,10 +760,11 @@ class HarborJobLaunchRequest(BaseModel):
     def _validate_persona_model(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
             return value
-        if value not in SUPPORTED_PERSONA_MODELS:
-            raise ValueError(
-                "personaModel must be one of {}".format(list(SUPPORTED_PERSONA_MODELS))
-            )
+        if value.startswith("local/") or value in SUPPORTED_PERSONA_MODELS:
+            return value
+        raise ValueError(
+            "personaModel must be one of {}".format(list(SUPPORTED_PERSONA_MODELS) + ["local/*"])
+        )
         return value
 
     @field_validator("chatApplicationId")

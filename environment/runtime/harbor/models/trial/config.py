@@ -1,7 +1,11 @@
 import warnings
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal, NotRequired, TypedDict
+from typing import Any, Literal, TypedDict
+try:
+    from typing import NotRequired
+except ImportError:
+    from typing_extensions import NotRequired
 from uuid import UUID
 
 from pydantic import (

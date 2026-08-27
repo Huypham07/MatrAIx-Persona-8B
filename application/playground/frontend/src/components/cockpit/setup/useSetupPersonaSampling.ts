@@ -49,6 +49,7 @@ const PERSONA_MODEL_PROVIDER_LABELS: Record<string, string> = {
   dashscope: "DashScope",
   openai: "OpenAI",
   openrouter: "OpenRouter",
+  local: "Local LLM",
 };
 
 function personaModelProviderLabel(modelId: string): string | undefined {

@@ -1,0 +1,178 @@
+{
+  "survey_id": "price_sensitivity_v1",
+  "survey_title": "Price Sensitivity Survey — Hasbro Gaming Candy Land Kingdom",
+  "persona_id": "0001",
+  "persona_name": "Tomas Horvat",
+  "evaluated_at": "2026-08-27T04:01:55.839512+00:00",
+  "summary": {
+    "total_questions": 2,
+    "total_attributes_evaluated": 13,
+    "total_consistent": 1,
+    "total_contradictory": 0,
+    "total_neutral": 12,
+    "overall_adherence_rate": 1.0,
+    "overall_average_score": 0.0769
+  },
+  "questions": [
+    {
+      "question_id": "q_price_matters",
+      "question_prompt": "The price is the single most important factor in whether I would buy the Hasbro Gaming Candy Land Kingdom.",
+      "selected_answer": "Strongly Disagree",
+      "answer_reasoning": "As a skilled tradesman with a risk-seeking mindset, I focus on the craftsmanship and utility of products rather than worrying primarily about the price tag.",
+      "total_evaluated": 8,
+      "consistent_count": 0,
+      "contradictory_count": 0,
+      "neutral_count": 8,
+      "adherence_rate": 1.0,
+      "average_score": 0.0,
+      "question_summary": "The persona's response is not influenced by any of the evaluated attributes, as all are unspecified. The reasoning provided by the persona aligns with a general attitude of valuing craftsmanship over price, but no specific attribute values were available to assess consistency or contradiction.",
+      "verdicts": [
+        {
+          "attribute_id": "dospert_financial_risk_tolerance",
+          "attribute_label": "DOSPERT Financial Risk Tolerance",
+          "persona_value": "Not specified / Default",
+          "classification": "NEUTRAL",
+          "score": 0.0,
+          "reasoning": "The persona's financial risk tolerance is unspecified, so it does not provide a directional bias toward or against the response.",
+          "category": "Risk & Decision",
+          "expected_relevance": "high"
+        },
+        {
+          "attribute_id": "need_for_closure",
+          "attribute_label": "Need for Closure",
+          "persona_value": "Not specified / Default",
+          "classification": "NEUTRAL",
+          "score": 0.0,
+          "reasoning": "The persona's need for closure is unspecified, so it does not influence the response to the price sensitivity question.",
+          "category": "Risk & Decision",
+          "expected_relevance": "medium"
+        },
+        {
+          "attribute_id": "pref_save_vs_spend",
+          "attribute_label": "Save vs spend",
+          "persona_value": "Not specified / Default",
+          "classification": "NEUTRAL",
+          "score": 0.0,
+          "reasoning": "The persona's preference for saving or spending is unspecified, so it does not directly influence the response to the price sensitivity question.",
+          "category": "Behavior: Preferences",
+          "expected_relevance": "high"
+        },
+        {
+          "attribute_id": "pref_quality_vs_quantity",
+          "attribute_label": "Quality vs quantity",
+          "persona_value": "Not specified / Default",
+          "classification": "NEUTRAL",
+          "score": 0.0,
+          "reasoning": "The persona's preference for quality over quantity is unspecified, so it does not directly influence the response to the price sensitivity question.",
+          "category": "Behavior: Preferences",
+          "expected_relevance": "medium"
+        },
+        {
+          "attribute_id": "pref_novelty_vs_familiarity",
+          "attribute_label": "Novelty vs familiarity",
+          "persona_value": "Not specified / Default",
+          "classification": "NEUTRAL",
+          "score": 0.0,
+          "reasoning": "The persona's preference for novelty or familiarity is unspecified, so it does not directly influence the response to the price sensitivity question.",
+          "category": "Behavior: Preferences",
+          "expected_relevance": "medium"
+        },
+        {
+          "attribute_id": "lstyle_frugality",
+          "attribute_label": "Spending vs saving",
+          "persona_value": "Not specified / Default",
+          "classification": "NEUTRAL",
+          "score": 0.0,
+          "reasoning": "The persona's frugality level is unspecified, so it does not directly influence the response to the price sensitivity question.",
+          "category": "Interests: Culture",
+          "expected_relevance": "high"
+        },
+        {
+          "attribute_id": "lstyle_shopping_style",
+          "attribute_label": "Shopping style",
+          "persona_value": "Not specified / Default",
+          "classification": "NEUTRAL",
+          "score": 0.0,
+          "reasoning": "The persona's shopping style is unspecified, so it does not directly influence the response to the price sensitivity question.",
+          "category": "Interests: Culture",
+          "expected_relevance": "high"
+        },
+        {
+          "attribute_id": "lstyle_payment_pref",
+          "attribute_label": "Payment preference",
+          "persona_value": "Not specified / Default",
+          "classification": "NEUTRAL",
+          "score": 0.0,
+          "reasoning": "The persona's payment preference is unspecified, so it does not directly influence the response to the price sensitivity question.",
+          "category": "Interests: Culture",
+          "expected_relevance": "medium"
+        }
+      ]
+    },
+    {
+      "question_id": "q_price_vs_quality",
+      "question_prompt": "When you weigh price against quality here, which wins?",
+      "selected_answer": "I will pay more for quality.",
+      "answer_reasoning": "I value long-lasting quality and durability in my possessions and am willing to invest more upfront.",
+      "total_evaluated": 5,
+      "consistent_count": 1,
+      "contradictory_count": 0,
+      "neutral_count": 4,
+      "adherence_rate": 1.0,
+      "average_score": 0.2,
+      "question_summary": "The persona's response is consistent with their risk-seeking nature but not influenced by other unspecified attributes. Overall, the response aligns with the expected behavior of a risk-seeking individual who values quality over price.",
+      "verdicts": [
+        {
+          "attribute_id": "dospert_financial_risk_tolerance",
+          "attribute_label": "DOSPERT Financial Risk Tolerance",
+          "persona_value": "Not specified / Default",
+          "classification": "NEUTRAL",
+          "score": 0.0,
+          "reasoning": "The persona's financial risk tolerance is unspecified, so it does not provide a directional bias toward prioritizing price or quality.",
+          "category": "Risk & Decision",
+          "expected_relevance": "high"
+        },
+        {
+          "attribute_id": "risk_tolerance",
+          "attribute_label": "Risk tolerance",
+          "persona_value": "Risk-seeking",
+          "classification": "CONSISTENT",
+          "score": 1.0,
+          "reasoning": "A risk-seeking individual is more likely to prioritize quality over price, as they are willing to take on financial risk for perceived value or long-term benefits.",
+          "category": "Risk & Decision",
+          "expected_relevance": "medium"
+        },
+        {
+          "attribute_id": "decision_style",
+          "attribute_label": "Decision style",
+          "persona_value": "Not specified / Default",
+          "classification": "NEUTRAL",
+          "score": 0.0,
+          "reasoning": "The persona's decision style is unspecified, so it does not provide a clear causal link to the prioritization of price or quality.",
+          "category": "Risk & Decision",
+          "expected_relevance": "medium"
+        },
+        {
+          "attribute_id": "pref_quality_vs_quantity",
+          "attribute_label": "Quality vs quantity",
+          "persona_value": "Not specified / Default",
+          "classification": "NEUTRAL",
+          "score": 0.0,
+          "reasoning": "The persona's preference for quality over quantity is unspecified, so it does not directly influence the decision to prioritize quality over price.",
+          "category": "Behavior: Preferences",
+          "expected_relevance": "high"
+        },
+        {
+          "attribute_id": "pref_save_vs_spend",
+          "attribute_label": "Save vs spend",
+          "persona_value": "Not specified / Default",
+          "classification": "NEUTRAL",
+          "score": 0.0,
+          "reasoning": "The persona's tendency to save or spend is unspecified, so it does not provide a clear causal link to the decision to pay more for quality.",
+          "category": "Behavior: Preferences",
+          "expected_relevance": "medium"
+        }
+      ]
+    }
+  ]
+}

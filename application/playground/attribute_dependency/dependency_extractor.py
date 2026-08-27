@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
 
 from .constants import TAXONOMY_TREE_CACHE
-from .llm_client import BaseLLMClient, MockLLMClient, OpenAILLMClient
+from .llm_client import BaseLLMClient, OpenAILLMClient
 from .load_tree import PersonaTaxonomyTree, TreeNode, load_or_build_taxonomy_tree
 from .prompts import (
     LAYER_1_FILTER_PROMPT,
@@ -403,3 +403,7 @@ class HierarchicalAttributePruner:
                   f"unique persona attributes across {len(questions)} questions.")
 
         return survey_res
+
+
+if __name__ == "__main__":
+    pass 

@@ -227,6 +227,35 @@ def build_json_client(model: str, *, temperature: float = 0.7) -> Any:
             timeout_seconds=timeout_seconds,
             provider="openrouter",
         )
+    if value.startswith("local/"):
+        model_name = os.environ.get("LOCAL_LLM_MODEL") or value.split("/", 1)[1]
+        base_url = (
+            os.environ.get("LOCAL_LLM_BASE_URL")
+            or os.environ.get("OPENAI_BASE_URL")
+            or os.environ.get("OPENAI_API_BASE")
+            or "http://localhost:8000/v1"
+        ).strip()
+        auth_header = os.environ.get("LOCAL_LLM_AUTH_HEADER", "").strip()
+        api_key = (
+            os.environ.get("LOCAL_LLM_API_KEY")
+            or os.environ.get("OPENAI_API_KEY")
+            or (auth_header if auth_header and not auth_header.lower().startswith("bearer ") else "dummy-key")
+        ).strip()
+        default_headers: Dict[str, str] = {}
+        if auth_header:
+            default_headers["Authorization"] = auth_header
+        elif api_key and api_key != "dummy-key":
+            default_headers["Authorization"] = f"Bearer {api_key}"
+
+        return OpenAIChatClient(
+            model=model_name,
+            api_key=api_key or "dummy-key",
+            base_url=base_url,
+            default_headers=default_headers if default_headers else None,
+            temperature=temperature,
+            timeout_seconds=timeout_seconds,
+            provider="local",
+        )
     if value.startswith("openai/"):
         return OpenAIChatClient(
             model=value.split("/", 1)[1],

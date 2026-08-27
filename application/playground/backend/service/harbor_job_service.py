@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
-
+import sys
 import yaml
 
 from backend.service.application_types import normalize_metadata_type
@@ -1167,11 +1167,15 @@ class HarborJobService:
                         else:
                             kwargs.setdefault("max_turns", 100)
         # use-computer OS-app tasks hand in JSON; sandbox path remap makes
-        # *remote* in-VM verify flaky. Disable Harbor's per-trial verifier and
+        # *remote* in-VM verify flaky. Also on Windows host, Harbor's default bash test.sh
+        # cannot execute directly. Disable Harbor's per-trial verifier and
         # score on the Playground host as each trial finishes (watcher), with a
         # job-end rescue sweep (see playground.host_verifier).
         env_block = job_config.get("environment")
-        if isinstance(env_block, dict) and env_block.get("type") == "use-computer":
+        env_type = str(env_block.get("type") or "") if isinstance(env_block, dict) else ""
+        is_windows = sys.platform == "win32"
+        is_survey = "survey" in str(task_path).lower() or trial_profile in {"json_survey", "host_process"}
+        if env_type == "use-computer" or (is_windows and (is_survey or env_type in {"host", "local_process"})):
             existing_verifier = job_config.get("verifier")
             verifier_cfg = dict(existing_verifier) if isinstance(existing_verifier, dict) else {}
             verifier_cfg["disable"] = True

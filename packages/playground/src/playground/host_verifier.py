@@ -25,8 +25,14 @@ import os
 import re
 import shutil
 import subprocess
-import tomllib
 import uuid
+try:
+    import tomllib
+except ImportError:
+    try:
+        import tomli as tomllib
+    except ImportError:
+        tomllib = None
 from pathlib import Path, PurePosixPath
 from threading import Lock
 
@@ -341,7 +347,7 @@ def _prepare_host_scoring(
             continue
         saw_artifacts = True
         if source.rstrip("/") == "/app/output":
-            output_dir = str(downloaded)
+            output_dir = str(downloaded.resolve())
             env_overrides["PLAYGROUND_OUTPUT_DIR"] = output_dir
             env_overrides["MATRIX_OUTPUT_DIR"] = output_dir
             env_overrides["HARBOR_OUTPUT_DIR"] = output_dir
@@ -481,11 +487,19 @@ def maybe_run_host_verifier(
         staged = _stage_sources(stage_pairs)
         try:
             env = dict(os.environ)
-            env["HARBOR_VERIFIER_DIR"] = str(verifier_dir)
             env.update(env_overrides)
+            env["HARBOR_VERIFIER_DIR"] = str(verifier_dir.resolve())
+            output_cand = trial_dir / "artifacts" / "app" / "output"
+            if output_cand.is_dir():
+                env["HARBOR_OUTPUT_DIR"] = str(output_cand.resolve())
+                env["MATRIX_OUTPUT_DIR"] = str(output_cand.resolve())
+                env["PLAYGROUND_OUTPUT_DIR"] = str(output_cand.resolve())
+            test_py = task_dir / "tests" / "test_state.py"
+            import sys
+            cmd = [sys.executable, str(test_py.resolve())] if test_py.is_file() else ["bash", str(test_sh.resolve())]
             try:
                 completed = subprocess.run(
-                    ["bash", str(test_sh)],
+                    cmd,
                     cwd=task_dir / "tests",
                     env=env,
                     timeout=effective_timeout,
@@ -494,6 +508,11 @@ def maybe_run_host_verifier(
                     check=False,
                 )
                 stdout_text = (completed.stdout or "") + (completed.stderr or "")
+                # If running test_state.py directly, write reward.txt if not already written
+                reward_file = verifier_dir / "reward.txt"
+                if not reward_file.is_file() and not (verifier_dir / "reward.json").is_file():
+                    reward_val = 1 if completed.returncode == 0 else 0
+                    reward_file.write_text(f"{reward_val}\n", encoding="utf-8")
             except subprocess.TimeoutExpired as exc:
                 stdout_text = (
                     f"host verifier timed out after {effective_timeout}s\n"

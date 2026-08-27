@@ -33,6 +33,16 @@ class BaseLLMClient(Protocol):
         """Send prompt and return parsed JSON response."""
         ...
 
+    def generate_text(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+    ) -> str:
+        """Send prompt and return raw text/free-form response."""
+        ...
+
 
 class OpenAILLMClient:
     """OpenAI-compatible LLM client.
@@ -65,9 +75,7 @@ class OpenAILLMClient:
         self.model = (
             model
             or os.getenv("LOCAL_LLM_MODEL")
-            or os.getenv("OPENAI_MODEL")
-            or os.getenv("MATRIX_PERSONA_MODEL")
-            or "gpt-4o-mini"
+            or "Qwen3-14B"
         )
 
         # Resolve base URL
@@ -75,7 +83,7 @@ class OpenAILLMClient:
             base_url
             or os.getenv("LOCAL_LLM_BASE_URL")
             or os.getenv("OPENAI_BASE_URL")
-            or os.getenv("LLM_BASE_URL")
+            or "http://203.113.152.4:7777/llm/v1"
         )
 
         # Resolve auth header & api key
@@ -86,9 +94,6 @@ class OpenAILLMClient:
 
         self.api_key = (
             api_key
-            or self.auth_header
-            or os.getenv("OPENAI_API_KEY")
-            or os.getenv("LLM_API_KEY")
             or "dummy-key"
         )
 
@@ -105,7 +110,52 @@ class OpenAILLMClient:
             default_headers=headers if headers else None,
         )
 
-    def complete(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
+    def generate_text(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        enable_thinking: bool= False
+    ) -> str:
+        """Call LLM and return raw free text response without JSON constraint."""
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        kwargs: Dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": self.temperature if temperature is None else temperature,
+            "extra_body": {
+                "chat_template_kwargs": {
+                    "enable_thinking": enable_thinking
+                }
+            }
+        }
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+
+        response = self.client.chat.completions.create(**kwargs)
+        return response.choices[0].message.content or ""
+
+    def complete_text(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+    ) -> str:
+        """Alias for generate_text."""
+        return self.generate_text(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+
+    def complete(self, prompt: str, system_prompt: Optional[str] = None, enable_thinking:bool=False) -> Dict[str, Any]:
         """Call LLM and parse JSON response."""
         messages = []
         if system_prompt:
@@ -113,20 +163,25 @@ class OpenAILLMClient:
         messages.append({"role": "user", "content": prompt})
 
         # Try with response_format={"type": "json_object"} first; fallback to standard if not supported by local model
+        create_kwargs: Dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": self.temperature,
+            "timeout": 60,
+        }
+        if enable_thinking:
+            create_kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": True}}
         try:
             response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=self.temperature,
+                **create_kwargs,
                 response_format={"type": "json_object"},
             )
         except Exception as e:
             err_msg = str(e).lower()
-            if "response_format" in err_msg or "json_object" in err_msg or "400" in err_msg:
+            if "response_format" in err_msg or "json_object" in err_msg or "400" in err_msg or "extra_body" in err_msg:
+                create_kwargs.pop("extra_body", None)
                 response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=self.temperature,
+                    **create_kwargs,
                 )
             else:
                 raise e
@@ -157,94 +212,77 @@ class OpenAILLMClient:
                     pass
             return {"error": "Failed to parse JSON", "raw": raw}
 
-
 class MockLLMClient:
-    """Mock LLM client for offline development, dry-runs, and deterministic tests."""
+    """Mock LLM client for testing and offline development."""
+
+    def __init__(self, *args, **kwargs):
+        pass
 
     def complete(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
-        """Return simulated decisions based on keywords in the prompt."""
-        prompt_lower = prompt.lower()
-
-        # Check for Layer 1 filter
-        if "layer 1 groups" in prompt_lower or "layer 1" in prompt_lower:
-            selected = ["background", "capability"]
-            if any(k in prompt_lower for k in ["feel", "stress", "personality", "mbti", "attitude", "decision"]):
-                selected.append("psychology")
-            if any(k in prompt_lower for k in ["routine", "habit", "tool", "work", "ai", "coding"]):
-                selected.append("behavior_interaction")
-            if any(k in prompt_lower for k in ["hobby", "sport", "health", "diet", "lifestyle"]):
-                selected.append("lifestyle_health")
+        """Mock JSON completion returning generic structured response."""
+        # Check if this is an adherence judge prompt
+        if "Evaluated Persona Attributes" in prompt or "Adherence" in (system_prompt or ""):
             return {
-                "selected_ids": list(set(selected)),
-                "reasoning": "Selected groups containing relevant demographic, capability, and behavioral traits."
-            }
-
-        # Check for Layer 2 filter
-        if "layer 2 subgroups" in prompt_lower or "layer 2" in prompt_lower:
-            selected = []
-            if "demographics" in prompt_lower:
-                selected.append("demographics")
-            if "education" in prompt_lower:
-                selected.append("education")
-            if "career" in prompt_lower:
-                selected.append("career")
-            if "domains" in prompt_lower:
-                selected.append("domains")
-            if "skills" in prompt_lower:
-                selected.append("skills")
-            if "technology_use" in prompt_lower:
-                selected.append("technology_use")
-            if "work_practices" in prompt_lower:
-                selected.append("work_practices")
-            if not selected:
-                # Default fallback
-                selected = ["demographics", "career", "skills", "technology_use"]
-            return {
-                "selected_ids": selected,
-                "reasoning": "Subgroups chosen based on topical relevance to the survey question."
-            }
-
-        # Check for Layer 3 filter
-        if "layer 3 categories" in prompt_lower or "layer 3" in prompt_lower:
-            selected = []
-            if "core_demographics" in prompt_lower:
-                selected.append("core_demographics")
-            if "career_profile" in prompt_lower:
-                selected.append("career_profile")
-            if "industry" in prompt_lower:
-                selected.append("industry")
-            if "programming" in prompt_lower:
-                selected.append("programming")
-            if "developer_ai_tool_adoption" in prompt_lower:
-                selected.append("developer_ai_tool_adoption")
-            if not selected:
-                selected = ["core_demographics", "career_profile"]
-            return {
-                "selected_ids": selected,
-                "reasoning": "Specific categories selected for leaf evaluation."
-            }
-
-        # Check for Layer 4 Dimension filter
-        if "candidate dimensions" in prompt_lower or "dimensions" in prompt_lower:
-            return {
-                "selected_attributes": [
+                "question_id": "mock_q",
+                "evaluated_attributes": [
                     {
-                        "id": "age_bracket",
-                        "reasoning": "Age strongly influences adoption and user perspective.",
-                        "relevance_strength": "high"
-                    },
-                    {
-                        "id": "years_of_experience",
-                        "reasoning": "Seniority and experience correlate with question responses.",
-                        "relevance_strength": "high"
-                    },
-                    {
-                        "id": "primary_role",
-                        "reasoning": "Job role determines domain context and requirements.",
-                        "relevance_strength": "medium"
+                        "attribute_id": "dospert_financial_risk_tolerance",
+                        "attribute_label": "DOSPERT Financial Risk Tolerance",
+                        "persona_value": "Very low",
+                        "classification": "CONSISTENT",
+                        "score": 1.0,
+                        "reasoning": "Mock verdict: persona trait consistently justifies the answer.",
                     }
                 ],
-                "reasoning": "Evaluated candidate dimensions against survey question context."
+                "question_summary": "Mock adherence evaluation complete.",
             }
+        return {
+            "selected_ids": [],
+            "selected_attributes": [],
+            "reasoning": "Mock response for offline testing.",
+        }
 
-        return {"selected_ids": [], "reasoning": "Generic response"}
+    def generate_text(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+    ) -> str:
+        """Mock raw text generation."""
+        return "This is a mock free text response."
+
+    def complete_text(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+    ) -> str:
+        """Alias for generate_text."""
+        return self.generate_text(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+
+
+if __name__ == "__main__":
+    client = OpenAILLMClient()
+    
+    # 1. Free text generation demo
+    print("--- Testing Free Text Generation ---")
+    text_resp = client.generate_text(
+        prompt="Hello world! Introduce yourself in one sentence.",
+        system_prompt="You are a helpful assistant.",
+    )
+    print("Free text output:", text_resp)
+
+    # 2. JSON completion demo
+    print("\n--- Testing JSON Completion ---")
+    json_resp = client.complete(
+        prompt="Introduce yourself and return a JSON object with keys 'greeting' (string) and 'status' (string).",
+        system_prompt="You are a helpful assistant. Always respond in valid JSON format.",
+    )
+    print("JSON output:", json_resp)
