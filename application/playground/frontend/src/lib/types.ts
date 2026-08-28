@@ -7,6 +7,7 @@ export type ApplicationId =
   | string;
 export type Engine = string;
 export type PersonaModel = string;
+export type PersonaAttributeStrategy = "full" | "task_dependencies" | "hybrid";
 
 export interface ConfigOptionValue {
   value: string;

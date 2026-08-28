@@ -43,17 +43,38 @@ def _persona_context(persona: Persona) -> str:
     return "\n".join(parts)
 
 
-def render_persona_block(persona: Persona, *, persona_yaml_path: Optional[str] = None) -> str:
+def render_persona_block(
+    persona: Persona,
+    *,
+    persona_yaml_path: Optional[str] = None,
+    attribute_strategy: str = "full",
+    task_path: Optional[str] = None,
+    instrument_id: Optional[str] = None,
+) -> str:
     if persona_yaml_path:
         try:
-            from matraix.agents.persona.loader import load_persona
-            from matraix.agents.persona.templating import (
+            from matraix.agents.persona.loader import load_persona  # type: ignore[import-untyped, import-not-found]
+            from matraix.agents.persona.templating import (  # type: ignore[import-untyped, import-not-found]
                 PERSONA_SYSTEM_TEMPLATE,
                 render_persona_template,
                 resolve_persona_template,
             )
 
             loaded = load_persona(persona_yaml_path)
+            if attribute_strategy and str(attribute_strategy).strip().lower() != "full":
+                try:
+                    from application.playground.attribute_dependency.persona_filter import (
+                        prune_persona_object,
+                    )
+
+                    loaded = prune_persona_object(
+                        loaded,
+                        strategy=attribute_strategy,
+                        task_path=task_path,
+                        instrument_id=instrument_id,
+                    )
+                except Exception:
+                    pass
             template = resolve_persona_template(loaded, None, PERSONA_SYSTEM_TEMPLATE)
             return render_persona_template(template, loaded).strip()
         except Exception:

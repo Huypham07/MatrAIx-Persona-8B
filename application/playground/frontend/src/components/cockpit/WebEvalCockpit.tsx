@@ -191,6 +191,8 @@ export function WebEvalCockpit({
       taskPersonaStrategy,
       useTaskDefaultStrategy,
       setUseTaskDefaultStrategy,
+      personaAttributeStrategy,
+      setPersonaAttributeStrategy,
     },
     batch: {
       batchJobName,
@@ -514,6 +516,8 @@ export function WebEvalCockpit({
           taskPersonaStrategy={taskPersonaStrategy}
           useTaskDefaultStrategy={useTaskDefaultStrategy}
           onUseTaskDefaultStrategyChange={setUseTaskDefaultStrategy}
+          personaAttributeStrategy={personaAttributeStrategy}
+          onPersonaAttributeStrategyChange={setPersonaAttributeStrategy}
           onPersonaPoolChange={setPersonaPool}
           personaPool={visiblePersonaPool}
           disabled={setupLocked}

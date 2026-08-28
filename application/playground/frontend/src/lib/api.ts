@@ -213,6 +213,7 @@ export const api = {
     useEntirePool?: boolean;
     osAppSubmissionProfile?: string | null;
     osAppBackend?: string | null;
+    personaAttributeStrategy?: "full" | "task_dependencies" | "hybrid";
   }) =>
     request<HarborJobLaunchResponse>("/api/harbor/jobs", {
       method: "POST",

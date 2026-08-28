@@ -170,6 +170,8 @@ export function OsAppEvalCockpit({
       taskPersonaStrategy,
       useTaskDefaultStrategy,
       setUseTaskDefaultStrategy,
+      personaAttributeStrategy,
+      setPersonaAttributeStrategy,
     },
     batch: {
       batchJobName,
@@ -478,6 +480,8 @@ export function OsAppEvalCockpit({
           taskPersonaStrategy={taskPersonaStrategy}
           useTaskDefaultStrategy={useTaskDefaultStrategy}
           onUseTaskDefaultStrategyChange={setUseTaskDefaultStrategy}
+          personaAttributeStrategy={personaAttributeStrategy}
+          onPersonaAttributeStrategyChange={setPersonaAttributeStrategy}
           onPersonaPoolChange={setPersonaPool}
           personaPool={visiblePersonaPool}
           disabled={setupLocked}

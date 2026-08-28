@@ -64,6 +64,11 @@ export interface CockpitPersonaSetupRecord {
   /** When true, sampling follows the task's persona_strategy.json and custom filters stay locked. */
   useTaskDefaultStrategy: boolean;
   /**
+   * Strategy for pruning persona traits in prompt:
+   * 'full' (all 1290 traits) | 'task_dependencies' (unique_attributes only) | 'hybrid' (+ demographic)
+   */
+  personaAttributeStrategy?: "full" | "task_dependencies" | "hybrid";
+  /**
    * Set only when the operator explicitly turns Task default strategy off.
    * Distinguishes intentional opt-out from the pre-hydrate false that used to
    * poison localStorage before persona_strategy.json loaded.
@@ -211,6 +216,12 @@ function normalizeRecord(
     // Legacy entries omit this flag — prefer task default until the user turns it off.
     useTaskDefaultStrategy:
       typeof record.useTaskDefaultStrategy === "boolean" ? record.useTaskDefaultStrategy : true,
+    personaAttributeStrategy:
+      record.personaAttributeStrategy === "task_dependencies" ||
+      record.personaAttributeStrategy === "hybrid" ||
+      record.personaAttributeStrategy === "full"
+        ? record.personaAttributeStrategy
+        : "full",
     taskDefaultStrategyDismissed: record.taskDefaultStrategyDismissed === true,
   };
 }
@@ -231,6 +242,7 @@ export function defaultPersonaSetup(fallbackPersonaModel: string): CockpitPerson
     personaModel: fallbackPersonaModel,
     personaPool: PERSONA_BENCH_POOL,
     useTaskDefaultStrategy: false,
+    personaAttributeStrategy: "full",
   };
 }
 

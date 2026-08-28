@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 import sys
 import yaml
 
@@ -994,13 +994,14 @@ class HarborJobService:
         chat_application_context: str | None = None,
         chat_max_turns: int | None = None,
         persona_sources: list[str] | None = None,
-        persona_filters: dict[str, str] | None = None,
+        persona_filters: Mapping[str, Any] | None = None,
         cohort_id: str | None = None,
         use_entire_pool: bool = False,
         os_app_submission_profile: str | None = None,
         os_app_backend: str | None = None,
         cua_backend: str | None = None,
         execution_plane: str | None = None,
+        persona_attribute_strategy: str = "full",
     ) -> str:
         from backend.service.execution_plane import (
             ExecutionPlaneError,
@@ -1030,7 +1031,7 @@ class HarborJobService:
         resolved_pool = persona_pool
         resolved_seed = seed
         resolved_sources = persona_sources
-        resolved_filters = persona_filters
+        resolved_filters: Mapping[str, Any] | None = persona_filters
         resolved_use_entire_pool = bool(use_entire_pool)
 
         if cohort_id:
@@ -1142,6 +1143,10 @@ class HarborJobService:
                     agent_cfg,
                     model_name=str(agent_cfg.get("model_name") or model),
                 )
+                if persona_attribute_strategy:
+                    kwargs = agent_cfg.setdefault("kwargs", {})
+                    if isinstance(kwargs, dict):
+                        kwargs["persona_attribute_strategy"] = persona_attribute_strategy
         # os_app_submission_profile / cua_submission_profile are no longer injected:
         # agents mirror final_answer only; task verifiers recover named JSON.
         if os_app_backend:
@@ -1257,6 +1262,7 @@ class HarborJobService:
                 "chatApplicationId": chat_application_id,
                 "chatApplicationContext": chat_application_context,
                 "chatMaxTurns": chat_max_turns,
+                "personaAttributeStrategy": persona_attribute_strategy,
                 "jobConfig": job_config,
             },
         )
@@ -1544,6 +1550,77 @@ class HarborJobService:
             maybe_write_trial_user_feedback(repo_root=self.repo_root, trial_dir=trial_dir)
         except Exception:
             logger.exception("post_run_feedback failed for trial %s", trial_dir)
+        try:
+            self._maybe_evaluate_attribute_adherence_on_host(trial_dir)
+        except Exception:
+            logger.exception("attribute adherence evaluation failed for trial %s", trial_dir)
+
+    def _maybe_evaluate_attribute_adherence_on_host(self, trial_dir: Path) -> None:
+        """Evaluate attribute adherence on host if attribute_dependencies.json exists."""
+        out_dir = trial_dir / "artifacts" / "app" / "output"
+        report_target = out_dir / "attribute_adherence_report.json"
+        root_report_target = trial_dir / "attribute_adherence_report.json"
+        if report_target.is_file() or root_report_target.is_file():
+            return
+
+        survey_result_path = out_dir / "survey_result.json"
+        if not survey_result_path.is_file():
+            survey_result_path = trial_dir / "survey_result.json"
+        if not survey_result_path.is_file():
+            return
+
+        config_file = trial_dir / "config.json"
+        if not config_file.is_file():
+            return
+
+        try:
+            import json
+            config = json.loads(config_file.read_text(encoding="utf-8"))
+            task_info = config.get("task") or {}
+            task_path = task_info.get("path")
+            agent_info = config.get("agent") or {}
+            kwargs = agent_info.get("kwargs") or {}
+            persona_path = kwargs.get("persona_path")
+            if not persona_path:
+                input_p = trial_dir / "artifacts" / "app" / "input" / "persona.yaml"
+                if input_p.is_file():
+                    persona_path = str(input_p)
+
+            if not persona_path:
+                return
+
+            from application.playground.attribute_dependency import (
+                PersonaAttributeAdherenceEvaluator,
+                find_task_attribute_dependencies_path,
+            )
+
+            deps_path = find_task_attribute_dependencies_path(
+                task_path=task_path,
+                repo_root=self.repo_root,
+            )
+            if not deps_path:
+                return
+
+            resolved_persona = str(self.repo_root / persona_path if not Path(persona_path).is_absolute() else persona_path)
+
+            evaluator = PersonaAttributeAdherenceEvaluator(verbose=False)
+            adherence_result = evaluator.evaluate_survey_trial(
+                persona_data=resolved_persona,
+                survey_result_data=survey_result_path,
+                attribute_dependencies_data=deps_path,
+            )
+            report_dict = adherence_result.to_dict()
+
+            out_dir.mkdir(parents=True, exist_ok=True)
+            report_target.write_text(json.dumps(report_dict, ensure_ascii=False, indent=2), encoding="utf-8")
+            root_report_target.write_text(json.dumps(report_dict, ensure_ascii=False, indent=2), encoding="utf-8")
+
+            from playground.harbor.trial_events import TrialEventWriter
+            writer = TrialEventWriter.for_trial_dir(trial_dir)
+            writer.append({"type": "attribute_adherence", "summary": report_dict.get("summary")})
+            logger.info("Host generated attribute adherence report for trial %s", trial_dir.name)
+        except Exception:
+            logger.exception("host attribute adherence evaluation failed for trial %s", trial_dir)
 
     def _score_new_finished_trials_on_host(
         self, job_name: str, *, already_scored: set[str]

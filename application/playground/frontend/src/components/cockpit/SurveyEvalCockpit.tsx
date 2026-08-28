@@ -235,6 +235,8 @@ export function SurveyEvalCockpit({
       taskPersonaStrategy,
       useTaskDefaultStrategy,
       setUseTaskDefaultStrategy,
+      personaAttributeStrategy,
+      setPersonaAttributeStrategy,
     },
     batch: {
       batchJobName,
@@ -569,6 +571,8 @@ export function SurveyEvalCockpit({
           taskPersonaStrategy={taskPersonaStrategy}
           useTaskDefaultStrategy={useTaskDefaultStrategy}
           onUseTaskDefaultStrategyChange={setUseTaskDefaultStrategy}
+          personaAttributeStrategy={personaAttributeStrategy}
+          onPersonaAttributeStrategyChange={setPersonaAttributeStrategy}
           onPersonaPoolChange={setPersonaPool}
           personaPool={visiblePersonaPool}
           disabled={setupLocked}

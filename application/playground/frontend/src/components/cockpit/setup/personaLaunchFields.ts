@@ -1,4 +1,4 @@
-import { PERSONA_UI_ID_LIST_MAX } from "@/lib/types";
+import { PERSONA_UI_ID_LIST_MAX, type PersonaAttributeStrategy } from "@/lib/types";
 
 /** Shared fields for POST /api/harbor/jobs persona selection. */
 export type PersonaLaunchFields = {
@@ -7,6 +7,7 @@ export type PersonaLaunchFields = {
   personaIds?: string[];
   useEntirePool?: boolean;
   nConcurrentTrials: number;
+  personaAttributeStrategy?: PersonaAttributeStrategy;
 };
 
 export function resolveCohortSize(input: {
@@ -34,6 +35,7 @@ export function buildPersonaLaunchFields(input: {
   selectedCount?: number;
   useEntirePool?: boolean;
   parallelTrials: number;
+  personaAttributeStrategy?: PersonaAttributeStrategy;
 }): PersonaLaunchFields {
   const sampleSize = resolveCohortSize(input);
   const entire = shouldLaunchEntirePool(input);
@@ -44,6 +46,7 @@ export function buildPersonaLaunchFields(input: {
       sampleSize,
       useEntirePool: true,
       nConcurrentTrials,
+      personaAttributeStrategy: input.personaAttributeStrategy,
     };
   }
   return {
@@ -51,6 +54,7 @@ export function buildPersonaLaunchFields(input: {
     sampleSize: input.selectedPersonaIds.length || sampleSize,
     personaIds: input.selectedPersonaIds,
     nConcurrentTrials,
+    personaAttributeStrategy: input.personaAttributeStrategy,
   };
 }
 

@@ -25,9 +25,20 @@ from playground.types import Persona
 from playground.user_sim.prompt import render_persona_block
 
 
-def persona_system_prompt(persona: Persona, *, persona_yaml_path: str) -> str:
+def persona_system_prompt(
+    persona: Persona,
+    *,
+    persona_yaml_path: str,
+    attribute_strategy: str = "full",
+    task_path: Optional[str] = None,
+    instrument_id: Optional[str] = None,
+) -> str:
     persona_body = render_persona_block(
-        persona, persona_yaml_path=persona_yaml_path
+        persona,
+        persona_yaml_path=persona_yaml_path,
+        attribute_strategy=attribute_strategy,
+        task_path=task_path,
+        instrument_id=instrument_id,
     ).strip()
     if not persona_body:
         raise ValueError(f"empty persona render for yaml path: {persona_yaml_path}")
@@ -87,6 +98,8 @@ class InprocessSurveyEvalRunner:
         job_dir: Optional[Any] = None,
         client: Any | None = None,
         client_factory: Optional[Callable[[str], Any]] = None,
+        persona_attribute_strategy: str = "full",
+        task_path: Optional[str] = None,
     ) -> SurveyEvalResult:
         config = config or SurveyEvalConfig()
 
@@ -96,7 +109,11 @@ class InprocessSurveyEvalRunner:
 
         task_prompt = build_survey_task_prompt(instrument=instrument)
         persona_prompt = persona_system_prompt(
-            persona, persona_yaml_path=persona_yaml_path
+            persona,
+            persona_yaml_path=persona_yaml_path,
+            attribute_strategy=persona_attribute_strategy,
+            task_path=task_path,
+            instrument_id=instrument.id,
         )
         prompts = {
             "personaPrompt": persona_prompt,

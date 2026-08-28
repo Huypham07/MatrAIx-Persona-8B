@@ -17,5 +17,7 @@
     "persona",
     "scripts",
     "tests"
-  ]
+  ],
+  "reportMissingImports": false,
+  "reportMissingModuleSource": false
 }

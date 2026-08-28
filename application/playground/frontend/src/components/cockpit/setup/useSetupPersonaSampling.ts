@@ -95,6 +95,9 @@ export function useSetupPersonaSampling(
   const [useTaskDefaultStrategy, setUseTaskDefaultStrategyState] = useState(
     initial.useTaskDefaultStrategy,
   );
+  const [personaAttributeStrategy, setPersonaAttributeStrategy] = useState<
+    "full" | "task_dependencies" | "hybrid"
+  >(initial.personaAttributeStrategy ?? "full");
   const [taskDefaultStrategyDismissed, setTaskDefaultStrategyDismissed] = useState(
     initial.taskDefaultStrategyDismissed === true,
   );
@@ -129,6 +132,7 @@ export function useSetupPersonaSampling(
     setParallelTrials(record.parallelTrials);
     setPersonaPool(sanitizePersonaPool(record.personaPool));
     setUseTaskDefaultStrategyState(record.useTaskDefaultStrategy);
+    setPersonaAttributeStrategy(record.personaAttributeStrategy ?? "full");
     setTaskDefaultStrategyDismissed(record.taskDefaultStrategyDismissed === true);
   }, []);
 
@@ -379,6 +383,7 @@ export function useSetupPersonaSampling(
       personaModel,
       personaPool,
       useTaskDefaultStrategy,
+      personaAttributeStrategy,
       taskDefaultStrategyDismissed,
     };
     // Task-fill pools are valid only while Task default is on.
@@ -405,6 +410,7 @@ export function useSetupPersonaSampling(
     personaModel,
     personaPool,
     useTaskDefaultStrategy,
+    personaAttributeStrategy,
     taskDefaultStrategyDismissed,
     fallbackPersonaModel,
   ]);
@@ -496,5 +502,7 @@ export function useSetupPersonaSampling(
     taskPersonaStrategy,
     useTaskDefaultStrategy: hasTaskStrategy && useTaskDefaultStrategy,
     setUseTaskDefaultStrategy,
+    personaAttributeStrategy,
+    setPersonaAttributeStrategy,
   };
 }

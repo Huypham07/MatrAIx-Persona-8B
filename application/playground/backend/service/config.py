@@ -127,6 +127,10 @@ PERSONA_MODEL_KNOB_META: Dict[str, Dict[str, str]] = {
         "label": "Claude Haiku 4.5",
         "description": "Anthropic Claude Haiku 4.5 served through OpenRouter.",
     },
+    "openrouter/minimax/minimax-m3:free": {
+        "label": "MiniMax M3 (Free)",
+        "description": "MiniMax M3 Free tier via OpenRouter.",
+    },
 }
 
 PERSONA_MODEL_OPTIONS = list(PERSONA_MODEL_KNOB_META.keys())

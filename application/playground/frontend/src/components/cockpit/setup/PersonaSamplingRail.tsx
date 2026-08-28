@@ -635,6 +635,8 @@ export interface PersonaSamplingRailProps {
   taskPersonaStrategy?: TaskPersonaStrategy | null;
   useTaskDefaultStrategy?: boolean;
   onUseTaskDefaultStrategyChange?: (useDefault: boolean) => void;
+  personaAttributeStrategy?: "full" | "task_dependencies" | "hybrid";
+  onPersonaAttributeStrategyChange?: (strategy: "full" | "task_dependencies" | "hybrid") => void;
   /** Called when sampling resolves to a (possibly materialized) pool path. */
   onPersonaPoolChange?: (pool: string) => void;
   /** Active pool path for the footer label (defaults to matraix-persona-dev-sample). */
@@ -671,6 +673,8 @@ export function PersonaSamplingRail({
   taskPersonaStrategy = null,
   useTaskDefaultStrategy = false,
   onUseTaskDefaultStrategyChange,
+  personaAttributeStrategy = "full",
+  onPersonaAttributeStrategyChange,
   onPersonaPoolChange,
   personaPool = null,
   disabled,
@@ -1322,6 +1326,39 @@ export function PersonaSamplingRail({
                   onChange={onPersonaModelChange}
                 />
               )}
+              <div data-testid="persona-traits-strategy-select">
+                <CockpitSelect
+                  label={t("personaSetup.attributeStrategy.label") || "Traits"}
+                  inlineLabel
+                  labelClassName="w-[4.25rem]"
+                  value={personaAttributeStrategy}
+                  options={[
+                    {
+                      value: "full",
+                      label: t("personaSetup.attributeStrategy.full") || "Full Profile (1,290 traits)",
+                      meta: t("personaSetup.attributeStrategy.fullDesc") || "Include all 1,290 persona traits in prompt",
+                    },
+                    {
+                      value: "task_dependencies",
+                      label: t("personaSetup.attributeStrategy.dependencies") || "Task Dependencies",
+                      meta: t("personaSetup.attributeStrategy.dependenciesDesc") || "Pruned to unique attributes in task dependencies",
+                    },
+                    {
+                      value: "hybrid",
+                      label: t("personaSetup.attributeStrategy.hybrid") || "Hybrid (Deps + Demographic)",
+                      meta: t("personaSetup.attributeStrategy.hybridDesc") || "Task dependencies + core demographic traits",
+                    },
+                  ]}
+                  disabled={disabled}
+                  wideMenu
+                  showSelectedMeta={false}
+                  onChange={(val) =>
+                    onPersonaAttributeStrategyChange?.(
+                      val as "full" | "task_dependencies" | "hybrid",
+                    )
+                  }
+                />
+              </div>
             </div>
 
             <div className="cockpit-segment cockpit-segment--grid mb-2 grid-cols-2">

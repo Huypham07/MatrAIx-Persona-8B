@@ -67,6 +67,7 @@ export function useCockpitLaunch(
     parallelTrials,
     seed,
     personaModel,
+    personaAttributeStrategy,
   } = sampling;
   const { setBatchJobName } = batch;
 
@@ -89,12 +90,14 @@ export function useCockpitLaunch(
           selectedCount,
           useEntirePool,
           parallelTrials,
+          personaAttributeStrategy,
         });
         const launched = await api.launchHarborJob({
           taskPath: input.taskPath,
           seed,
           personaModel,
           ...personaFields,
+          personaAttributeStrategy,
           mode: "auto",
           ...input.overrides,
         });
@@ -115,6 +118,7 @@ export function useCockpitLaunch(
       parallelTrials,
       seed,
       personaModel,
+      personaAttributeStrategy,
       setBatchJobName,
     ],
   );

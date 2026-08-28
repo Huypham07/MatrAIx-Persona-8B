@@ -91,6 +91,7 @@ class OpenAIChatClient:
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
+            "temperature": 0.7,
             "timeout": self.timeout_seconds,
         }
         if openai_model_supports_custom_temperature(self.model):
