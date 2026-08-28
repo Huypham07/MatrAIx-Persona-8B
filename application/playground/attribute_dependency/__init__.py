@@ -15,7 +15,7 @@ if TYPE_CHECKING:
         QuestionDependencyResult,
         SurveyDependencyResult,
     )
-    from .llm_client import BaseLLMClient, MockLLMClient, OpenAILLMClient
+    from .llm_client import BaseLLMClient, MockLLMClient, OpenAILLMClient, build_llm_client_for_model
     from .load_tree import (
         PersonaTaxonomyTree,
         TreeNode,
@@ -49,6 +49,7 @@ __all__ = [
     "BaseLLMClient",
     "OpenAILLMClient",
     "MockLLMClient",
+    "build_llm_client_for_model",
     "process_task_attribute_dependencies",
     "PersonaAttributeAdherenceEvaluator",
     "SurveyAdherenceResult",
@@ -85,7 +86,7 @@ def __getattr__(name: str):
             from . import dependency_extractor
 
             return getattr(dependency_extractor, name)
-        elif name in ["BaseLLMClient", "OpenAILLMClient", "MockLLMClient"]:
+        elif name in ["BaseLLMClient", "OpenAILLMClient", "MockLLMClient", "build_llm_client_for_model"]:
             from . import llm_client
 
             return getattr(llm_client, name)

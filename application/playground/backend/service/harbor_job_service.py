@@ -1601,9 +1601,10 @@ class HarborJobService:
             if not deps_path:
                 return
 
+            model_name = agent_info.get("model_name")
             resolved_persona = str(self.repo_root / persona_path if not Path(persona_path).is_absolute() else persona_path)
 
-            evaluator = PersonaAttributeAdherenceEvaluator(verbose=False)
+            evaluator = PersonaAttributeAdherenceEvaluator(model_name=model_name, verbose=False)
             adherence_result = evaluator.evaluate_survey_trial(
                 persona_data=resolved_persona,
                 survey_result_data=survey_result_path,

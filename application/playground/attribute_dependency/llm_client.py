@@ -44,14 +44,34 @@ class BaseLLMClient(Protocol):
         ...
 
 
+def build_llm_client_for_model(
+    model_name: Optional[str] = None,
+    *,
+    temperature: float = 0.0,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    auth_header: Optional[str] = None,
+    default_headers: Optional[Dict[str, str]] = None,
+) -> BaseLLMClient:
+    """Unified factory to resolve any model name into the appropriate LLM client."""
+    return OpenAILLMClient(
+        model=model_name,
+        api_key=api_key,
+        base_url=base_url,
+        auth_header=auth_header,
+        temperature=temperature,
+        default_headers=default_headers,
+    )
+
+
 class OpenAILLMClient:
     """OpenAI-compatible LLM client.
 
-    Supports OpenAI, local servers (vLLM, Ollama, LiteLLM), OpenRouter, etc.
+    Supports OpenAI, local servers (vLLM, Ollama, LiteLLM), OpenRouter, DashScope, etc.
     Priority for config:
-      1. Explicit constructor arguments
-      2. LOCAL_LLM_* environment variables (LOCAL_LLM_MODEL, LOCAL_LLM_BASE_URL, LOCAL_LLM_AUTH_HEADER)
-      3. OPENAI_* / LLM_* environment variables
+      1. Explicit constructor arguments / Prefix routing (openrouter/*, local/*, openai/*, dashscope/*)
+      2. LOCAL_LLM_* environment variables
+      3. OPENROUTER_* / OPENAI_* environment variables
     """
 
     def __init__(
@@ -71,35 +91,67 @@ class OpenAILLMClient:
                 "Install it with `pip install openai`."
             ) from e
 
-        # Resolve model name
-        self.model = (
-            model
-            or os.getenv("LOCAL_LLM_MODEL")
-            or "Qwen3-14B"
-        )
+        raw_model = (model or os.getenv("LOCAL_LLM_MODEL") or "").strip()
+        openrouter_key = (os.getenv("OPENROUTER_API_KEY") or "").strip()
+        local_base = (os.getenv("LOCAL_LLM_BASE_URL") or "").strip()
+        openai_base = (os.getenv("OPENAI_BASE_URL") or os.getenv("OPENAI_API_BASE") or "").strip()
+        dashscope_key = (os.getenv("DASHSCOPE_API_KEY") or "").strip()
 
-        # Resolve base URL
-        self.base_url = (
-            base_url
-            or os.getenv("LOCAL_LLM_BASE_URL")
-            or os.getenv("OPENAI_BASE_URL")
-            or "http://203.113.152.4:7777/llm/v1"
-        )
-
-        # Resolve auth header & api key
-        self.auth_header = (
-            auth_header
-            or os.getenv("LOCAL_LLM_AUTH_HEADER")
-        )
-
-        self.api_key = (
-            api_key
-            or "dummy-key"
-        )
+        # 1. Prefix: openrouter/...
+        if raw_model.startswith("openrouter/"):
+            self.model = raw_model.split("/", 1)[1]
+            self.base_url = (base_url or os.getenv("OPENROUTER_API_BASE") or os.getenv("OPENROUTER_BASE_URL") or "https://openrouter.ai/api/v1").strip()
+            self.api_key = (api_key or openrouter_key or "dummy-key").strip()
+            self.auth_header = auth_header
+        # 2. Prefix: local/...
+        elif raw_model.startswith("local/"):
+            self.model = raw_model.split("/", 1)[1]
+            self.base_url = (base_url or local_base or openai_base or "http://203.113.152.4:7777/llm/v1").strip()
+            self.auth_header = auth_header or os.getenv("LOCAL_LLM_AUTH_HEADER")
+            self.api_key = (api_key or os.getenv("LOCAL_LLM_API_KEY") or "dummy-key").strip()
+        # 3. Prefix: dashscope/...
+        elif raw_model.startswith("dashscope/"):
+            self.model = raw_model.split("/", 1)[1]
+            self.base_url = (base_url or os.getenv("DASHSCOPE_API_BASE") or "https://dashscope.aliyuncs.com/compatible-mode/v1").strip()
+            self.api_key = (api_key or dashscope_key or "dummy-key").strip()
+            self.auth_header = auth_header
+        # 4. Prefix: openai/... or standard gpt-
+        elif raw_model.startswith("openai/"):
+            self.model = raw_model.split("/", 1)[1]
+            self.base_url = (base_url or "https://api.openai.com/v1").strip()
+            self.api_key = (api_key or os.getenv("OPENAI_API_KEY") or "dummy-key").strip()
+            self.auth_header = auth_header
+        # 5. Non-prefixed model string
+        else:
+            if base_url:
+                self.base_url = base_url
+                self.model = raw_model or "Qwen3-14B"
+                self.api_key = (api_key or os.getenv("LOCAL_LLM_API_KEY") or "dummy-key").strip()
+                self.auth_header = auth_header or os.getenv("LOCAL_LLM_AUTH_HEADER")
+            elif local_base:
+                self.base_url = local_base
+                self.model = raw_model or "Qwen3-14B"
+                self.api_key = (api_key or os.getenv("LOCAL_LLM_API_KEY") or "dummy-key").strip()
+                self.auth_header = auth_header or os.getenv("LOCAL_LLM_AUTH_HEADER")
+            elif openai_base:
+                self.base_url = openai_base
+                self.model = raw_model or "Qwen3-14B"
+                self.api_key = (api_key or os.getenv("LOCAL_LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or "dummy-key").strip()
+                self.auth_header = auth_header or os.getenv("LOCAL_LLM_AUTH_HEADER")
+            elif openrouter_key and ("minimax" in raw_model.lower() or "deepseek" in raw_model.lower() or "free" in raw_model.lower()):
+                self.base_url = "https://openrouter.ai/api/v1"
+                self.model = raw_model or "minimax/minimax-m3:free"
+                self.api_key = (api_key or openrouter_key).strip()
+                self.auth_header = auth_header
+            else:
+                self.base_url = "http://203.113.152.4:7777/llm/v1"
+                self.model = raw_model or "Qwen3-14B"
+                self.api_key = (api_key or "dummy-key").strip()
+                self.auth_header = auth_header or os.getenv("LOCAL_LLM_AUTH_HEADER")
 
         self.temperature = temperature
 
-        # Build custom headers if LOCAL_LLM_AUTH_HEADER or custom headers are supplied
+        # Build custom headers if auth_header or custom headers are supplied
         headers = dict(default_headers or {})
         if self.auth_header:
             headers["Authorization"] = self.auth_header
@@ -116,7 +168,7 @@ class OpenAILLMClient:
         system_prompt: Optional[str] = None,
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
-        enable_thinking: bool= False
+        enable_thinking: bool = False,
     ) -> str:
         """Call LLM and return raw free text response without JSON constraint."""
         messages = []
@@ -128,12 +180,13 @@ class OpenAILLMClient:
             "model": self.model,
             "messages": messages,
             "temperature": self.temperature if temperature is None else temperature,
-            "extra_body": {
+        }
+        if enable_thinking:
+            kwargs["extra_body"] = {
                 "chat_template_kwargs": {
-                    "enable_thinking": enable_thinking
+                    "enable_thinking": True
                 }
             }
-        }
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
 

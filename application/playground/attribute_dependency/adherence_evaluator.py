@@ -7,9 +7,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-import yaml
-
-from .llm_client import BaseLLMClient, MockLLMClient, OpenAILLMClient
+from .llm_client import BaseLLMClient, MockLLMClient, OpenAILLMClient, build_llm_client_for_model
 
 # =====================================================================
 # Prompt Templates for LLM Judge
@@ -241,9 +239,15 @@ class PersonaAttributeAdherenceEvaluator:
     def __init__(
         self,
         llm_client: Optional[BaseLLMClient] = None,
+        model_name: Optional[str] = None,
         verbose: bool = True,
     ):
-        self.llm_client = llm_client or OpenAILLMClient()
+        if llm_client is not None:
+            self.llm_client = llm_client
+        elif model_name:
+            self.llm_client = build_llm_client_for_model(model_name)
+        else:
+            self.llm_client = build_llm_client_for_model()
         self.verbose = verbose
 
     def _log(self, msg: str) -> None:

@@ -135,6 +135,7 @@ def _evaluate_attribute_adherence(
     instrument_id: str | None,
     trial_dir: Path,
     on_event: object,
+    model_name: str | None = None,
 ) -> dict[str, object] | None:
     """Run post-simulation LLM judge to evaluate causal adherence of persona traits."""
     try:
@@ -163,8 +164,8 @@ def _evaluate_attribute_adherence(
         if not deps_path:
             return None
 
-        # 2. Run Evaluator
-        evaluator = PersonaAttributeAdherenceEvaluator(verbose=False)
+        # 2. Run Evaluator with the specific trial model
+        evaluator = PersonaAttributeAdherenceEvaluator(model_name=model_name, verbose=False)
         adherence_result = evaluator.evaluate_survey_trial(
             persona_data=persona_yaml_path,
             survey_result_data=survey_payload,
@@ -299,6 +300,7 @@ class PersonaJsonSurvey(PersonaMixin, BaseAgent):
             instrument_id=instrument.id,
             trial_dir=trial_dir,
             on_event=on_event,
+            model_name=self._model_name,
         )
         if adherence_report:
             payload["attributeAdherence"] = adherence_report.get("summary")
